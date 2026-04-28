@@ -15,8 +15,6 @@
   <depend>actionlib_msgs</depend>
   <depend>tf</depend>
 
-  <build_depend>message_generation</build_depend>
-  <exec_depend>message_runtime</exec_depend>
   <exec_depend>python3-yaml</exec_depend>
   <test_depend>python3-pytest</test_depend>
 </package>
