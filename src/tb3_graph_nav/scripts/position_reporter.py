@@ -10,12 +10,12 @@ from tb3_graph_nav.graph import Graph
 class PositionReporter:
     def __init__(self):
         rospy.init_node('position_reporter')
-        graph_path = rospy.get_param(
-            '~graph_config',
-            os.path.join(
+        if rospy.has_param('~graph_config'):
+            graph_path = rospy.get_param('~graph_config')
+        else:
+            graph_path = os.path.join(
                 rospkg.RosPack().get_path('tb3_graph_nav'), 'config', 'graph.yaml'
             )
-        )
         self._graph = Graph.from_yaml(graph_path)
         self._pub = rospy.Publisher('/node_status', NodeStatus, queue_size=10)
         rospy.Subscriber('/odom', Odometry, self._odom_cb)
@@ -39,4 +39,7 @@ class PositionReporter:
 
 
 if __name__ == '__main__':
-    PositionReporter().run()
+    try:
+        PositionReporter().run()
+    except rospy.ROSInterruptException:
+        pass
