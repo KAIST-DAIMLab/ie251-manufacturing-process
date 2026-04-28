@@ -59,6 +59,29 @@ def test_nearest_node_exact_match():
     assert dist == 0.0
 
 
+def test_nearest_node_raises_on_empty_graph():
+    g = Graph()
+    with pytest.raises(ValueError, match="empty graph"):
+        g.nearest_node(0.0, 0.0)
+
+
+def test_add_node_duplicate_raises():
+    g = Graph()
+    g.add_node('A', 0.0, 0.0)
+    with pytest.raises(ValueError, match="already exists"):
+        g.add_node('A', 1.0, 1.0)
+
+
+def test_add_edge_duplicate_is_idempotent():
+    g = Graph()
+    g.add_node('A', 0.0, 0.0)
+    g.add_node('B', 1.0, 0.0)
+    g.add_edge('A', 'B')
+    g.add_edge('A', 'B')  # second call should not duplicate
+    assert g.edges['A'].count('B') == 1
+    assert g.edges['B'].count('A') == 1
+
+
 def test_from_yaml_loads_nodes_and_edges():
     data = {
         'nodes': {

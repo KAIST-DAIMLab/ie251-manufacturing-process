@@ -22,16 +22,21 @@ class Graph:
         self.edges: Dict[str, List[str]] = {}
 
     def add_node(self, node_id: str, x: float, y: float) -> None:
+        if node_id in self.nodes:
+            raise ValueError(f"Node {node_id!r} already exists")
         self.nodes[node_id] = Node(node_id, x, y)
         self.edges[node_id] = []
 
     def add_edge(self, node_a: str, node_b: str) -> None:
         if node_a not in self.nodes or node_b not in self.nodes:
             raise ValueError(f"Node {node_a!r} or {node_b!r} not in graph")
-        self.edges[node_a].append(node_b)
-        self.edges[node_b].append(node_a)
+        if node_b not in self.edges[node_a]:
+            self.edges[node_a].append(node_b)
+            self.edges[node_b].append(node_a)
 
     def nearest_node(self, x: float, y: float) -> Tuple[str, float]:
+        if not self.nodes:
+            raise ValueError("nearest_node called on empty graph")
         best_id: Optional[str] = None
         best_dist = float('inf')
         for node_id, node in self.nodes.items():
