@@ -6,6 +6,11 @@ from tb3_graph_nav.graph import Graph
 from tb3_graph_nav.planner import dijkstra
 
 
+def _is_valid_path(graph, path):
+    """Every consecutive pair of node IDs must be a real edge in the graph."""
+    return all(path[i+1] in graph.edges[path[i]] for i in range(len(path)-1))
+
+
 @pytest.fixture
 def linear_graph():
     """A — B — C — D  (1 m apart on x-axis)"""
@@ -42,7 +47,9 @@ def test_adjacent_nodes(linear_graph):
 
 
 def test_three_hop_path(linear_graph):
-    assert dijkstra(linear_graph, 'A', 'D') == ['A', 'B', 'C', 'D']
+    path = dijkstra(linear_graph, 'A', 'D')
+    assert path == ['A', 'B', 'C', 'D']
+    assert _is_valid_path(linear_graph, path)
 
 
 def test_reverse_path(linear_graph):
@@ -54,6 +61,7 @@ def test_grid_path_length(grid_graph):
     assert path[0] == 'A'
     assert path[-1] == 'D'
     assert len(path) == 3  # 2 hops
+    assert _is_valid_path(grid_graph, path)
 
 
 def test_disconnected_graph_returns_none():
