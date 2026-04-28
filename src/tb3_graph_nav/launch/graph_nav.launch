@@ -1,0 +1,11 @@
+<launch>
+  <arg name="graph_config" default="$(find tb3_graph_nav)/config/graph.yaml"/>
+
+  <node pkg="tb3_graph_nav" type="nav_server.py" name="nav_server" output="screen">
+    <param name="graph_config" value="$(arg graph_config)"/>
+  </node>
+
+  <node pkg="tb3_graph_nav" type="position_reporter.py" name="position_reporter" output="screen">
+    <param name="graph_config" value="$(arg graph_config)"/>
+  </node>
+</launch>
