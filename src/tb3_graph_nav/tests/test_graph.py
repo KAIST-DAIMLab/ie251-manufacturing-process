@@ -82,6 +82,18 @@ def test_add_edge_duplicate_is_idempotent():
     assert g.edges['B'].count('A') == 1
 
 
+def test_from_yaml_raises_on_missing_edges_key():
+    data = {'nodes': {'N1': {'x': 0.0, 'y': 0.0}}}  # no 'edges' key
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+        yaml.dump(data, f)
+        path = f.name
+    try:
+        with pytest.raises(ValueError, match="must have top-level"):
+            Graph.from_yaml(path)
+    finally:
+        os.unlink(path)
+
+
 def test_from_yaml_loads_nodes_and_edges():
     data = {
         'nodes': {

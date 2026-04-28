@@ -50,6 +50,10 @@ class Graph:
     def from_yaml(cls, path: str) -> 'Graph':
         with open(path, 'r') as f:
             data = yaml.safe_load(f)
+        if not isinstance(data, dict) or 'nodes' not in data or 'edges' not in data:
+            raise ValueError(
+                f"YAML file {path!r} must have top-level 'nodes' and 'edges' keys"
+            )
         g = cls()
         for node_id, coords in data['nodes'].items():
             g.add_node(node_id, float(coords['x']), float(coords['y']))
