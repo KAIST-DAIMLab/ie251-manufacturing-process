@@ -1,7 +1,8 @@
 <launch>
   <!-- TurtleBot3 Waffle in Gazebo empty world, spawned at node A1 (0.5, 0.5) -->
-  <env name="TURTLEBOT3_MODEL" value="waffle"/>
+  <!-- Pass model as an arg — <env> is evaluated too late for $(env ...) substitution -->
   <include file="$(find turtlebot3_gazebo)/launch/turtlebot3_empty_world.launch">
+    <arg name="model" value="waffle"/>
     <arg name="x_pos" value="0.5"/>
     <arg name="y_pos" value="0.5"/>
     <arg name="z_pos" value="0.0"/>
