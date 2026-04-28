@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import math
 import os
+import threading
 import rospy
 import rospkg
 import actionlib
@@ -28,6 +29,7 @@ class NavServer:
         self._gtg = GoToGoal()
         self._x = 0.0
         self._y = 0.0
+        self._pos_lock = threading.Lock()
         rospy.Subscriber('/odom', Odometry, self._odom_cb)
         self._server = actionlib.SimpleActionServer(
             'navigate_to_node',
@@ -41,8 +43,9 @@ class NavServer:
         )
 
     def _odom_cb(self, msg: Odometry) -> None:
-        self._x = msg.pose.pose.position.x
-        self._y = msg.pose.pose.position.y
+        with self._pos_lock:
+            self._x = msg.pose.pose.position.x
+            self._y = msg.pose.pose.position.y
 
     def _execute(self, goal) -> None:
         target = goal.target_node_id
@@ -56,7 +59,9 @@ class NavServer:
             )
             return
 
-        start_id, _ = self._graph.nearest_node(self._x, self._y)
+        with self._pos_lock:
+            x, y = self._x, self._y
+        start_id, _ = self._graph.nearest_node(x, y)
         path = dijkstra(self._graph, start_id, target)
 
         if path is None:
@@ -76,16 +81,22 @@ class NavServer:
                 return
 
             node = self._graph.nodes[node_id]
+            with self._pos_lock:
+                fx, fy = self._x, self._y
             fb = NavigateToNodeFeedback()
             fb.current_node_id = node_id
-            fb.x = self._x
-            fb.y = self._y
+            fb.x = fx
+            fb.y = fy
             fb.distance_to_next = float(
-                math.sqrt((node.x - self._x) ** 2 + (node.y - self._y) ** 2)
+                math.sqrt((node.x - fx) ** 2 + (node.y - fy) ** 2)
             )
             self._server.publish_feedback(fb)
             rospy.loginfo(f"Driving to {node_id} ({node.x:.2f}, {node.y:.2f})")
-            self._gtg.go_to(node.x, node.y)
+            if not self._gtg.go_to(node.x, node.y):
+                self._server.set_aborted(
+                    NavigateToNodeResult(success=False, message="ROS shutdown during navigation")
+                )
+                return
             rospy.loginfo(f"Reached {node_id}")
 
         result = NavigateToNodeResult(success=True, message=f"Reached '{target}'")
