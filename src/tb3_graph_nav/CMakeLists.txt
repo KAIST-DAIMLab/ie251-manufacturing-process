@@ -22,6 +22,11 @@ catkin_package(
   CATKIN_DEPENDS rospy geometry_msgs nav_msgs actionlib actionlib_msgs tf message_runtime
 )
 
+catkin_install_python(PROGRAMS
+  scripts/position_reporter.py
+  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+
 install(DIRECTORY config launch
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 )
