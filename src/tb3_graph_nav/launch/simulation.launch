@@ -1,10 +1,26 @@
 <launch>
-  <!-- TurtleBot3 Waffle in Gazebo empty world, spawned at node A1 (0.5, 0.5) -->
-  <!-- Pass model as an arg — <env> is evaluated too late for $(env ...) substitution -->
-  <include file="$(find turtlebot3_gazebo)/launch/turtlebot3_empty_world.launch">
-    <arg name="model" value="waffle"/>
-    <arg name="x_pos" value="0.5"/>
-    <arg name="y_pos" value="0.5"/>
-    <arg name="z_pos" value="0.0"/>
+  <!-- Inline turtlebot3_empty_world.launch with model hardcoded to waffle.
+       We cannot use the upstream launch file because roslaunch evaluates
+       $(env TURTLEBOT3_MODEL) at parse time even when the arg is overridden. -->
+
+  <!-- Gazebo empty world -->
+  <include file="$(find gazebo_ros)/launch/empty_world.launch">
+    <arg name="world_name" value="$(find turtlebot3_gazebo)/worlds/empty.world"/>
+    <arg name="paused"    value="false"/>
+    <arg name="use_sim_time" value="true"/>
+    <arg name="gui"       value="true"/>
+    <arg name="headless"  value="false"/>
+    <arg name="debug"     value="false"/>
   </include>
+
+  <!-- TurtleBot3 Waffle URDF -->
+  <param name="robot_description"
+         command="$(find xacro)/xacro --inorder
+                  $(find turtlebot3_description)/urdf/turtlebot3_waffle.urdf.xacro"/>
+
+  <!-- Spawn robot at node A1 (0.5, 0.5) -->
+  <node pkg="gazebo_ros" type="spawn_model" name="spawn_urdf"
+        args="-urdf -model turtlebot3_waffle
+              -x 0.5 -y 0.5 -z 0.0
+              -param robot_description"/>
 </launch>
