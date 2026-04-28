@@ -24,6 +24,7 @@ catkin_package(
 
 catkin_install_python(PROGRAMS
   scripts/position_reporter.py
+  scripts/nav_server.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
