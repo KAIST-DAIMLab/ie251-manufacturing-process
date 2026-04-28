@@ -28,6 +28,6 @@ catkin_install_python(PROGRAMS
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
-install(DIRECTORY config launch
+install(DIRECTORY config launch worlds
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 )
