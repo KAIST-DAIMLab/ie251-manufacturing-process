@@ -1,0 +1,30 @@
+services:
+  noetic:
+    build: .
+    image: dev-ros-noetic
+    container_name: noetic
+    hostname: noetic
+    network_mode: host
+    ipc: host
+    stdin_open: true
+    tty: true
+    environment:
+      - DISPLAY=${DISPLAY}
+      - QT_X11_NO_MITSHM=1
+      - XAUTHORITY=/tmp/.docker.xauth
+      - ROS_HOSTNAME=localhost
+      - ROS_MASTER_URI=http://localhost:11311
+    volumes:
+      - ${HOME}/repositories:/home/ubuntu/repositories
+      - noetic-home:/home/ubuntu
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - /tmp/.docker.xauth:/tmp/.docker.xauth:rw
+    devices:
+      - /dev/dri:/dev/dri
+    group_add:
+      - video
+    working_dir: /home/ubuntu/repositories
+    command: /bin/zsh
+
+volumes:
+  noetic-home:
