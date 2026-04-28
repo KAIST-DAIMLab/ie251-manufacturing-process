@@ -8,12 +8,18 @@ find_package(catkin REQUIRED COMPONENTS
   actionlib
   actionlib_msgs
   tf
+  message_generation
 )
+
+add_message_files(FILES NodeStatus.msg)
+add_action_files(FILES NavigateToNode.action)
 
 catkin_python_setup()
 
+generate_messages(DEPENDENCIES actionlib_msgs std_msgs)
+
 catkin_package(
-  CATKIN_DEPENDS rospy geometry_msgs nav_msgs actionlib actionlib_msgs tf
+  CATKIN_DEPENDS rospy geometry_msgs nav_msgs actionlib actionlib_msgs tf message_runtime
 )
 
 install(DIRECTORY config launch

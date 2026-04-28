@@ -1,0 +1,12 @@
+# Goal
+string target_node_id
+---
+# Result
+bool success
+string message
+---
+# Feedback
+string current_node_id
+float32 x
+float32 y
+float32 distance_to_next
