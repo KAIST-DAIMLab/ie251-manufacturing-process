@@ -1,0 +1,11 @@
+# Goal
+string  robot_id
+int32   target_node_id
+---
+# Result
+bool    success
+string  message
+---
+# Feedback
+int32   current_node_id
+int32   nodes_remaining

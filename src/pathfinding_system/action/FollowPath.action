@@ -1,0 +1,10 @@
+# Goal
+int32[] node_ids
+---
+# Result
+bool    success
+string  message
+---
+# Feedback
+int32   current_index
+geometry_msgs/Pose2D current_pose

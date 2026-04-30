@@ -1,0 +1,28 @@
+#!/usr/bin/env python3
+from typing import cast
+import rospy
+from pathfinding_system.world.graph import Graph
+from pathfinding_system.robot.turtlebot_executer import TurtleBotExecuter
+
+
+def main():
+    rospy.init_node('executor')
+    robot_id = cast(str, rospy.get_param('~robot_id'))
+    graph_file = cast(str, rospy.get_param('~graph_file'))
+    controller_params = cast(dict, rospy.get_param('~controller', {}))
+    control_rate_hz = cast(float, rospy.get_param('~control_rate_hz', 20.0))
+    state_publish_rate_hz = cast(float, rospy.get_param('~state_publish_rate_hz', 10.0))
+
+    graph = Graph.load_from_yaml(graph_file)
+    params = {
+        'controller': controller_params,
+        'control_rate_hz': control_rate_hz,
+        'state_publish_rate_hz': state_publish_rate_hz,
+    }
+    executer = TurtleBotExecuter(robot_id, graph, params)
+    executer.start()
+    rospy.spin()
+
+
+if __name__ == '__main__':
+    main()

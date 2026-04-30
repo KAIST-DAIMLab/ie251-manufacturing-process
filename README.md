@@ -1,259 +1,160 @@
-# IE251 Manufacturing Process — TurtleBot3 Graph Navigation
+# IE251 Manufacturing Process — TurtleBot3 Path-Finding System
 
-A ROS Noetic system where a TurtleBot3 Waffle navigates a user-defined node graph in Gazebo simulation. Send a target node ID; the robot plans a Dijkstra path and drives waypoint-by-waypoint, publishing its position continuously.
+A centralized path-finding system for two TurtleBot3 Waffle robots navigating a shared graph on a 6 m × 3 m table. A user sends a target node ID to a central server; the server plans an A* path and dispatches it to the robot's executor, which drives between waypoints using a proportional controller. A collision monitor predicts head-on encounters and stops both robots before impact.
 
-## Overview
-
-```
-User sends goal (node ID)
-        │
-        ▼
-  nav_server.py          ← NavigateToNode action server
-  ├─ finds nearest node (via /odom)
-  ├─ Dijkstra path plan
-  └─ drives node-by-node via GoToGoal
-        │
-        ▼
-  /cmd_vel  ──►  TurtleBot3 Waffle (Gazebo)
-                        │
-                        ▼
-  /odom  ──►  position_reporter.py  ──►  /node_status
-```
-
-**Workspace:** 6 m × 3 m grid — 18 nodes (A1–A6, B1–B6, C1–C6) at 1 m spacing.
+## Architecture
+![architecture](.images/README-architecture.png)  
 
 ```
-C1 — C2 — C3 — C4 — C5 — C6
-|    |    |    |    |    |
-B1 — B2 — B3 — B4 — B5 — B6
-|    |    |    |    |    |
-A1 — A2 — A3 — A4 — A5 — A6
-↑
-robot spawns here (0.5, 0.5)
+user_client (CLI)
+      │  MoveToNode action
+      ▼
+  path_server ──── CollisionMonitor (10 Hz)
+      │  FollowPath action        │ /tb3_0/emergency_stop
+      ├──────────────────┐        │ /tb3_1/emergency_stop
+      ▼                  ▼        ▼
+tb3_0_executor     tb3_1_executor
+  /tb3_0/cmd_vel    /tb3_1/cmd_vel
+  /tb3_0/odom       /tb3_1/odom
+      │                  │
+      └──────────────────┘
+              Gazebo
 ```
+
+## Graph
+
+Six nodes in a 3 × 2 grid. Seven edges (top row, bottom row, three verticals).
+
+```
+N1 ─── N3 ─────── N5      (top row,    y = 2.25 m)
+│       │          │
+N0 ─── N2 ─────── N4      (bottom row, y = 0.75 m)
+```
+
+| Node | x (m) | y (m) |
+|------|--------|--------|
+| 0    | 1.0    | 0.75   |
+| 1    | 1.0    | 2.25   |
+| 2    | 3.0    | 0.75   |
+| 3    | 3.0    | 2.25   |
+| 4    | 5.0    | 0.75   |
+| 5    | 5.0    | 2.25   |
+
+Spawn poses: `tb3_0` at node 0 (bottom-left), `tb3_1` at node 5 (top-right, facing left).
 
 ---
 
 ## Prerequisites
 
-### Host machine
-
 - Docker + Docker Compose
-- An X server running (any Linux desktop, or XQuartz on macOS)
-
-### Install (once)
+- An X server on the host (any Linux desktop, or XQuartz on macOS)
 
 ```bash
-# Allow Docker containers to open GUI windows on your display
+# Allow containers to open GUI windows (run once per host session)
 xhost +local:docker
-
-# Create xauth file for the container
-touch /tmp/.docker.xauth
-xauth nlist $DISPLAY | sed -e 's/^..../ffff/' | xauth -f /tmp/.docker.xauth nmerge -
 ```
 
-> **macOS:** Use XQuartz. Set `DISPLAY=host.docker.internal:0` and enable "Allow connections from network clients" in XQuartz preferences.
+> **macOS:** Use XQuartz. Set `DISPLAY=host.docker.internal:0` and enable *Allow connections from network clients* in XQuartz preferences.
 
 ---
 
 ## Quick Start
 
-### 1. Start the Docker container
+### 1. Start the container
 
 ```bash
 cd /path/to/ie251-manufacturing-process
 docker compose -f docker/docker-compose.yml up -d
-```
-
-### 2. Open terminal tabs in the container
-
-Open 3 separate terminals and attach to the running container in each:
-
-```bash
 docker exec -it noetic zsh
 ```
 
-### 3. Build the workspace (first time only)
-
-In **any one** of the terminals:
+### 2. Build (first time only)
 
 ```bash
 cd ~/repositories/kaist/ie251-manufacturing-process
-source /opt/ros/noetic/setup.zsh
-catkin_make
-```
-
----
-
-## Running the Simulation
-
-### Terminal 1 — Launch Gazebo
-
-```bash
-source /opt/ros/noetic/setup.zsh
-cd ~/repositories/kaist/ie251-manufacturing-process
+catkin_make --only-pkg-with-deps pathfinding_system
 source devel/setup.zsh
-roslaunch tb3_graph_nav simulation.launch
 ```
 
-Gazebo opens with a TurtleBot3 Waffle at node A1 (0.5, 0.5). Wait until you see the robot in the scene before proceeding.
+### 3. Launch the full system
 
-### Terminal 2 — Launch navigation stack
+**Terminal 1** — Gazebo + robots + nodes:
 
 ```bash
-source /opt/ros/noetic/setup.zsh
-cd ~/repositories/kaist/ie251-manufacturing-process
 source devel/setup.zsh
-roslaunch tb3_graph_nav graph_nav.launch
+roslaunch pathfinding_system gazebo_world.launch
 ```
 
-Expected output:
-```
-[nav_server]: nav_server ready — 18 nodes loaded from .../graph.yaml
-[position_reporter]: position_reporter started — 18 nodes from .../graph.yaml
-```
+Gazebo opens. Two TurtleBot3 Waffles appear: one near the bottom-left, one near the top-right. Wait until both `/tb3_0/robot_state` and `/tb3_1/robot_state` topics are publishing before sending goals.
 
-### Terminal 3 — Send a navigation goal
+### 4. Send a goal
+
+**Terminal 2:**
 
 ```bash
-source /opt/ros/noetic/setup.zsh
-cd ~/repositories/kaist/ie251-manufacturing-process
 source devel/setup.zsh
-
-# Navigate to node C6 (far corner)
-python3 src/tb3_graph_nav/scripts/test_navigate.py C6
+rosrun pathfinding_system user_client tb3_0 5
 ```
 
-The robot plans A1 → C6, drives through each intermediate node, and logs progress:
+`tb3_0` drives from node 0 to node 5 via the top route (0 → 1 → 3 → 5). The client prints feedback as each waypoint is reached and exits with code 0 on success.
+
+---
+
+## Usage
 
 ```
-[INFO] Goal: navigate to 'C6'
-[INFO] Path: A1 -> A2 -> A3 -> A4 -> A5 -> A6 -> B6 -> C6
-[INFO] Driving to A2 (1.50, 0.50)
-[INFO] Reached A2
-[INFO] Driving to A3 (2.50, 0.50)
-...
-[INFO] Goal succeeded: reached 'C6'
+rosrun pathfinding_system user_client <robot_id> <target_node_id>
 ```
 
-### Monitor current position (any terminal)
+| Argument        | Values              |
+|-----------------|---------------------|
+| `robot_id`      | `tb3_0` or `tb3_1`  |
+| `target_node_id`| `0` – `5`           |
+
+### Example scenarios
+
+**Single robot — corner to corner:**
+```bash
+rosrun pathfinding_system user_client tb3_0 5   # 0 → 1 → 3 → 5
+```
+
+**Two robots — parallel rows (no collision):**
+```bash
+# Terminal A                                # Terminal B
+rosrun pathfinding_system user_client tb3_0 4   rosrun pathfinding_system user_client tb3_1 1
+# tb3_0: bottom row 0 → 2 → 4              # tb3_1: top row 5 → 3 → 1
+```
+
+**Collision avoidance — head-on on N1–N3 edge:**
+```bash
+# Start both within ~1 s of each other
+rosrun pathfinding_system user_client tb3_0 5   # top route: 0 → 1 → 3 → 5
+rosrun pathfinding_system user_client tb3_1 0   # top route: 5 → 3 → 1 → 0
+# CollisionMonitor fires; both robots stop before impact.
+```
+
+### Monitor state
 
 ```bash
-rostopic echo /node_status
-```
-
-```
-nearest_node_id: "A2"
-x: 1.482
-y: 0.501
-distance_to_node: 0.018
+rostopic echo /tb3_0/robot_state   # pose, velocity, status (0=IDLE 1=MOVING 2=STOPPED)
+rostopic echo /tb3_0/emergency_stop  # fires when collision is predicted
 ```
 
 ---
 
-## Sending Goals — All Options
+## Configuration
 
-### Option A: Test script
+**`config/graph.yaml`** — edit nodes and edges to change the layout.
 
-```bash
-python3 src/tb3_graph_nav/scripts/test_navigate.py <NODE_ID>
+**`config/params.yaml`** — key tuning values:
 
-# Examples
-python3 src/tb3_graph_nav/scripts/test_navigate.py B3
-python3 src/tb3_graph_nav/scripts/test_navigate.py C6
-python3 src/tb3_graph_nav/scripts/test_navigate.py A6
-```
-
-### Option B: Interactive GUI (axclient)
-
-```bash
-rosrun actionlib axclient.py /navigate_to_node
-```
-
-Set `target_node_id` to any node ID and click **Send Goal**.
-
-### Option C: Command line (rostopic)
-
-```bash
-rostopic pub /navigate_to_node/goal tb3_graph_nav/NavigateToNodeActionGoal \
-  "header:
-  seq: 0
-  stamp: {secs: 0, nsecs: 0}
-  frame_id: ''
-goal_id:
-  stamp: {secs: 0, nsecs: 0}
-  id: ''
-goal:
-  target_node_id: 'B3'" --once
-```
-
-### Cancel a goal in flight
-
-```bash
-rostopic pub /navigate_to_node/cancel actionlib_msgs/GoalID "{}" --once
-```
-
----
-
-## Node Graph Reference
-
-| Node | x (m) | y (m) | Neighbors |
-|------|--------|--------|-----------|
-| A1   | 0.5    | 0.5    | A2, B1    |
-| A2   | 1.5    | 0.5    | A1, A3, B2 |
-| A3   | 2.5    | 0.5    | A2, A4, B3 |
-| A4   | 3.5    | 0.5    | A3, A5, B4 |
-| A5   | 4.5    | 0.5    | A4, A6, B5 |
-| A6   | 5.5    | 0.5    | A5, B6    |
-| B1   | 0.5    | 1.5    | A1, B2, C1 |
-| B2   | 1.5    | 1.5    | B1, B3, A2, C2 |
-| B3   | 2.5    | 1.5    | B2, B4, A3, C3 |
-| B4   | 3.5    | 1.5    | B3, B5, A4, C4 |
-| B5   | 4.5    | 1.5    | B4, B6, A5, C5 |
-| B6   | 5.5    | 1.5    | B5, A6, C6 |
-| C1   | 0.5    | 2.5    | B1, C2    |
-| C2   | 1.5    | 2.5    | C1, C3, B2 |
-| C3   | 2.5    | 2.5    | C2, C4, B3 |
-| C4   | 3.5    | 2.5    | C3, C5, B4 |
-| C5   | 4.5    | 2.5    | C4, C6, B5 |
-| C6   | 5.5    | 2.5    | C5, B6    |
-
-To modify the graph, edit [src/tb3_graph_nav/config/graph.yaml](src/tb3_graph_nav/config/graph.yaml).
-
----
-
-## Running Tests
-
-Pure Python tests (no ROS or Gazebo needed):
-
-```bash
-cd src/tb3_graph_nav
-python3 -m pytest tests/ -v
-```
-
-Expected: **20 passed**
-
----
-
-## Package Structure
-
-```
-src/tb3_graph_nav/
-├── src/tb3_graph_nav/
-│   ├── graph.py          # Graph + Node data model, YAML loader
-│   ├── planner.py        # Dijkstra shortest path
-│   └── go_to_goal.py     # Proportional heading controller (library)
-├── scripts/
-│   ├── nav_server.py     # NavigateToNode action server (ROS node)
-│   ├── position_reporter.py  # Publishes /node_status (ROS node)
-│   └── test_navigate.py  # Quick integration test client
-├── msg/NodeStatus.msg
-├── action/NavigateToNode.action
-├── config/graph.yaml     # 18-node 6×3 grid
-└── launch/
-    ├── simulation.launch # Gazebo + TurtleBot3 Waffle
-    └── graph_nav.launch  # nav_server + position_reporter
-```
+| Parameter | Default | Effect |
+|-----------|---------|--------|
+| `path_server.safety_radius` | 0.35 m | Stop if predicted distance drops below this |
+| `path_server.horizon` | 2.0 s | How far ahead collision is predicted |
+| `executor.controller.k_lin` | 0.5 | Linear speed gain |
+| `executor.controller.k_ang` | 1.5 | Angular speed gain |
+| `executor.controller.arrival_tol` | 0.10 m | Distance to declare a waypoint reached |
 
 ---
 
@@ -261,30 +162,28 @@ src/tb3_graph_nav/
 
 **Gazebo window doesn't open**
 ```bash
-# On host, re-run:
 xhost +local:docker
 touch /tmp/.docker.xauth
 xauth nlist $DISPLAY | sed -e 's/^..../ffff/' | xauth -f /tmp/.docker.xauth nmerge -
 ```
 
-**`[ERROR] Failed to load model 'waffle'`**
-The `TURTLEBOT3_MODEL` env var is already set in `simulation.launch`. If it still fails:
+**`Failed to load model 'waffle'`**
 ```bash
 export TURTLEBOT3_MODEL=waffle
-roslaunch tb3_graph_nav simulation.launch
+roslaunch pathfinding_system gazebo_world.launch
 ```
 
-**`nav_server` can't find the graph YAML**
-```bash
-# Rebuild and re-source:
-catkin_make && source devel/setup.zsh
-```
-
-**Robot doesn't move / drifts off course**
-Odometry drift is normal in Gazebo over long runs. Restart the simulation and try a shorter path first (e.g. A1 → A3).
-
-**`rospack find tb3_graph_nav` fails**
-Make sure you sourced the devel overlay:
+**`rospack find pathfinding_system` fails**
 ```bash
 source devel/setup.zsh
 ```
+
+**Robot doesn't move after goal is sent**
+Check that both executor nodes are alive and publishing robot state:
+```bash
+rostopic hz /tb3_0/robot_state
+rostopic hz /tb3_1/robot_state
+```
+
+**Both robots stop and never resume**
+An emergency stop is latched until a new `FollowPath` goal arrives. Send a new goal via `user_client` to resume.

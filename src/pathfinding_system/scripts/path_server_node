@@ -1,0 +1,30 @@
+#!/usr/bin/env python3
+from typing import cast
+import rospy
+from pathfinding_system.world.graph import Graph
+from pathfinding_system.planning.path_planner import PathPlanner
+from pathfinding_system.planning.path_server import PathServer
+from pathfinding_system.safety.linear_predictor import LinearPredictor
+from pathfinding_system.safety.collision_monitor import CollisionMonitor
+
+
+def main():
+    rospy.init_node('path_server')
+    graph_file = cast(str, rospy.get_param('~graph_file'))
+    horizon = cast(float, rospy.get_param('~horizon', 2.0))
+    check_rate_hz = cast(float, rospy.get_param('~check_rate_hz', 10.0))
+    safety_radius = cast(float, rospy.get_param('~safety_radius', 0.35))
+    time_step = cast(float, rospy.get_param('~time_step', 0.1))
+
+    graph = Graph.load_from_yaml(graph_file)
+    planner = PathPlanner(graph)
+    predictor = LinearPredictor(safety_radius, time_step)
+    monitor = CollisionMonitor(predictor, ['tb3_0', 'tb3_1'], horizon, check_rate_hz)
+    server = PathServer(graph, planner, monitor, ['tb3_0', 'tb3_1'])
+    monitor.start()
+    server.start()
+    rospy.spin()
+
+
+if __name__ == '__main__':
+    main()

@@ -1,0 +1,80 @@
+<launch>
+  <arg name="model" default="waffle"/>
+
+  <!-- Gazebo with custom world -->
+  <include file="$(find gazebo_ros)/launch/empty_world.launch">
+    <arg name="world_name" value="$(find pathfinding_system)/worlds/pathfinding_table.world"/>
+    <arg name="paused" value="false"/>
+    <arg name="use_sim_time" value="true"/>
+    <arg name="gui" value="true"/>
+    <arg name="headless" value="false"/>
+    <arg name="debug" value="false"/>
+  </include>
+
+  <!-- tb3_0: spawned at graph node 0 (x=1.0, y=0.75, yaw=0) -->
+  <group ns="tb3_0">
+    <param name="robot_description"
+           command="$(find xacro)/xacro --inorder $(find turtlebot3_description)/urdf/turtlebot3_$(arg model).urdf.xacro"/>
+    <node pkg="robot_state_publisher" type="robot_state_publisher"
+          name="robot_state_publisher" output="screen">
+      <param name="publish_frequency" type="double" value="50.0"/>
+      <param name="tf_prefix" value="tb3_0"/>
+    </node>
+    <node name="spawn_urdf" pkg="gazebo_ros" type="spawn_model"
+          args="-urdf -model tb3_0 -x 1.0 -y 0.75 -z 0.0 -Y 0.0 -param robot_description"/>
+  </group>
+
+  <!-- tb3_1: spawned at graph node 5 (x=5.0, y=2.25, yaw=pi) -->
+  <group ns="tb3_1">
+    <param name="robot_description"
+           command="$(find xacro)/xacro --inorder $(find turtlebot3_description)/urdf/turtlebot3_$(arg model).urdf.xacro"/>
+    <node pkg="robot_state_publisher" type="robot_state_publisher"
+          name="robot_state_publisher" output="screen">
+      <param name="publish_frequency" type="double" value="50.0"/>
+      <param name="tf_prefix" value="tb3_1"/>
+    </node>
+    <node name="spawn_urdf" pkg="gazebo_ros" type="spawn_model"
+          args="-urdf -model tb3_1 -x 5.0 -y 2.25 -z 0.0 -Y 3.14159 -param robot_description"/>
+  </group>
+
+  <!-- path_server node -->
+  <node name="path_server" pkg="pathfinding_system" type="path_server_node" output="screen">
+    <param name="graph_file" value="$(find pathfinding_system)/config/graph.yaml"/>
+    <param name="horizon" value="2.0"/>
+    <param name="check_rate_hz" value="10.0"/>
+    <param name="safety_radius" value="0.35"/>
+    <param name="time_step" value="0.1"/>
+  </node>
+
+  <!-- tb3_0 executor -->
+  <node name="executor" ns="tb3_0" pkg="pathfinding_system" type="robot_executor_node" output="screen">
+    <param name="robot_id" value="tb3_0"/>
+    <param name="graph_file" value="$(find pathfinding_system)/config/graph.yaml"/>
+    <rosparam param="controller">
+      k_lin: 0.5
+      k_ang: 1.5
+      max_lin_vel: 0.22
+      max_ang_vel: 1.5
+      arrival_tol: 0.10
+      heading_tol: 0.2
+    </rosparam>
+    <param name="control_rate_hz" value="20.0"/>
+    <param name="state_publish_rate_hz" value="10.0"/>
+  </node>
+
+  <!-- tb3_1 executor -->
+  <node name="executor" ns="tb3_1" pkg="pathfinding_system" type="robot_executor_node" output="screen">
+    <param name="robot_id" value="tb3_1"/>
+    <param name="graph_file" value="$(find pathfinding_system)/config/graph.yaml"/>
+    <rosparam param="controller">
+      k_lin: 0.5
+      k_ang: 1.5
+      max_lin_vel: 0.22
+      max_ang_vel: 1.5
+      arrival_tol: 0.10
+      heading_tol: 0.2
+    </rosparam>
+    <param name="control_rate_hz" value="20.0"/>
+    <param name="state_publish_rate_hz" value="10.0"/>
+  </node>
+</launch>

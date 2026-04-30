@@ -1,0 +1,20 @@
+#!/usr/bin/env python3
+import sys
+import rospy
+from pathfinding_system.client.user_client import UserClient
+
+
+def main():
+    if len(sys.argv) < 3:
+        print("Usage: rosrun pathfinding_system user_client <robot_id> <target_node_id>")
+        sys.exit(1)
+    robot_id = sys.argv[1]
+    target_node_id = int(sys.argv[2])
+    rospy.init_node('user_client', anonymous=True)
+    client = UserClient()
+    ok = client.send_goal(robot_id, target_node_id)
+    sys.exit(0 if ok else 1)
+
+
+if __name__ == '__main__':
+    main()
