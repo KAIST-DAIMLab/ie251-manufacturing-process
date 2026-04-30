@@ -1,6 +1,8 @@
 from __future__ import annotations
+import threading
 import rospy
 import actionlib
+from actionlib_msgs.msg import GoalStatus
 from pathfinding_system.world.graph import Graph
 from pathfinding_system.planning.path_planner import PathPlanner
 
@@ -18,7 +20,10 @@ class PathServer:
         self._monitor = monitor
         self._namespaces = robot_namespaces
         self._robot_states: dict[str, object] = {}
+        self._states_lock = threading.Lock()
         self._follow_clients: dict[str, object] = {}
+        # Per-robot lock so two simultaneous goals to the same robot are serialized.
+        self._robot_locks: dict[str, threading.Lock] = {ns: threading.Lock() for ns in robot_namespaces}
         self._server = None
 
     def start(self) -> None:
@@ -36,38 +41,51 @@ class PathServer:
             client = actionlib.SimpleActionClient(f'/{ns}/follow_path', FollowPathAction)
             self._follow_clients[ns] = client
 
-        self._server = actionlib.SimpleActionServer(
+        # ActionServer (not SimpleActionServer) supports concurrent goals.
+        self._server = actionlib.ActionServer(
             '/path_server/move_to_node',
             MoveToNodeAction,
-            execute_cb=self._on_move_to_node,
+            goal_cb=self._on_goal_received,
+            cancel_cb=self._on_cancel,
             auto_start=False,
         )
         self._server.start()
         rospy.loginfo("PathServer started.")
 
     def _on_robot_state(self, ns: str, msg) -> None:
-        self._robot_states[ns] = msg
+        with self._states_lock:
+            self._robot_states[ns] = msg
 
-    def _on_move_to_node(self, goal) -> None:
+    def _on_cancel(self, goal_handle) -> None:
+        rospy.loginfo("PathServer: cancel requested.")
+
+    def _on_goal_received(self, goal_handle) -> None:
+        goal_handle.set_accepted()
+        t = threading.Thread(target=self._execute, args=(goal_handle,), daemon=True)
+        t.start()
+
+    def _execute(self, goal_handle) -> None:
         from pathfinding_system.msg import (  # type: ignore[import]
             MoveToNodeResult,
             MoveToNodeFeedback,
             FollowPathGoal,
         )
+        goal = goal_handle.get_goal()
         result = MoveToNodeResult()
         ns = goal.robot_id
 
         if ns not in self._namespaces:
             result.success = False
             result.message = f"unknown robot: {ns}"
-            self._server.set_aborted(result)
+            goal_handle.set_aborted(result)
             return
 
-        state_msg = self._robot_states.get(ns)
+        with self._states_lock:
+            state_msg = self._robot_states.get(ns)
         if state_msg is None:
             result.success = False
             result.message = f"no state received from {ns}"
-            self._server.set_aborted(result)
+            goal_handle.set_aborted(result)
             return
 
         pose = state_msg.pose
@@ -80,44 +98,47 @@ class PathServer:
         except (KeyError, ValueError) as e:
             result.success = False
             result.message = str(e)
-            self._server.set_aborted(result)
+            goal_handle.set_aborted(result)
             return
 
         node_ids = [n.id for n in path._waypoints]
         client = self._follow_clients[ns]
 
-        if not client.wait_for_server(timeout=rospy.Duration(5.0)):
-            result.success = False
-            result.message = f"executor {ns} not available"
-            self._server.set_aborted(result)
-            return
-
-        latest_fb = [None]
-
-        def follow_fb_cb(fb):
-            latest_fb[0] = fb
-
-        fp_goal = FollowPathGoal()
-        fp_goal.node_ids = node_ids
-        client.send_goal(fp_goal, feedback_cb=follow_fb_cb)
-
-        while not client.wait_for_result(timeout=rospy.Duration(0.1)):
-            if self._server.is_preempt_requested():
-                client.cancel_goal()
-                self._server.set_preempted()
+        with self._robot_locks[ns]:
+            if not client.wait_for_server(timeout=rospy.Duration(5.0)):
+                result.success = False
+                result.message = f"executor {ns} not available"
+                goal_handle.set_aborted(result)
                 return
-            fb = latest_fb[0]
-            if fb is not None:
-                mtn_fb = MoveToNodeFeedback()
-                idx = fb.current_index
-                mtn_fb.current_node_id = node_ids[idx - 1] if idx > 0 else -1
-                mtn_fb.nodes_remaining = len(node_ids) - idx
-                self._server.publish_feedback(mtn_fb)
 
-        follow_result = client.get_result()
-        result.success = follow_result.success if follow_result else False
-        result.message = follow_result.message if follow_result else "no result"
+            latest_fb: list = [None]
+
+            def follow_fb_cb(fb) -> None:
+                latest_fb[0] = fb
+
+            fp_goal = FollowPathGoal()
+            fp_goal.node_ids = node_ids
+            client.send_goal(fp_goal, feedback_cb=follow_fb_cb)
+
+            while not client.wait_for_result(timeout=rospy.Duration(0.1)):
+                status = goal_handle.get_goal_status().status
+                if status in (GoalStatus.PREEMPTING, GoalStatus.RECALLING):
+                    client.cancel_goal()
+                    goal_handle.set_canceled()
+                    return
+                fb = latest_fb[0]
+                if fb is not None:
+                    mtn_fb = MoveToNodeFeedback()
+                    idx = fb.current_index
+                    mtn_fb.current_node_id = node_ids[idx - 1] if idx > 0 else -1
+                    mtn_fb.nodes_remaining = len(node_ids) - idx
+                    goal_handle.publish_feedback(mtn_fb)
+
+            follow_result = client.get_result()
+            result.success = follow_result.success if follow_result else False
+            result.message = follow_result.message if follow_result else "no result"
+
         if result.success:
-            self._server.set_succeeded(result)
+            goal_handle.set_succeeded(result)
         else:
-            self._server.set_aborted(result)
+            goal_handle.set_aborted(result)
