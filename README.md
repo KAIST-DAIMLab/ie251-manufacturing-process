@@ -72,9 +72,6 @@ sudo docker exec -it noetic zsh
 
 ```bash
 echo "127.0.0.1 noetic" | sudo tee -a /etc/hosts
-sudo apt-get update
-sudo apt-get install ros-noetic-turtlebot3 ros-noetic-turtlebot3-description ros-noetic-turtlebot3-simulations -y
-cd ~/repositories/kaist/ie251-manufacturing-process
 catkin_make --only-pkg-with-deps pathfinding_system
 source devel/setup.zsh
 ```
