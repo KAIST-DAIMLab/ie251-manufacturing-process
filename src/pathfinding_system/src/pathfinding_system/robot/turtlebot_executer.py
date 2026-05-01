@@ -49,12 +49,20 @@ class ControllerGains:
 
 
 class TurtleBotExecuter:
-    def __init__(self, robot_id: str, graph: Graph, controller_params: dict) -> None:
+    def __init__(
+        self,
+        robot_id: str,
+        graph: Graph,
+        gains: ControllerGains,
+        control_rate_hz: float = 20.0,
+        state_publish_rate_hz: float = 10.0,
+    ) -> None:
         self._robot_id = robot_id
         self._ns = robot_id
         self._graph = graph
-        self._params = controller_params
-        self._gains = ControllerGains.from_params(controller_params)
+        self._gains = gains
+        self._control_rate_hz = control_rate_hz
+        self._state_publish_rate_hz = state_publish_rate_hz
         self._state = RobotState(
             id=robot_id,
             pose=Pose2D(),
@@ -88,10 +96,10 @@ class TurtleBotExecuter:
         )
         self._action_server.start()
 
-        ctrl_hz = self._params.get('control_rate_hz', 20.0)
-        state_hz = self._params.get('state_publish_rate_hz', 10.0)
-        rospy.Timer(rospy.Duration(1.0 / ctrl_hz), self._control_tick)
-        rospy.Timer(rospy.Duration(1.0 / state_hz), self._publish_state_tick)
+        rospy.Timer(rospy.Duration(1.0 / self._control_rate_hz), self._control_tick)
+        rospy.Timer(
+            rospy.Duration(1.0 / self._state_publish_rate_hz), self._publish_state_tick
+        )
         rospy.loginfo(f"TurtleBotExecuter for {self._robot_id} started.")
 
     def _on_follow_path(self, goal) -> None:

@@ -2,7 +2,7 @@
 from typing import cast
 import rospy
 from pathfinding_system.world.graph import Graph
-from pathfinding_system.robot.turtlebot_executer import TurtleBotExecuter
+from pathfinding_system.robot.turtlebot_executer import ControllerGains, TurtleBotExecuter
 
 
 def main():
@@ -14,12 +14,10 @@ def main():
     state_publish_rate_hz = cast(float, rospy.get_param('~state_publish_rate_hz', 10.0))
 
     graph = Graph.load_from_yaml(graph_file)
-    params = {
-        'controller': controller_params,
-        'control_rate_hz': control_rate_hz,
-        'state_publish_rate_hz': state_publish_rate_hz,
-    }
-    executer = TurtleBotExecuter(robot_id, graph, params)
+    gains = ControllerGains.from_params(controller_params)
+    executer = TurtleBotExecuter(
+        robot_id, graph, gains, control_rate_hz, state_publish_rate_hz
+    )
     executer.start()
     rospy.spin()
 
