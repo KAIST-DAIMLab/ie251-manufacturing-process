@@ -64,13 +64,16 @@ xhost +local:docker
 
 ```bash
 cd /path/to/ie251-manufacturing-process
-docker compose -f docker/docker-compose.yml up -d
-docker exec -it noetic zsh
+sudo docker compose -f docker/docker-compose.yml up -d
+sudo docker exec -it noetic zsh
 ```
 
 ### 2. Build (first time only)
 
 ```bash
+echo "127.0.0.1 noetic" | sudo tee -a /etc/hosts
+sudo apt-get update
+sudo apt-get install ros-noetic-turtlebot3 ros-noetic-turtlebot3-description ros-noetic-turtlebot3-simulations -y
 cd ~/repositories/kaist/ie251-manufacturing-process
 catkin_make --only-pkg-with-deps pathfinding_system
 source devel/setup.zsh
