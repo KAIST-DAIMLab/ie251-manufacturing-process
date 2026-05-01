@@ -1,0 +1,71 @@
+# Catkin workspace
+/build/
+/devel/
+/install/
+/logs/
+.catkin_workspace
+.catkin_tools/
+
+# ROS generated artifacts
+*.bag
+*.bag.active
+*.dbg
+*.pid
+.ros/
+
+# Python
+**/__pycache__
+*.py[cod]
+*$py.class
+*.egg-info/
+*.egg
+.eggs/
+.Python
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.coverage
+.coverage.*
+htmlcov/
+.venv/
+venv/
+env/
+
+# C / C++ build artifacts
+*.o
+*.so
+*.a
+*.lo
+*.la
+*.slo
+*.obj
+*.exe
+*.out
+*.app
+CMakeCache.txt
+CMakeFiles/
+CMakeScripts/
+cmake_install.cmake
+Makefile
+compile_commands.json
+
+# Editors / IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.bak
+.history/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local env
+.env
+.env.local
+*.local
