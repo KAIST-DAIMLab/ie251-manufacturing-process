@@ -1,6 +1,7 @@
 from __future__ import annotations
 import math
 import threading
+from dataclasses import dataclass
 import rospy
 import actionlib
 from geometry_msgs.msg import Twist, Pose2D
@@ -16,11 +17,35 @@ def _clamp(value: float, limit: float) -> float:
 
 
 def _wrap_angle(angle: float) -> float:
-    while angle > math.pi:
-        angle -= 2.0 * math.pi
-    while angle < -math.pi:
-        angle += 2.0 * math.pi
-    return angle
+    return math.atan2(math.sin(angle), math.cos(angle))
+
+
+def _yaw_from_quaternion(q) -> float:
+    siny_cosp = 2.0 * (q.w * q.z + q.x * q.y)
+    cosy_cosp = 1.0 - 2.0 * (q.y * q.y + q.z * q.z)
+    return math.atan2(siny_cosp, cosy_cosp)
+
+
+@dataclass(frozen=True)
+class ControllerGains:
+    arrival_tol: float = 0.10
+    heading_tol: float = 0.20
+    k_lin: float = 0.5
+    k_ang: float = 1.5
+    max_lin: float = 0.22
+    max_ang: float = 1.5
+
+    @classmethod
+    def from_params(cls, params: dict) -> ControllerGains:
+        p = params.get('controller', params) if isinstance(params, dict) else {}
+        return cls(
+            arrival_tol=p.get('arrival_tol', cls.arrival_tol),
+            heading_tol=p.get('heading_tol', cls.heading_tol),
+            k_lin=p.get('k_lin', cls.k_lin),
+            k_ang=p.get('k_ang', cls.k_ang),
+            max_lin=p.get('max_lin_vel', cls.max_lin),
+            max_ang=p.get('max_ang_vel', cls.max_ang),
+        )
 
 
 class TurtleBotExecuter:
@@ -29,6 +54,7 @@ class TurtleBotExecuter:
         self._ns = robot_id
         self._graph = graph
         self._params = controller_params
+        self._gains = ControllerGains.from_params(controller_params)
         self._state = RobotState(
             id=robot_id,
             pose=Pose2D(),
@@ -72,7 +98,6 @@ class TurtleBotExecuter:
         from pathfinding_system.msg import FollowPathResult, FollowPathFeedback  # type: ignore[import]
         from pathfinding_system.planning.path import Path
 
-        result = FollowPathResult()
         waypoints = [self._graph.get_node(nid) for nid in goal.node_ids]
         path = Path(waypoints)
 
@@ -84,33 +109,25 @@ class TurtleBotExecuter:
         rate = rospy.Rate(20)
         while not rospy.is_shutdown():
             if self._action_server.is_preempt_requested():
-                with self._lock:
-                    self._active_path = None
-                    self._state.status = RobotStatus.IDLE
-                self._cmd_pub.publish(Twist())
+                self._cancel_active_path()
                 self._action_server.set_preempted()
                 return
 
             with self._lock:
                 stopped = self._stop_requested
                 complete = self._active_path is None
-                if not complete and self._active_path is not None:
-                    cur_idx = self._active_path.current_index()
-                    cur_pose = self._state.pose
-                else:
-                    cur_idx = 0
-                    cur_pose = self._state.pose
+                cur_idx = 0 if complete else self._active_path.current_index()
+                cur_pose = self._state.pose
 
             if stopped:
-                result.success = False
-                result.message = "emergency stop"
-                self._action_server.set_aborted(result)
+                self._action_server.set_aborted(
+                    FollowPathResult(success=False, message="emergency stop")
+                )
                 return
-
             if complete:
-                result.success = True
-                result.message = "reached goal"
-                self._action_server.set_succeeded(result)
+                self._action_server.set_succeeded(
+                    FollowPathResult(success=True, message="reached goal")
+                )
                 return
 
             fb = FollowPathFeedback()
@@ -119,11 +136,15 @@ class TurtleBotExecuter:
             self._action_server.publish_feedback(fb)
             rate.sleep()
 
+    def _cancel_active_path(self) -> None:
+        with self._lock:
+            self._active_path = None
+            self._state.status = RobotStatus.IDLE
+        if self._cmd_pub is not None:
+            self._cmd_pub.publish(Twist())
+
     def _on_odom(self, msg: Odometry) -> None:
-        q = msg.pose.pose.orientation
-        siny_cosp = 2.0 * (q.w * q.z + q.x * q.y)
-        cosy_cosp = 1.0 - 2.0 * (q.y * q.y + q.z * q.z)
-        theta = math.atan2(siny_cosp, cosy_cosp)
+        theta = _yaw_from_quaternion(msg.pose.pose.orientation)
         with self._lock:
             self._state.pose.x = msg.pose.pose.position.x
             self._state.pose.y = msg.pose.pose.position.y
@@ -140,54 +161,49 @@ class TurtleBotExecuter:
         rospy.logwarn(f"{self._robot_id}: emergency stop received.")
 
     def _control_tick(self, event) -> None:
+        target, pose = self._next_target_pose()
+        if target is None:
+            self._publish_cmd(Twist())
+            return
+
+        dx, dy = target.x - pose.x, target.y - pose.y
+        dist = math.hypot(dx, dy)
+
+        if dist < self._gains.arrival_tol:
+            self._advance_waypoint()
+            self._publish_cmd(Twist())
+            return
+
+        self._publish_cmd(self._compute_command(dx, dy, dist, pose.theta))
+
+    def _next_target_pose(self):
         with self._lock:
             if self._stop_requested or self._active_path is None:
-                if self._cmd_pub is not None:
-                    self._cmd_pub.publish(Twist())
-                return
+                return None, None
             if self._active_path.is_complete():
                 self._active_path = None
                 self._state.status = RobotStatus.REACHED
-                if self._cmd_pub is not None:
-                    self._cmd_pub.publish(Twist())
+                return None, None
+            return self._active_path.peek(), self._state.pose
+
+    def _advance_waypoint(self) -> None:
+        with self._lock:
+            if self._active_path is None:
                 return
-            target = self._active_path.peek()
-            px = self._state.pose.x
-            py = self._state.pose.y
-            theta = self._state.pose.theta
+            self._active_path.next()
+            if self._active_path.is_complete():
+                self._active_path = None
+                self._state.status = RobotStatus.REACHED
 
-        tx, ty = target.x, target.y
-        dx, dy = tx - px, ty - py
-        dist = math.sqrt(dx * dx + dy * dy)
-
-        p = self._params.get('controller', self._params)
-        arrival_tol = p.get('arrival_tol', 0.10)
-        heading_tol = p.get('heading_tol', 0.2)
-        k_lin = p.get('k_lin', 0.5)
-        k_ang = p.get('k_ang', 1.5)
-        max_lin = p.get('max_lin_vel', 0.22)
-        max_ang = p.get('max_ang_vel', 1.5)
-
-        if dist < arrival_tol:
-            with self._lock:
-                if self._active_path is not None:
-                    self._active_path.next()
-                    if self._active_path.is_complete():
-                        self._active_path = None
-                        self._state.status = RobotStatus.REACHED
-            if self._cmd_pub is not None:
-                self._cmd_pub.publish(Twist())
-            return
-
+    def _compute_command(self, dx: float, dy: float, dist: float, theta: float) -> Twist:
+        g = self._gains
         theta_err = _wrap_angle(math.atan2(dy, dx) - theta)
         cmd = Twist()
-        if abs(theta_err) > heading_tol:
-            cmd.linear.x = 0.0
-            cmd.angular.z = _clamp(k_ang * theta_err, max_ang)
-        else:
-            cmd.linear.x = _clamp(k_lin * dist, max_lin)
-            cmd.angular.z = _clamp(k_ang * theta_err, max_ang)
+        cmd.angular.z = _clamp(g.k_ang * theta_err, g.max_ang)
+        cmd.linear.x = 0.0 if abs(theta_err) > g.heading_tol else _clamp(g.k_lin * dist, g.max_lin)
+        return cmd
 
+    def _publish_cmd(self, cmd: Twist) -> None:
         if self._cmd_pub is not None:
             self._cmd_pub.publish(cmd)
 

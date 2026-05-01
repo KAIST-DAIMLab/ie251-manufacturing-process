@@ -15,6 +15,9 @@ class Graph:
     def get_node(self, node_id: int) -> Node:
         return self._nodes[node_id]
 
+    def all_nodes(self) -> list[Node]:
+        return list(self._nodes.values())
+
     def get_neighbors(self, node: Node) -> list[Node]:
         return [e.to_node for e in self._adj[node.id]]
 

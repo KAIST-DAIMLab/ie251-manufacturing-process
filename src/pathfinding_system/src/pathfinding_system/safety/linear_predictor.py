@@ -4,7 +4,7 @@ import math
 
 class LinearPredictor:
     def __init__(self, safety_radius: float, time_step: float) -> None:
-        self._safety_radius = safety_radius
+        self._safety_radius_sq = safety_radius * safety_radius
         self._time_step = time_step
 
     def will_collide(self, s1, s2, horizon: float) -> bool:
@@ -12,8 +12,8 @@ class LinearPredictor:
         while t <= horizon + 1e-9:
             x1, y1 = self._extrapolate(s1, t)
             x2, y2 = self._extrapolate(s2, t)
-            dist = math.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2)
-            if dist < self._safety_radius:
+            dx, dy = x1 - x2, y1 - y2
+            if dx * dx + dy * dy < self._safety_radius_sq:
                 return True
             t += self._time_step
         return False

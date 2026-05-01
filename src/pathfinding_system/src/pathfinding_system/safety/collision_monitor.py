@@ -1,4 +1,5 @@
 from __future__ import annotations
+from itertools import combinations
 import rospy
 from std_msgs.msg import Empty
 from pathfinding_system.safety.linear_predictor import LinearPredictor
@@ -30,26 +31,20 @@ class CollisionMonitor:
             self._stop_pubs[ns] = rospy.Publisher(
                 f'/{ns}/emergency_stop', Empty, queue_size=1
             )
-        rospy.Timer(
-            rospy.Duration(1.0 / self._check_rate_hz),
-            self._tick,
-        )
+        rospy.Timer(rospy.Duration(1.0 / self._check_rate_hz), self._tick)
         rospy.loginfo("CollisionMonitor started.")
 
     def update_state(self, ns: str, state) -> None:
         self._states[ns] = state
 
     def _tick(self, event) -> None:
-        ns_list = self._namespaces
-        for i in range(len(ns_list)):
-            for j in range(i + 1, len(ns_list)):
-                s1 = self._states.get(ns_list[i])
-                s2 = self._states.get(ns_list[j])
-                if s1 is None or s2 is None:
-                    continue
-                if self._predictor.will_collide(s1, s2, self._horizon):
-                    rospy.logwarn(
-                        f"Collision predicted between {ns_list[i]} and {ns_list[j]}! Stopping both."
-                    )
-                    self._stop_pubs[ns_list[i]].publish(Empty())
-                    self._stop_pubs[ns_list[j]].publish(Empty())
+        for ns_a, ns_b in combinations(self._namespaces, 2):
+            s_a, s_b = self._states.get(ns_a), self._states.get(ns_b)
+            if s_a is None or s_b is None:
+                continue
+            if self._predictor.will_collide(s_a, s_b, self._horizon):
+                rospy.logwarn(
+                    f"Collision predicted between {ns_a} and {ns_b}! Stopping both."
+                )
+                self._stop_pubs[ns_a].publish(Empty())
+                self._stop_pubs[ns_b].publish(Empty())
