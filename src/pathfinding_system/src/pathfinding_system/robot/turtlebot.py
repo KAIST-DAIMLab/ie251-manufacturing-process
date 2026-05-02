@@ -1,45 +1,18 @@
 from __future__ import annotations
-from dataclasses import dataclass
-import math
+import copy
 import threading
-from typing import Optional
-import rospy
-from geometry_msgs.msg import Pose2D, Twist
-from nav_msgs.msg import Odometry
-from std_msgs.msg import Empty
+from geometry_msgs.msg import Pose2D
+
+from pathfinding_system.robot.motion import (
+    DriveResult,
+    MotionController,
+    MotionParameters,
+    PathFollower,
+    PathStep,
+)
 from pathfinding_system.robot.robot_status import RobotStatus
 from pathfinding_system.robot.robot_state import RobotState
 from pathfinding_system.world.node import Node
-
-
-def _yaw_from_quaternion(q) -> float:
-    siny_cosp = 2.0 * (q.w * q.z + q.x * q.y)
-    cosy_cosp = 1.0 - 2.0 * (q.y * q.y + q.z * q.z)
-    return math.atan2(siny_cosp, cosy_cosp)
-
-
-def _wrap_to_pi(angle: float) -> float:
-    return math.atan2(math.sin(angle), math.cos(angle))
-
-
-def _clamp(value: float, limit: float) -> float:
-    return max(-limit, min(limit, value))
-
-
-@dataclass(frozen=True)
-class MotionParameters:
-    linear_gain: float = 0.5
-    angular_gain: float = 1.5
-    max_linear_velocity: float = 0.22
-    max_angular_velocity: float = 1.5
-    arrival_tolerance: float = 0.10
-    heading_tolerance: float = 0.2
-
-
-@dataclass(frozen=True)
-class TurtleBotDriveResult:
-    arrived: bool
-    velocity_command: Twist
 
 
 class TurtleBot:
@@ -50,7 +23,8 @@ class TurtleBot:
     ) -> None:
         self.id = robot_id
         self._ns = robot_id
-        self._motion_parameters = motion_parameters
+        self._motion_controller = MotionController(motion_parameters)
+        self._path_follower = PathFollower(self._motion_controller)
         self._state = RobotState(id=robot_id)
         self._stop_requested = False
         self._lock = threading.Lock()
@@ -59,38 +33,35 @@ class TurtleBot:
     def cmd_vel_topic(self) -> str:
         return f'/{self._ns}/cmd_vel'
 
-    def drive_towards(self, node: Node) -> TurtleBotDriveResult:
+    @property
+    def state_topic(self) -> str:
+        return f'/{self._ns}/robot_state'
+
+    def drive_towards(self, node: Node) -> DriveResult:
         with self._lock:
-            x = self._state.pose.x
-            y = self._state.pose.y
-            theta = self._state.pose.theta
+            pose = copy.deepcopy(self._state.pose)
             self._state.status = RobotStatus.MOVING
 
-        dx = node.x - x
-        dy = node.y - y
-        distance = math.hypot(dx, dy)
-        cmd = Twist()
-        motion = self._motion_parameters
+        return self._motion_controller.drive_towards(pose, node)
 
-        if distance <= motion.arrival_tolerance:
-            return TurtleBotDriveResult(arrived=True, velocity_command=cmd)
+    def start_path(self, waypoints: list[Node]) -> None:
+        with self._lock:
+            self._stop_requested = False
+            self._state.status = RobotStatus.MOVING
+            self._path_follower.start(waypoints)
 
-        desired_heading = math.atan2(dy, dx)
-        heading_error = _wrap_to_pi(desired_heading - theta)
-        cmd.angular.z = _clamp(
-            motion.angular_gain * heading_error,
-            motion.max_angular_velocity,
-        )
-        if abs(heading_error) <= motion.heading_tolerance:
-            cmd.linear.x = min(
-                motion.linear_gain * distance,
-                motion.max_linear_velocity,
-            )
+    def step_path(self) -> PathStep:
+        with self._lock:
+            pose = copy.deepcopy(self._state.pose)
+            step = self._path_follower.step(pose)
+            if step.completed:
+                self._state.status = RobotStatus.REACHED
+            return step
 
-        return TurtleBotDriveResult(arrived=False, velocity_command=cmd)
-
-    def stop_motion(self) -> Twist:
-        return Twist()
+    def cancel_path(self) -> None:
+        with self._lock:
+            self._path_follower.cancel()
+            self._state.status = RobotStatus.IDLE
 
     def stop_requested(self) -> bool:
         with self._lock:
@@ -104,27 +75,36 @@ class TurtleBot:
             pose.theta = self._state.pose.theta
             return pose
 
-    def set_status(self, status: RobotStatus) -> None:
+    def state_snapshot(self) -> RobotState:
         with self._lock:
-            if status == RobotStatus.MOVING:
-                self._stop_requested = False
-            self._state.status = status
+            return copy.deepcopy(self._state)
 
-    def state_message(self):
+    def update_pose(self, x: float, y: float, theta: float, velocity=None, stamp=None) -> None:
         with self._lock:
-            return self._state.to_msg()
-
-    def on_odom(self, msg: Odometry) -> None:
-        theta = _yaw_from_quaternion(msg.pose.pose.orientation)
-        with self._lock:
-            self._state.pose.x = msg.pose.pose.position.x
-            self._state.pose.y = msg.pose.pose.position.y
+            self._state.pose.x = x
+            self._state.pose.y = y
             self._state.pose.theta = theta
-            self._state.velocity = msg.twist.twist
-            self._state.stamp = msg.header.stamp
+            if velocity is not None:
+                self._state.velocity = velocity
+            self._state.stamp = stamp
 
-    def on_emergency_stop(self, msg: Empty) -> None:
+    def mark_moving(self) -> None:
+        with self._lock:
+            self._state.status = RobotStatus.MOVING
+
+    def mark_idle(self) -> None:
+        with self._lock:
+            self._state.status = RobotStatus.IDLE
+
+    def mark_reached(self) -> None:
+        with self._lock:
+            self._state.status = RobotStatus.REACHED
+
+    def request_stop(self) -> None:
         with self._lock:
             self._stop_requested = True
             self._state.status = RobotStatus.STOPPED
-        rospy.logwarn(f"{self.id}: emergency stop received.")
+
+    def clear_stop(self) -> None:
+        with self._lock:
+            self._stop_requested = False

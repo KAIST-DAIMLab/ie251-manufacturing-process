@@ -10,9 +10,7 @@ sys.path.insert(0, ROOT)
 
 def _install_ros_stubs():
     rospy = types.ModuleType('rospy')
-    rospy.Duration = lambda seconds: seconds
     rospy.Time = types.SimpleNamespace(now=lambda: 0)
-    rospy.Subscriber = lambda *args, **kwargs: ('subscriber', args, kwargs)
     sys.modules['rospy'] = rospy
 
     actionlib = types.ModuleType('actionlib')
@@ -50,27 +48,18 @@ def _install_ros_stubs():
     sys.modules['geometry_msgs'] = geometry_msgs
     sys.modules['geometry_msgs.msg'] = geometry_msgs_msg
 
-    nav_msgs = types.ModuleType('nav_msgs')
-    nav_msgs_msg = types.ModuleType('nav_msgs.msg')
-    nav_msgs_msg.Odometry = object
-    sys.modules['nav_msgs'] = nav_msgs
-    sys.modules['nav_msgs.msg'] = nav_msgs_msg
-
-    std_msgs = types.ModuleType('std_msgs')
-    std_msgs_msg = types.ModuleType('std_msgs.msg')
-    std_msgs_msg.Empty = object
-    sys.modules['std_msgs'] = std_msgs
-    sys.modules['std_msgs.msg'] = std_msgs_msg
+    class RobotStateMsg:
+        pass
 
     pathfinding_system_msg = types.ModuleType('pathfinding_system.msg')
-    pathfinding_system_msg.RobotState = object
+    pathfinding_system_msg.RobotState = RobotStateMsg
     sys.modules['pathfinding_system.msg'] = pathfinding_system_msg
 
 
 _install_ros_stubs()
 
-from pathfinding_system.robot.turtlebot import MotionParameters, TurtleBot
-import pathfinding_system.robot.turtlebot as turtlebot_module
+from pathfinding_system.robot.motion import MotionParameters
+from pathfinding_system.robot.turtlebot import TurtleBot
 from pathfinding_system.robot.robot_state import RobotState
 from pathfinding_system.robot.robot_status import RobotStatus
 from pathfinding_system.world.node import Node
@@ -78,42 +67,19 @@ from pathfinding_system.world.node import Node
 
 class TurtleBotTest(unittest.TestCase):
     def setUp(self):
-        self.published_by_topic = {}
-        self.subscriptions = []
-        self.timers = []
-
-        def publisher(topic, msg_type, queue_size=10):
-            published = []
-            self.published_by_topic[topic] = published
-            return types.SimpleNamespace(publish=published.append)
-
-        def subscriber(topic, msg_type, callback):
-            self.subscriptions.append((topic, msg_type, callback))
-            return types.SimpleNamespace()
-
-        def timer(duration, callback):
-            self.timers.append((duration, callback))
-            return types.SimpleNamespace()
-
         import rospy
-        rospy.Publisher = publisher
-        rospy.Subscriber = subscriber
-        rospy.Timer = timer
-        turtlebot_module.rospy.Publisher = publisher
-        turtlebot_module.rospy.Timer = timer
-        turtlebot_module.rospy.Subscriber = subscriber
 
-    def test_uses_namespaced_cmd_vel_topic(self):
+        def unexpected_ros_lifecycle(*args, **kwargs):
+            raise AssertionError('TurtleBot must not create ROS publishers, subscribers, or timers')
+
+        rospy.Publisher = unexpected_ros_lifecycle
+        rospy.Subscriber = unexpected_ros_lifecycle
+        rospy.Timer = unexpected_ros_lifecycle
+
+    def test_constructing_turtlebot_creates_no_ros_lifecycle_objects(self):
         robot = TurtleBot('tb3_0')
 
-        self.assertEqual(robot.cmd_vel_topic, '/tb3_0/cmd_vel')
-
-    def test_does_not_create_ros_topic_wiring(self):
-        TurtleBot('tb3_0')
-
-        self.assertEqual(self.subscriptions, [])
-        self.assertEqual(self.published_by_topic, {})
-        self.assertEqual(self.timers, [])
+        self.assertEqual(robot.id, 'tb3_0')
 
     def test_robot_state_defaults_require_only_robot_id(self):
         state = RobotState(id='tb3_0')
@@ -130,8 +96,9 @@ class TurtleBotTest(unittest.TestCase):
         result = robot.drive_towards(Node(id=2, x=1.0, y=0.0))
 
         self.assertFalse(result.arrived)
-        self.assertGreater(result.velocity_command.linear.x, 0.0)
-        self.assertEqual(result.velocity_command.angular.z, 0.0)
+        self.assertGreater(result.linear_x, 0.0)
+        self.assertEqual(result.angular_z, 0.0)
+        self.assertEqual(robot.state_snapshot().status, RobotStatus.MOVING)
 
     def test_drive_towards_uses_readable_motion_parameters(self):
         robot = TurtleBot(
@@ -149,7 +116,80 @@ class TurtleBotTest(unittest.TestCase):
         result = robot.drive_towards(Node(id=2, x=1.0, y=0.0))
 
         self.assertFalse(result.arrived)
-        self.assertEqual(result.velocity_command.linear.x, 0.3)
+        self.assertEqual(result.linear_x, 0.3)
+
+    def test_start_path_clears_stop_and_marks_moving(self):
+        robot = TurtleBot('tb3_0')
+        robot.request_stop()
+
+        robot.start_path([Node(id=1, x=1.0, y=0.0)])
+
+        self.assertFalse(robot.stop_requested())
+        self.assertEqual(robot.state_snapshot().status, RobotStatus.MOVING)
+
+    def test_step_path_uses_owned_path_follower_and_marks_reached(self):
+        robot = TurtleBot('tb3_0')
+        robot.start_path([Node(id=1, x=0.0, y=0.0)])
+
+        step = robot.step_path()
+
+        self.assertTrue(step.completed)
+        self.assertTrue(step.drive_result.arrived)
+        self.assertEqual(robot.state_snapshot().status, RobotStatus.REACHED)
+
+    def test_cancel_path_marks_robot_idle(self):
+        robot = TurtleBot('tb3_0')
+        robot.start_path([Node(id=1, x=1.0, y=0.0)])
+
+        robot.cancel_path()
+
+        self.assertEqual(robot.state_snapshot().status, RobotStatus.IDLE)
+
+    def test_update_pose_updates_state_without_ros_message_types(self):
+        robot = TurtleBot('tb3_0')
+        velocity = types.SimpleNamespace(linear=types.SimpleNamespace(x=0.2))
+
+        robot.update_pose(x=1.0, y=2.0, theta=3.0, velocity=velocity, stamp='stamp')
+
+        state = robot.state_snapshot()
+        self.assertEqual(state.pose.x, 1.0)
+        self.assertEqual(state.pose.y, 2.0)
+        self.assertEqual(state.pose.theta, 3.0)
+        self.assertEqual(state.velocity.linear.x, 0.2)
+        self.assertEqual(state.stamp, 'stamp')
+
+    def test_request_stop_sets_stopped_status_and_stop_flag(self):
+        robot = TurtleBot('tb3_0')
+
+        robot.request_stop()
+
+        self.assertTrue(robot.stop_requested())
+        self.assertEqual(robot.state_snapshot().status, RobotStatus.STOPPED)
+
+    def test_explicit_status_methods_do_not_clear_stop_flag(self):
+        robot = TurtleBot('tb3_0')
+        robot.request_stop()
+
+        robot.mark_moving()
+        self.assertTrue(robot.stop_requested())
+        self.assertEqual(robot.state_snapshot().status, RobotStatus.MOVING)
+
+        robot.mark_idle()
+        self.assertTrue(robot.stop_requested())
+        self.assertEqual(robot.state_snapshot().status, RobotStatus.IDLE)
+
+        robot.mark_reached()
+        self.assertTrue(robot.stop_requested())
+        self.assertEqual(robot.state_snapshot().status, RobotStatus.REACHED)
+
+    def test_clear_stop_clears_stop_flag_without_status_change(self):
+        robot = TurtleBot('tb3_0')
+        robot.request_stop()
+
+        robot.clear_stop()
+
+        self.assertFalse(robot.stop_requested())
+        self.assertEqual(robot.state_snapshot().status, RobotStatus.STOPPED)
 
 
 if __name__ == '__main__':

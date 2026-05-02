@@ -1,13 +1,10 @@
 #!/usr/bin/env python3
 from typing import cast
 import rospy
-from geometry_msgs.msg import Twist
-from nav_msgs.msg import Odometry
-from std_msgs.msg import Empty
 from pathfinding_system.world.graph import Graph
-from pathfinding_system.robot.turtlebot import MotionParameters, TurtleBot
-from pathfinding_system.robot.turtlebot_executer import TurtleBotExecuter
-from pathfinding_system.msg import RobotState as RobotStateMsg  # type: ignore[import]
+from pathfinding_system.robot.motion import MotionParameters
+from pathfinding_system.robot.turtlebot import TurtleBot
+from pathfinding_system.robot.turtlebot_node import TurtleBotNode
 
 
 def main():
@@ -23,8 +20,6 @@ def main():
     heading_tolerance = cast(float, rospy.get_param('~heading_tol', 0.2))
 
     graph = Graph.load_from_yaml(graph_file)
-    state_pub = rospy.Publisher(f'/{robot_id}/robot_state', RobotStateMsg, queue_size=1)
-    cmd_vel_pub = rospy.Publisher(f'/{robot_id}/cmd_vel', Twist, queue_size=1)
     robot = TurtleBot(
         robot_id,
         motion_parameters=MotionParameters(
@@ -36,20 +31,12 @@ def main():
             heading_tolerance=heading_tolerance,
         ),
     )
-    rospy.Subscriber(f'/{robot_id}/odom', Odometry, robot.on_odom)
-
-    def handle_emergency_stop(msg):
-        robot.on_emergency_stop(msg)
-        cmd_vel_pub.publish(robot.stop_motion())
-
-    rospy.Subscriber(f'/{robot_id}/emergency_stop', Empty, handle_emergency_stop)
-    rospy.Timer(
-        rospy.Duration(1.0 / state_publish_rate_hz),
-        lambda event: state_pub.publish(robot.state_message()),
+    turtlebot_node = TurtleBotNode(
+        robot,
+        graph=graph,
+        state_publish_rate_hz=state_publish_rate_hz,
     )
-
-    executer = TurtleBotExecuter(robot, graph, cmd_vel_pub.publish)
-    executer.start()
+    turtlebot_node.start()
     rospy.spin()
 
 

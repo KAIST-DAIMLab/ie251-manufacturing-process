@@ -52,6 +52,8 @@ install(PROGRAMS
 
 if(CATKIN_ENABLE_TESTING)
   catkin_add_nosetests(test/test_gazebo_control.py)
+  catkin_add_nosetests(test/test_motion.py)
   catkin_add_nosetests(test/test_path_server.py)
   catkin_add_nosetests(test/test_turtlebot.py)
+  catkin_add_nosetests(test/test_turtlebot_node.py)
 endif()
