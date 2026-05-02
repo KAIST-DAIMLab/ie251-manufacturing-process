@@ -15,8 +15,8 @@ services:
       - ROS_HOSTNAME=localhost
       - ROS_MASTER_URI=http://localhost:11311
     volumes:
-      - ..:/home/ubuntu/workspace
       - noetic-home:/home/ubuntu
+      - ..:/home/ubuntu/workspace
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
       - /tmp/.docker.xauth:/tmp/.docker.xauth:rw
     devices:
