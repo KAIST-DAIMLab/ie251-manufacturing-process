@@ -11,6 +11,8 @@
     <arg name="debug" value="false"/>
   </include>
 
+  <node name="unpause_gazebo" pkg="pathfinding_system" type="unpause_gazebo_node" output="screen"/>
+
   <!-- tb3_0: spawned at graph node 0 (x=1.0, y=0.75, yaw=0) -->
   <group ns="tb3_0">
     <param name="robot_description"

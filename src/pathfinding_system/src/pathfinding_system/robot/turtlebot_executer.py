@@ -1,21 +1,28 @@
 from __future__ import annotations
+from typing import Callable
 import rospy
 import actionlib
+from geometry_msgs.msg import Twist
 from pathfinding_system.world.graph import Graph
 from pathfinding_system.robot.robot_status import RobotStatus
 from pathfinding_system.robot.turtlebot import TurtleBot
 
 
 class TurtleBotExecuter:
-    def __init__(self, robot: TurtleBot, graph: Graph) -> None:
+    def __init__(
+        self,
+        robot: TurtleBot,
+        graph: Graph,
+        publish_cmd_vel: Callable[[Twist], None],
+    ) -> None:
         self._robot = robot
         self._graph = graph
+        self._publish_cmd_vel = publish_cmd_vel
         self._action_server = None
 
     def start(self) -> None:
         from pathfinding_system.msg import FollowPathAction  # type: ignore[import]
 
-        self._robot.start()
         self._action_server = actionlib.SimpleActionServer(
             f'/{self._robot.id}/follow_path',
             FollowPathAction,
@@ -38,17 +45,19 @@ class TurtleBotExecuter:
         for idx, waypoint in enumerate(waypoints):
             while not rospy.is_shutdown():
                 if self._action_server.is_preempt_requested():
-                    self._robot.stop_motion()
+                    self._publish_cmd_vel(self._robot.stop_motion())
                     self._robot.set_status(RobotStatus.IDLE)
                     self._action_server.set_preempted()
                     return
                 if self._robot.stop_requested():
-                    self._robot.stop_motion()
+                    self._publish_cmd_vel(self._robot.stop_motion())
                     self._action_server.set_aborted(
                         FollowPathResult(success=False, message="emergency stop")
                     )
                     return
-                if self._robot.drive_towards(waypoint):
+                drive_result = self._robot.drive_towards(waypoint)
+                self._publish_cmd_vel(drive_result.velocity_command)
+                if drive_result.arrived:
                     break
 
                 fb = FollowPathFeedback()
@@ -59,7 +68,7 @@ class TurtleBotExecuter:
             else:
                 return
 
-        self._robot.stop_motion()
+        self._publish_cmd_vel(self._robot.stop_motion())
         self._robot.set_status(RobotStatus.REACHED)
         self._action_server.set_succeeded(
             FollowPathResult(success=True, message="reached goal")

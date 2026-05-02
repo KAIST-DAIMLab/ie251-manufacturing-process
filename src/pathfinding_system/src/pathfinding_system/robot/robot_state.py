@@ -1,22 +1,24 @@
 from __future__ import annotations
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Optional
+import rospy
+from geometry_msgs.msg import Pose2D, Twist
+from pathfinding_system.msg import RobotState as RobotStateMsg  # type: ignore[import]
 from pathfinding_system.robot.robot_status import RobotStatus
 
 
 @dataclass
 class RobotState:
     id: str
-    pose: object        # geometry_msgs/Pose2D
-    velocity: object    # geometry_msgs/Twist
-    status: RobotStatus
-    stamp: object       # rospy.Time
+    pose: Pose2D = field(default_factory=Pose2D)
+    velocity: Twist = field(default_factory=Twist)
+    status: RobotStatus = RobotStatus.IDLE
+    stamp: Optional[rospy.Time] = None
 
     def is_moving(self) -> bool:
         return self.status == RobotStatus.MOVING
 
     def to_msg(self):
-        from pathfinding_system.msg import RobotState as RobotStateMsg  # type: ignore[import]
-        import rospy
         msg = RobotStateMsg()
         msg.robot_id = self.id
         msg.pose = self.pose

@@ -69,14 +69,17 @@ def _install_ros_stubs():
 
 _install_ros_stubs()
 
-from pathfinding_system.robot.turtlebot import TurtleBot
+from pathfinding_system.robot.turtlebot import MotionParameters, TurtleBot
 import pathfinding_system.robot.turtlebot as turtlebot_module
+from pathfinding_system.robot.robot_state import RobotState
+from pathfinding_system.robot.robot_status import RobotStatus
 from pathfinding_system.world.node import Node
 
 
 class TurtleBotTest(unittest.TestCase):
     def setUp(self):
         self.published_by_topic = {}
+        self.subscriptions = []
         self.timers = []
 
         def publisher(topic, msg_type, queue_size=10):
@@ -84,41 +87,69 @@ class TurtleBotTest(unittest.TestCase):
             self.published_by_topic[topic] = published
             return types.SimpleNamespace(publish=published.append)
 
+        def subscriber(topic, msg_type, callback):
+            self.subscriptions.append((topic, msg_type, callback))
+            return types.SimpleNamespace()
+
         def timer(duration, callback):
             self.timers.append((duration, callback))
             return types.SimpleNamespace()
 
         import rospy
         rospy.Publisher = publisher
+        rospy.Subscriber = subscriber
         rospy.Timer = timer
         turtlebot_module.rospy.Publisher = publisher
         turtlebot_module.rospy.Timer = timer
-        turtlebot_module.rospy.Subscriber = lambda *args, **kwargs: ('subscriber', args, kwargs)
+        turtlebot_module.rospy.Subscriber = subscriber
 
     def test_uses_namespaced_cmd_vel_topic(self):
         robot = TurtleBot('tb3_0')
 
         self.assertEqual(robot.cmd_vel_topic, '/tb3_0/cmd_vel')
 
-    def test_start_publishes_state_without_waiting_for_move_base(self):
+    def test_does_not_create_ros_topic_wiring(self):
+        TurtleBot('tb3_0')
+
+        self.assertEqual(self.subscriptions, [])
+        self.assertEqual(self.published_by_topic, {})
+        self.assertEqual(self.timers, [])
+
+    def test_robot_state_defaults_require_only_robot_id(self):
+        state = RobotState(id='tb3_0')
+
+        self.assertEqual(state.id, 'tb3_0')
+        self.assertEqual(state.pose.x, 0.0)
+        self.assertEqual(state.velocity.linear.x, 0.0)
+        self.assertEqual(state.status, RobotStatus.IDLE)
+        self.assertIsNone(state.stamp)
+
+    def test_drive_towards_waypoint_returns_forward_velocity(self):
         robot = TurtleBot('tb3_0')
 
-        robot.start()
+        result = robot.drive_towards(Node(id=2, x=1.0, y=0.0))
 
-        self.assertIn('/tb3_0/robot_state', self.published_by_topic)
-        self.assertIn('/tb3_0/cmd_vel', self.published_by_topic)
-        self.assertEqual(len(self.timers), 1)
+        self.assertFalse(result.arrived)
+        self.assertGreater(result.velocity_command.linear.x, 0.0)
+        self.assertEqual(result.velocity_command.angular.z, 0.0)
 
-    def test_drive_towards_waypoint_publishes_forward_velocity(self):
-        robot = TurtleBot('tb3_0')
-        robot.start()
+    def test_drive_towards_uses_readable_motion_parameters(self):
+        robot = TurtleBot(
+            'tb3_0',
+            motion_parameters=MotionParameters(
+                linear_gain=2.0,
+                angular_gain=1.5,
+                max_linear_velocity=0.3,
+                max_angular_velocity=1.5,
+                arrival_tolerance=0.1,
+                heading_tolerance=0.2,
+            ),
+        )
 
-        arrived = robot.drive_towards(Node(id=2, x=1.0, y=0.0))
+        result = robot.drive_towards(Node(id=2, x=1.0, y=0.0))
 
-        self.assertFalse(arrived)
-        cmd = self.published_by_topic['/tb3_0/cmd_vel'][-1]
-        self.assertGreater(cmd.linear.x, 0.0)
-        self.assertEqual(cmd.angular.z, 0.0)
+        self.assertFalse(result.arrived)
+        self.assertEqual(result.velocity_command.linear.x, 0.3)
 
 
 if __name__ == '__main__':

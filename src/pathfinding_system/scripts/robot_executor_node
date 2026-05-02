@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
 from typing import cast
 import rospy
+from geometry_msgs.msg import Twist
+from nav_msgs.msg import Odometry
+from std_msgs.msg import Empty
 from pathfinding_system.world.graph import Graph
-from pathfinding_system.robot.turtlebot import TurtleBot
+from pathfinding_system.robot.turtlebot import MotionParameters, TurtleBot
 from pathfinding_system.robot.turtlebot_executer import TurtleBotExecuter
+from pathfinding_system.msg import RobotState as RobotStateMsg  # type: ignore[import]
 
 
 def main():
@@ -11,25 +15,40 @@ def main():
     robot_id = cast(str, rospy.get_param('~robot_id'))
     graph_file = cast(str, rospy.get_param('~graph_file'))
     state_publish_rate_hz = cast(float, rospy.get_param('~state_publish_rate_hz', 10.0))
-    k_lin = cast(float, rospy.get_param('~k_lin', 0.5))
-    k_ang = cast(float, rospy.get_param('~k_ang', 1.5))
-    max_lin_vel = cast(float, rospy.get_param('~max_lin_vel', 0.22))
-    max_ang_vel = cast(float, rospy.get_param('~max_ang_vel', 1.5))
-    arrival_tol = cast(float, rospy.get_param('~arrival_tol', 0.10))
-    heading_tol = cast(float, rospy.get_param('~heading_tol', 0.2))
+    linear_gain = cast(float, rospy.get_param('~k_lin', 0.5))
+    angular_gain = cast(float, rospy.get_param('~k_ang', 1.5))
+    max_linear_velocity = cast(float, rospy.get_param('~max_lin_vel', 0.22))
+    max_angular_velocity = cast(float, rospy.get_param('~max_ang_vel', 1.5))
+    arrival_tolerance = cast(float, rospy.get_param('~arrival_tol', 0.10))
+    heading_tolerance = cast(float, rospy.get_param('~heading_tol', 0.2))
 
     graph = Graph.load_from_yaml(graph_file)
+    state_pub = rospy.Publisher(f'/{robot_id}/robot_state', RobotStateMsg, queue_size=1)
+    cmd_vel_pub = rospy.Publisher(f'/{robot_id}/cmd_vel', Twist, queue_size=1)
     robot = TurtleBot(
         robot_id,
-        state_publish_rate_hz=state_publish_rate_hz,
-        k_lin=k_lin,
-        k_ang=k_ang,
-        max_lin_vel=max_lin_vel,
-        max_ang_vel=max_ang_vel,
-        arrival_tol=arrival_tol,
-        heading_tol=heading_tol,
+        motion_parameters=MotionParameters(
+            linear_gain=linear_gain,
+            angular_gain=angular_gain,
+            max_linear_velocity=max_linear_velocity,
+            max_angular_velocity=max_angular_velocity,
+            arrival_tolerance=arrival_tolerance,
+            heading_tolerance=heading_tolerance,
+        ),
     )
-    executer = TurtleBotExecuter(robot, graph)
+    rospy.Subscriber(f'/{robot_id}/odom', Odometry, robot.on_odom)
+
+    def handle_emergency_stop(msg):
+        robot.on_emergency_stop(msg)
+        cmd_vel_pub.publish(robot.stop_motion())
+
+    rospy.Subscriber(f'/{robot_id}/emergency_stop', Empty, handle_emergency_stop)
+    rospy.Timer(
+        rospy.Duration(1.0 / state_publish_rate_hz),
+        lambda event: state_pub.publish(robot.state_message()),
+    )
+
+    executer = TurtleBotExecuter(robot, graph, cmd_vel_pub.publish)
     executer.start()
     rospy.spin()
 

@@ -9,6 +9,7 @@ d = generate_distutils_setup(
         'pathfinding_system.safety',
         'pathfinding_system.robot',
         'pathfinding_system.client',
+        'pathfinding_system.simulation',
     ],
     package_dir={'': 'src'},
 )
