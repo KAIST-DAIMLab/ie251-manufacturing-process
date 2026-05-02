@@ -1,5 +1,6 @@
 from __future__ import annotations
 import threading
+import time
 import rospy
 import actionlib
 from actionlib_msgs.msg import GoalStatus
@@ -15,13 +16,16 @@ class PathServer:
         planner: PathPlanner,
         monitor,
         robot_namespaces: list[str],
+        first_state_timeout_sec: float = 1.0,
     ) -> None:
         self._graph = graph
         self._planner = planner
         self._monitor = monitor
         self._namespaces = robot_namespaces
+        self._first_state_timeout_sec = first_state_timeout_sec
         self._robot_states: dict[str, object] = {}
         self._states_lock = threading.Lock()
+        self._state_available = threading.Condition(self._states_lock)
         self._follow_clients: dict[str, object] = {}
         # Per-robot lock so two simultaneous goals to the same robot are serialized.
         self._robot_locks: dict[str, threading.Lock] = {ns: threading.Lock() for ns in robot_namespaces}
@@ -55,8 +59,9 @@ class PathServer:
         rospy.loginfo("PathServer started.")
 
     def _on_robot_state(self, ns: str, msg) -> None:
-        with self._states_lock:
+        with self._state_available:
             self._robot_states[ns] = msg
+            self._state_available.notify_all()
 
     def _on_cancel(self, goal_handle) -> None:
         rospy.loginfo("PathServer: cancel requested.")
@@ -83,8 +88,7 @@ class PathServer:
         if ns not in self._namespaces:
             self._abort(goal_handle, f"unknown robot: {ns}")
             return None
-        with self._states_lock:
-            state_msg = self._robot_states.get(ns)
+        state_msg = self._wait_for_robot_state(ns)
         if state_msg is None:
             self._abort(goal_handle, f"no state received from {ns}")
             return None
@@ -93,6 +97,18 @@ class PathServer:
             self._graph.all_nodes(),
             key=lambda n: (n.x - pose.x) ** 2 + (n.y - pose.y) ** 2,
         )
+
+    def _wait_for_robot_state(self, ns: str):
+        deadline = time.monotonic() + self._first_state_timeout_sec
+        with self._state_available:
+            state_msg = self._robot_states.get(ns)
+            while state_msg is None:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0.0:
+                    return None
+                self._state_available.wait(timeout=remaining)
+                state_msg = self._robot_states.get(ns)
+            return state_msg
 
     def _plan_node_ids(self, start: Node, target_id: int, goal_handle) -> list[int] | None:
         try:

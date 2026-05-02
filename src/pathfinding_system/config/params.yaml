@@ -5,12 +5,10 @@ path_server:
   time_step: 0.1
 
 executor:
-  controller:
-    k_lin: 0.5
-    k_ang: 1.5
-    max_lin_vel: 0.22
-    max_ang_vel: 1.5
-    arrival_tol: 0.10
-    heading_tol: 0.2
   state_publish_rate_hz: 10.0
-  control_rate_hz: 20.0
+  k_lin: 0.5
+  k_ang: 1.5
+  max_lin_vel: 0.22
+  max_ang_vel: 1.5
+  arrival_tol: 0.10
+  heading_tol: 0.2

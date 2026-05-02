@@ -48,3 +48,8 @@ install(PROGRAMS
   scripts/user_client
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
+
+if(CATKIN_ENABLE_TESTING)
+  catkin_add_nosetests(test/test_path_server.py)
+  catkin_add_nosetests(test/test_turtlebot.py)
+endif()

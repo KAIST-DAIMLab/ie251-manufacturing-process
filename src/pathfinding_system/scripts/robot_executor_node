@@ -2,22 +2,34 @@
 from typing import cast
 import rospy
 from pathfinding_system.world.graph import Graph
-from pathfinding_system.robot.turtlebot_executer import ControllerGains, TurtleBotExecuter
+from pathfinding_system.robot.turtlebot import TurtleBot
+from pathfinding_system.robot.turtlebot_executer import TurtleBotExecuter
 
 
 def main():
     rospy.init_node('executor')
     robot_id = cast(str, rospy.get_param('~robot_id'))
     graph_file = cast(str, rospy.get_param('~graph_file'))
-    controller_params = cast(dict, rospy.get_param('~controller', {}))
-    control_rate_hz = cast(float, rospy.get_param('~control_rate_hz', 20.0))
     state_publish_rate_hz = cast(float, rospy.get_param('~state_publish_rate_hz', 10.0))
+    k_lin = cast(float, rospy.get_param('~k_lin', 0.5))
+    k_ang = cast(float, rospy.get_param('~k_ang', 1.5))
+    max_lin_vel = cast(float, rospy.get_param('~max_lin_vel', 0.22))
+    max_ang_vel = cast(float, rospy.get_param('~max_ang_vel', 1.5))
+    arrival_tol = cast(float, rospy.get_param('~arrival_tol', 0.10))
+    heading_tol = cast(float, rospy.get_param('~heading_tol', 0.2))
 
     graph = Graph.load_from_yaml(graph_file)
-    gains = ControllerGains.from_params(controller_params)
-    executer = TurtleBotExecuter(
-        robot_id, graph, gains, control_rate_hz, state_publish_rate_hz
+    robot = TurtleBot(
+        robot_id,
+        state_publish_rate_hz=state_publish_rate_hz,
+        k_lin=k_lin,
+        k_ang=k_ang,
+        max_lin_vel=max_lin_vel,
+        max_ang_vel=max_ang_vel,
+        arrival_tol=arrival_tol,
+        heading_tol=heading_tol,
     )
+    executer = TurtleBotExecuter(robot, graph)
     executer.start()
     rospy.spin()
 
