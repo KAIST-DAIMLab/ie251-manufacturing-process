@@ -58,7 +58,7 @@ def _install_ros_stubs():
 
 _install_ros_stubs()
 
-from pathfinding_system.robot.motion import MotionParameters
+from pathfinding_system.robot.motion_controller import MotionParameters
 from pathfinding_system.robot.turtlebot import TurtleBot
 from pathfinding_system.robot.robot_state import RobotState
 from pathfinding_system.robot.robot_status import RobotStatus

@@ -149,7 +149,7 @@ def _install_ros_stubs():
 
 _install_ros_stubs()
 
-from pathfinding_system.robot.motion import DriveResult
+from pathfinding_system.robot.motion_controller import DriveResult
 from pathfinding_system.robot.robot_status import RobotStatus
 from pathfinding_system.robot.turtlebot import TurtleBot
 from pathfinding_system.robot.turtlebot_node import TurtleBotNode

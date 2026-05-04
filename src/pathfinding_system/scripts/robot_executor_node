@@ -2,7 +2,7 @@
 from typing import cast
 import rospy
 from pathfinding_system.world.graph import Graph
-from pathfinding_system.robot.motion import MotionParameters
+from pathfinding_system.robot.motion_controller import MotionParameters
 from pathfinding_system.robot.turtlebot import TurtleBot
 from pathfinding_system.robot.turtlebot_node import TurtleBotNode
 

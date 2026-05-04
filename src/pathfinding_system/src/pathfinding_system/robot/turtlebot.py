@@ -3,13 +3,13 @@ import copy
 import threading
 from geometry_msgs.msg import Pose2D
 
-from pathfinding_system.robot.motion import (
+from pathfinding_system.robot.motion_controller import (
     DriveResult,
     MotionController,
     MotionParameters,
-    PathFollower,
     PathStep,
 )
+from pathfinding_system.robot.path_follower import PathFollower
 from pathfinding_system.robot.robot_status import RobotStatus
 from pathfinding_system.robot.robot_state import RobotState
 from pathfinding_system.world.node import Node

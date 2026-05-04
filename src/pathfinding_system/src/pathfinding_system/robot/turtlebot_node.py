@@ -8,7 +8,7 @@ from nav_msgs.msg import Odometry
 from std_msgs.msg import Empty
 
 from pathfinding_system.msg import RobotState as RobotStateMsg  # type: ignore[import]
-from pathfinding_system.robot.motion import DriveResult
+from pathfinding_system.robot.motion_controller import DriveResult
 from pathfinding_system.robot.turtlebot import TurtleBot
 from pathfinding_system.world.graph import Graph
 

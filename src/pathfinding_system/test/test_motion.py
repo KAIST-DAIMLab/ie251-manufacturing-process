@@ -9,21 +9,20 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src'))
 sys.path.insert(0, ROOT)
 
 
-from pathfinding_system.robot.motion import (
+from pathfinding_system.robot.motion_controller import (
     MotionController,
     MotionParameters,
-    PathFollower,
-    compute_drive,
 )
+from pathfinding_system.robot.path_follower import PathFollower
 from pathfinding_system.world.node import Node
 
 
 class MotionTest(unittest.TestCase):
     def test_arrival_within_tolerance_returns_zero_velocities(self):
         pose = types.SimpleNamespace(x=0.0, y=0.0, theta=0.0)
-        params = MotionParameters(arrival_tolerance=0.10)
+        controller = MotionController(MotionParameters(arrival_tolerance=0.10))
 
-        result = compute_drive(pose, Node(id=1, x=0.05, y=0.0), params)
+        result = controller.drive_towards(pose, Node(id=1, x=0.05, y=0.0))
 
         self.assertTrue(result.arrived)
         self.assertEqual(result.linear_x, 0.0)
@@ -31,9 +30,9 @@ class MotionTest(unittest.TestCase):
 
     def test_heading_error_above_tolerance_blocks_forward_velocity(self):
         pose = types.SimpleNamespace(x=0.0, y=0.0, theta=math.pi / 2.0)
-        params = MotionParameters(heading_tolerance=0.2)
+        controller = MotionController(MotionParameters(heading_tolerance=0.2))
 
-        result = compute_drive(pose, Node(id=1, x=1.0, y=0.0), params)
+        result = controller.drive_towards(pose, Node(id=1, x=1.0, y=0.0))
 
         self.assertFalse(result.arrived)
         self.assertEqual(result.linear_x, 0.0)
@@ -41,33 +40,33 @@ class MotionTest(unittest.TestCase):
 
     def test_large_distance_clamps_linear_velocity(self):
         pose = types.SimpleNamespace(x=0.0, y=0.0, theta=0.0)
-        params = MotionParameters(linear_gain=2.0, max_linear_velocity=0.3)
+        controller = MotionController(MotionParameters(linear_gain=2.0, max_linear_velocity=0.3))
 
-        result = compute_drive(pose, Node(id=1, x=10.0, y=0.0), params)
+        result = controller.drive_towards(pose, Node(id=1, x=10.0, y=0.0))
 
         self.assertFalse(result.arrived)
         self.assertEqual(result.linear_x, 0.3)
 
     def test_large_heading_error_clamps_angular_velocity(self):
         pose = types.SimpleNamespace(x=0.0, y=0.0, theta=0.0)
-        params = MotionParameters(angular_gain=10.0, max_angular_velocity=1.5)
+        controller = MotionController(MotionParameters(angular_gain=10.0, max_angular_velocity=1.5))
 
-        result = compute_drive(pose, Node(id=1, x=0.0, y=1.0), params)
+        result = controller.drive_towards(pose, Node(id=1, x=0.0, y=1.0))
 
         self.assertFalse(result.arrived)
         self.assertEqual(result.angular_z, 1.5)
 
     def test_wrap_around_heading_uses_shortest_angular_direction(self):
         pose = types.SimpleNamespace(x=0.0, y=0.0, theta=math.radians(179.0))
-        params = MotionParameters(angular_gain=1.0, max_angular_velocity=1.5)
+        controller = MotionController(MotionParameters(angular_gain=1.0, max_angular_velocity=1.5))
 
-        result = compute_drive(pose, Node(id=1, x=-1.0, y=-0.01), params)
+        result = controller.drive_towards(pose, Node(id=1, x=-1.0, y=-0.01))
 
         self.assertFalse(result.arrived)
         self.assertGreater(result.angular_z, 0.0)
         self.assertLess(result.angular_z, math.radians(2.0))
 
-    def test_motion_controller_delegates_drive_calculation(self):
+    def test_motion_controller_clamps_linear_velocity(self):
         pose = types.SimpleNamespace(x=0.0, y=0.0, theta=0.0)
         controller = MotionController(
             MotionParameters(linear_gain=2.0, max_linear_velocity=0.3)
