@@ -45,7 +45,7 @@ class TurtleBotNode:
         self.cmd_vel_publisher = rospy.Publisher(robot.cmd_vel_topic, Twist, queue_size=1)
         self.state_publisher = rospy.Publisher(robot.state_topic, RobotStateMsg, queue_size=1)
         self._odom_subscriber = rospy.Subscriber(
-            f'/{robot.id}/odom',
+            robot.odom_topic,
             Odometry,
             self._on_odom,
         )

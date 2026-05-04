@@ -20,9 +20,10 @@ class TurtleBot:
         self,
         robot_id: str,
         motion_parameters: MotionParameters = MotionParameters(),
+        topic_namespace: str | None = None,
     ) -> None:
         self.id = robot_id
-        self._ns = robot_id
+        self._topic_ns = (topic_namespace or robot_id).strip('/')
         self._motion_controller = MotionController(motion_parameters)
         self._path_follower = PathFollower(self._motion_controller)
         self._state = RobotState(id=robot_id)
@@ -31,11 +32,15 @@ class TurtleBot:
 
     @property
     def cmd_vel_topic(self) -> str:
-        return f'/{self._ns}/cmd_vel'
+        return f'/{self._topic_ns}/cmd_vel'
+
+    @property
+    def odom_topic(self) -> str:
+        return f'/{self._topic_ns}/odom'
 
     @property
     def state_topic(self) -> str:
-        return f'/{self._ns}/robot_state'
+        return f'/{self.id}/robot_state'
 
     def drive_towards(self, node: Node) -> DriveResult:
         with self._lock:

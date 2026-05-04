@@ -1,3 +1,11 @@
+robots:
+  tb3_0:
+    simulation: true
+    real: false
+  tb3_1:
+    simulation: true
+    real: false
+
 path_server:
   horizon: 2.0
   check_rate_hz: 10.0

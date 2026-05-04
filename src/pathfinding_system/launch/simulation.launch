@@ -14,7 +14,7 @@
   <node name="unpause_gazebo" pkg="pathfinding_system" type="unpause_gazebo_node" output="screen"/>
 
   <!-- tb3_0: spawned at graph node 0 (x=1.0, y=0.75, yaw=0) -->
-  <group ns="tb3_0">
+  <group ns="tb3_0/sim">
     <param name="robot_description"
            command="$(find xacro)/xacro --inorder $(find turtlebot3_description)/urdf/turtlebot3_$(arg model).urdf.xacro"/>
     <node pkg="robot_state_publisher" type="robot_state_publisher"
@@ -27,7 +27,7 @@
   </group>
 
   <!-- tb3_1: spawned at graph node 5 (x=5.0, y=2.25, yaw=pi) -->
-  <group ns="tb3_1">
+  <group ns="tb3_1/sim">
     <param name="robot_description"
            command="$(find xacro)/xacro --inorder $(find turtlebot3_description)/urdf/turtlebot3_$(arg model).urdf.xacro"/>
     <node pkg="robot_state_publisher" type="robot_state_publisher"
@@ -39,26 +39,4 @@
           args="-urdf -model tb3_1 -x 5.0 -y 2.25 -z 0.0 -Y 3.14159 -param robot_description"/>
   </group>
 
-  <!-- path_server node -->
-  <node name="path_server" pkg="pathfinding_system" type="path_server_node" output="screen">
-    <param name="graph_file" value="$(find pathfinding_system)/config/graph.yaml"/>
-    <param name="horizon" value="2.0"/>
-    <param name="check_rate_hz" value="10.0"/>
-    <param name="safety_radius" value="0.35"/>
-    <param name="time_step" value="0.1"/>
-  </node>
-
-  <!-- tb3_0 executor -->
-  <node name="executor" ns="tb3_0" pkg="pathfinding_system" type="robot_executor_node" output="screen">
-    <param name="robot_id" value="tb3_0"/>
-    <param name="graph_file" value="$(find pathfinding_system)/config/graph.yaml"/>
-    <param name="state_publish_rate_hz" value="10.0"/>
-  </node>
-
-  <!-- tb3_1 executor -->
-  <node name="executor" ns="tb3_1" pkg="pathfinding_system" type="robot_executor_node" output="screen">
-    <param name="robot_id" value="tb3_1"/>
-    <param name="graph_file" value="$(find pathfinding_system)/config/graph.yaml"/>
-    <param name="state_publish_rate_hz" value="10.0"/>
-  </node>
 </launch>

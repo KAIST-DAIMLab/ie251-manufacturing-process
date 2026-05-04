@@ -76,20 +76,29 @@ catkin_make --only-pkg-with-deps pathfinding_system
 source devel/setup.zsh
 ```
 
-### 3. Launch the full system
+### 3. Launch simulation and pathfinding
 
-**Terminal 1** — Gazebo + robots + nodes:
+**Terminal 1** — Gazebo + simulated robots:
 
 ```bash
 source devel/setup.zsh
-roslaunch pathfinding_system gazebo_world.launch
+roslaunch pathfinding_system simulation.launch
 ```
 
-Gazebo opens. Two TurtleBot3 Waffles appear: one near the bottom-left, one near the top-right. Wait until both `/tb3_0/robot_state` and `/tb3_1/robot_state` topics are publishing before sending goals.
+Gazebo opens. Two TurtleBot3 Waffles appear: one near the bottom-left, one near the top-right.
+
+**Terminal 2** — pathfinding system:
+
+```bash
+source devel/setup.zsh
+roslaunch pathfinding_system system.launch
+```
+
+Wait until both `/tb3_0/robot_state` and `/tb3_1/robot_state` topics are publishing before sending goals.
 
 ### 4. Send a goal
 
-**Terminal 2:**
+**Terminal 3:**
 
 ```bash
 source devel/setup.zsh
@@ -170,7 +179,7 @@ xauth nlist $DISPLAY | sed -e 's/^..../ffff/' | xauth -f /tmp/.docker.xauth nmer
 **`Failed to load model 'waffle'`**
 ```bash
 export TURTLEBOT3_MODEL=waffle
-roslaunch pathfinding_system gazebo_world.launch
+roslaunch pathfinding_system simulation.launch
 ```
 
 **`rospack find pathfinding_system` fails**
