@@ -1,46 +1,60 @@
 from __future__ import annotations
+import math
+import threading
 
-from pathfinding_system.robot.motion_controller import DriveResult, MotionController, PathStep
+from pathfinding_system.robot.motion_controller import MotionController
 from pathfinding_system.world.node import Node
+
+_ANGLE_EPSILON = 1e-3
+_DISTANCE_EPSILON = 1e-3
 
 
 class PathFollower:
-    """Steps through an ordered list of waypoints, delegating per-tick drive commands to a MotionController."""
+    """Steps through an ordered list of waypoints using turn-then-move primitives."""
 
     def __init__(self, motion_controller: MotionController) -> None:
         self._motion_controller = motion_controller
-        self._waypoints: list[Node] = []
         self._current_index = 0
+        self._lock = threading.Lock()
 
-    def start(self, waypoints: list[Node]) -> None:
-        """Begin following a new sequence of waypoints, resetting progress."""
-        self._waypoints = list(waypoints)
-        self._current_index = 0
+    @property
+    def current_index(self) -> int:
+        """Index of the waypoint currently being driven toward."""
+        with self._lock:
+            return self._current_index
+
+    def follow(self, waypoints: list[Node]) -> bool:
+        """Drive through all waypoints in order; True on completion, False if interrupted."""
+        with self._lock:
+            self._current_index = 0
+
+        for index, waypoint in enumerate(waypoints):
+            with self._lock:
+                self._current_index = index
+
+            pose = self._motion_controller._pose_provider()
+            dx = waypoint.x - pose.x
+            dy = waypoint.y - pose.y
+            distance = math.hypot(dx, dy)
+            angle = self._wrap_to_pi(math.atan2(dy, dx) - pose.theta)
+
+            if abs(angle) >= _ANGLE_EPSILON:
+                if angle > 0:
+                    if not self._motion_controller.turnLeft(angle):
+                        return False
+                else:
+                    if not self._motion_controller.turnRight(-angle):
+                        return False
+
+            if distance >= _DISTANCE_EPSILON:
+                if not self._motion_controller.MoveTowards(distance):
+                    return False
+
+        return True
 
     def cancel(self) -> None:
-        """Abort the active path and stop issuing drive commands."""
-        self._waypoints = []
-        self._current_index = 0
+        """Interrupt the current follow by stopping the motion controller."""
+        self._motion_controller.stop()
 
-    def step(self, pose) -> PathStep:
-        """Advance one control tick, returning drive commands and whether the full path is completed."""
-        if self._current_index >= len(self._waypoints):
-            return PathStep(
-                drive_result=DriveResult(arrived=True, linear_x=0.0, angular_z=0.0),
-                current_index=0,
-                completed=True,
-            )
-
-        current_index = self._current_index
-        drive_result = self._motion_controller.drive_towards(
-            pose,
-            self._waypoints[current_index],
-        )
-        if drive_result.arrived:
-            self._current_index += 1
-
-        return PathStep(
-            drive_result=drive_result,
-            current_index=current_index,
-            completed=self._current_index >= len(self._waypoints),
-        )
+    def _wrap_to_pi(self, radian: float) -> float:
+        return math.atan2(math.sin(radian), math.cos(radian))

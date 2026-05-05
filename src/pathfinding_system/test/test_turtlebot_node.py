@@ -149,7 +149,6 @@ def _install_ros_stubs():
 
 _install_ros_stubs()
 
-from pathfinding_system.robot.motion_controller import DriveResult
 from pathfinding_system.robot.robot_status import RobotStatus
 from pathfinding_system.robot.turtlebot import TurtleBot
 from pathfinding_system.robot.turtlebot_node import TurtleBotNode
@@ -165,6 +164,23 @@ class FakeGraph:
 
     def get_node(self, node_id):
         return self.nodes[node_id]
+
+
+class FakePathFollower:
+    """Controllable fake PathFollower for action server tests."""
+
+    def __init__(self, return_value=True):
+        self.return_value = return_value
+        self.followed_waypoints = None
+        self.current_index = 0
+        self.cancelled = False
+
+    def follow(self, waypoints):
+        self.followed_waypoints = waypoints
+        return self.return_value
+
+    def cancel(self):
+        self.cancelled = True
 
 
 def _odom_msg(x=1.0, y=2.0, yaw=0.5, linear_x=0.1, stamp='stamp'):
@@ -191,7 +207,6 @@ def _odom_msg(x=1.0, y=2.0, yaw=0.5, linear_x=0.1, stamp='stamp'):
 class TurtleBotNodeTest(unittest.TestCase):
     def setUp(self):
         import rospy
-
         rospy.publishers[:] = []
         rospy.subscribers[:] = []
         rospy.timers[:] = []
@@ -290,15 +305,6 @@ class TurtleBotNodeTest(unittest.TestCase):
         self.assertEqual(cmd.linear.x, 0.0)
         self.assertEqual(cmd.angular.z, 0.0)
 
-    def test_publish_drive_result_converts_scalars_to_twist(self):
-        node = TurtleBotNode(TurtleBot('tb3_0'))
-
-        node.publish_drive_result(DriveResult(arrived=False, linear_x=0.2, angular_z=-0.3))
-
-        cmd = node.cmd_vel_publisher.published[0]
-        self.assertEqual(cmd.linear.x, 0.2)
-        self.assertEqual(cmd.angular.z, -0.3)
-
     def test_start_creates_follow_path_action_server(self):
         node = TurtleBotNode(TurtleBot('tb3_0'), graph=FakeGraph())
 
@@ -310,9 +316,11 @@ class TurtleBotNodeTest(unittest.TestCase):
         self.assertEqual(server.name, '/tb3_0/follow_path')
         self.assertTrue(server.started)
 
-    def test_follow_path_action_steps_robot_path_and_succeeds(self):
+    def test_follow_path_action_completes_and_succeeds(self):
         robot = TurtleBot('tb3_0')
         node = TurtleBotNode(robot, graph=FakeGraph())
+        fake_follower = FakePathFollower(return_value=True)
+        node._path_follower = fake_follower
         node.start()
 
         import actionlib
@@ -322,12 +330,13 @@ class TurtleBotNodeTest(unittest.TestCase):
         self.assertEqual(robot.state_snapshot().status, RobotStatus.REACHED)
         self.assertTrue(server.succeeded.success)
         self.assertEqual(server.succeeded.message, 'reached goal')
-        self.assertEqual(len(node.cmd_vel_publisher.published), 2)
         self.assertEqual(node.cmd_vel_publisher.published[-1].linear.x, 0.0)
 
-    def test_follow_path_action_preempt_cancels_robot_path(self):
+    def test_follow_path_action_preempt_marks_robot_idle(self):
         robot = TurtleBot('tb3_0')
         node = TurtleBotNode(robot, graph=FakeGraph())
+        fake_follower = FakePathFollower(return_value=True)
+        node._path_follower = fake_follower
         node.start()
 
         import actionlib

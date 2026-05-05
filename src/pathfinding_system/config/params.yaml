@@ -6,9 +6,6 @@ path_server:
 
 executor:
   state_publish_rate_hz: 10.0
-  k_lin: 0.5
-  k_ang: 1.5
-  max_lin_vel: 0.22
-  max_ang_vel: 1.5
-  arrival_tol: 0.10
-  heading_tol: 0.2
+  linear_speed: 0.22
+  angular_speed: 1.5
+  motion_rate_hz: 5.0
