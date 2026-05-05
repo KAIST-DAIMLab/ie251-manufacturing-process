@@ -19,7 +19,7 @@ def main():
     turtlebot_node = TurtleBotNode(
         robot_id,
         graph=graph,
-        topic_namespace=topic_namespace,
+        namespace=topic_namespace,
         params=MotionParameters(linear_speed=linear_speed, angular_speed=angular_speed),
         motion_rate_hz=motion_rate_hz,
     )

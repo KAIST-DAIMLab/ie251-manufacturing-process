@@ -94,6 +94,10 @@ class CollisionMonitorTest(unittest.TestCase):
             '/tb3_1/sim/odom',
         ])
         self.assertNotIn('/tb3_0/robot_state', [sub.topic for sub in rospy.subscribers])
+        self.assertEqual([pub.topic for pub in rospy.publishers], [
+            '/tb3_0/stop',
+            '/tb3_1/stop',
+        ])
 
 
 if __name__ == '__main__':

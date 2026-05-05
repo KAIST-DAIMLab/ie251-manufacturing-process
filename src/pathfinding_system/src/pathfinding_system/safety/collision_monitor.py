@@ -34,7 +34,7 @@ class CollisionMonitor:
                 lambda msg, n=ns: self.update_odom(n, msg),
             )
             self._stop_pubs[ns] = rospy.Publisher(
-                f'/{ns}/emergency_stop', Empty, queue_size=1
+                f'/{ns}/stop', Empty, queue_size=1
             )
         rospy.Timer(rospy.Duration(1.0 / self._check_rate_hz), self._tick)
         rospy.loginfo("CollisionMonitor started.")

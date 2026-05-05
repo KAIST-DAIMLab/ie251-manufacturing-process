@@ -19,6 +19,7 @@ class PathServer:
         monitor,
         robot_namespaces: list[str],
         robot_odom_topics: dict[str, str] | None = None,
+        robot_action_namespaces: dict[str, str] | None = None,
         first_state_timeout_sec: float = 1.0,
     ) -> None:
         self._graph = graph
@@ -27,6 +28,9 @@ class PathServer:
         self._namespaces = robot_namespaces
         self._robot_odom_topics = robot_odom_topics or {
             ns: f'/{ns}/odom' for ns in robot_namespaces
+        }
+        self._robot_action_namespaces = robot_action_namespaces or {
+            ns: ns for ns in robot_namespaces
         }
         self._first_state_timeout_sec = first_state_timeout_sec
         self._robot_states: dict[str, object] = {}
@@ -49,7 +53,7 @@ class PathServer:
                 lambda msg, n=ns: self._on_odom(n, msg),
             )
             self._follow_clients[ns] = actionlib.SimpleActionClient(
-                f'/{ns}/follow_path', FollowPathAction
+                f'/{self._robot_action_namespaces[ns]}/follow_path', FollowPathAction
             )
 
         # ActionServer (not SimpleActionServer) supports concurrent goals.

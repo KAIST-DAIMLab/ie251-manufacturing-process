@@ -15,6 +15,7 @@ add_action_files(
   FILES
   MoveToNode.action
   FollowPath.action
+  RobotCommand.action
 )
 
 catkin_python_setup()
@@ -52,4 +53,5 @@ if(CATKIN_ENABLE_TESTING)
   catkin_add_nosetests(test/test_physics_utils.py)
   catkin_add_nosetests(test/test_turtlebot.py)
   catkin_add_nosetests(test/test_turtlebot_node.py)
+  catkin_add_nosetests(test/test_user_client.py)
 endif()

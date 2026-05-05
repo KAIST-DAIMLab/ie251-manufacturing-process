@@ -12,9 +12,10 @@ from pathfinding_system.world.graph import Graph
 class FollowPathActionServer:
     """Handles the FollowPath action for a single robot."""
 
-    def __init__(self, robot: TurtleBot, graph: Graph) -> None:
+    def __init__(self, robot: TurtleBot, graph: Graph, namespace: str) -> None:
         self._robot = robot
         self._graph = graph
+        self._namespace = namespace
         self._server = None
 
     def start(self) -> None:
@@ -22,7 +23,7 @@ class FollowPathActionServer:
         from pathfinding_system.msg import FollowPathAction  # type: ignore[import]
 
         self._server = actionlib.SimpleActionServer(
-            f'/{self._robot.id}/follow_path',
+            f'/{self._namespace}/follow_path',
             FollowPathAction,
             execute_cb=self._on_follow_path,
             auto_start=False,

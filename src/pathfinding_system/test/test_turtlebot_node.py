@@ -140,10 +140,20 @@ def _install_ros_stubs():
             self.current_index = None
             self.current_pose = None
 
+    class RobotCommandAction:
+        pass
+
+    class RobotCommandResult:
+        def __init__(self, success=False, message=''):
+            self.success = success
+            self.message = message
+
     pathfinding_system_msg.RobotState = RobotStateMsg
     pathfinding_system_msg.FollowPathAction = FollowPathAction
     pathfinding_system_msg.FollowPathResult = FollowPathResult
     pathfinding_system_msg.FollowPathFeedback = FollowPathFeedback
+    pathfinding_system_msg.RobotCommandAction = RobotCommandAction
+    pathfinding_system_msg.RobotCommandResult = RobotCommandResult
     sys.modules['pathfinding_system.msg'] = pathfinding_system_msg
 
 
@@ -213,13 +223,14 @@ class TurtleBotNodeTest(unittest.TestCase):
         actionlib.action_servers[:] = []
 
     def test_constructor_creates_expected_publishers_subscribers_and_timer(self):
-        TurtleBotNode('tb3_0')
+        node = TurtleBotNode('tb3_0')
 
         import rospy
+        self.assertEqual(node.topic_stop, '/tb3_0/stop')
         self.assertEqual([pub.topic for pub in rospy.publishers], ['/tb3_0/cmd_vel'])
         self.assertEqual([sub.topic for sub in rospy.subscribers], [
             '/tb3_0/odom',
-            '/tb3_0/emergency_stop',
+            '/tb3_0/stop',
         ])
         self.assertEqual(rospy.timers, [])
 
@@ -238,7 +249,7 @@ class TurtleBotNodeTest(unittest.TestCase):
         self.assertEqual(node.topic_odom, '/tb3_0/sim/odom')
         self.assertEqual([sub.topic for sub in rospy.subscribers], [
             '/tb3_0/sim/odom',
-            '/tb3_0/emergency_stop',
+            '/tb3_0/stop',
         ])
 
     def test_constructor_uses_namespace_for_robot_io_topics(self):
@@ -248,7 +259,7 @@ class TurtleBotNodeTest(unittest.TestCase):
         self.assertEqual(node.topic_odom, '/tb3_0/custom/odom')
         self.assertEqual([sub.topic for sub in rospy.subscribers], [
             '/tb3_0/custom/odom',
-            '/tb3_0/emergency_stop',
+            '/tb3_0/stop',
         ])
 
     def test_constructor_does_not_publish_robot_state(self):
@@ -271,7 +282,7 @@ class TurtleBotNodeTest(unittest.TestCase):
         self.assertAlmostEqual(robot._state.pose.theta, 0.5)
         self.assertEqual(robot._state.velocity.linear.x, 0.1)
 
-    def test_emergency_stop_requests_stop_and_publishes_zero_twist(self):
+    def test_stop_topic_requests_stop_and_publishes_zero_twist(self):
         node = TurtleBotNode('tb3_0')
 
         import rospy
@@ -287,10 +298,11 @@ class TurtleBotNodeTest(unittest.TestCase):
         node.start()
 
         import actionlib
-        self.assertEqual(len(actionlib.action_servers), 1)
-        server = actionlib.action_servers[0]
-        self.assertEqual(server.name, '/tb3_0/follow_path')
-        self.assertTrue(server.started)
+        self.assertEqual(
+            [server.name for server in actionlib.action_servers],
+            ['/tb3_0/user_command', '/tb3_0/follow_path'],
+        )
+        self.assertTrue(all(server.started for server in actionlib.action_servers))
 
     def test_follow_path_action_completes_and_succeeds(self):
         node = TurtleBotNode('tb3_0', graph=FakeGraph())
@@ -299,7 +311,7 @@ class TurtleBotNodeTest(unittest.TestCase):
         node.start()
 
         import actionlib
-        server = actionlib.action_servers[0]
+        server = actionlib.action_servers[1]
         server.execute_cb(types.SimpleNamespace(node_ids=[1]))
 
         self.assertTrue(server.succeeded.success)
@@ -312,11 +324,36 @@ class TurtleBotNodeTest(unittest.TestCase):
         node.start()
 
         import actionlib
-        server = actionlib.action_servers[0]
+        server = actionlib.action_servers[1]
         server.preempt_requested = True
         server.execute_cb(types.SimpleNamespace(node_ids=[2]))
 
         self.assertTrue(server.preempted)
+
+    def test_user_command_action_calls_robot_command(self):
+        node = TurtleBotNode('tb3_0', graph=FakeGraph())
+        calls = []
+        node._robot.turn_left = lambda value: calls.append(('turn_left', value)) or True
+        node.start()
+
+        import actionlib
+        server = actionlib.action_servers[0]
+        server.execute_cb(types.SimpleNamespace(command='turn_left', value=1.5))
+
+        self.assertEqual(calls, [('turn_left', 1.5)])
+        self.assertTrue(server.succeeded.success)
+        self.assertEqual(server.succeeded.message, 'turn_left completed')
+
+    def test_user_command_action_rejects_unknown_command(self):
+        node = TurtleBotNode('tb3_0', graph=FakeGraph())
+        node.start()
+
+        import actionlib
+        server = actionlib.action_servers[0]
+        server.execute_cb(types.SimpleNamespace(command='spin', value=1.5))
+
+        self.assertFalse(server.aborted.success)
+        self.assertEqual(server.aborted.message, 'unknown command: spin')
 
 
 if __name__ == '__main__':
