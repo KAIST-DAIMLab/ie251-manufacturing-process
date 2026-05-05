@@ -5,7 +5,6 @@ path_server:
   time_step: 0.1
 
 executor:
-  state_publish_rate_hz: 10.0
   linear_speed: 0.22
   angular_speed: 1.5
   motion_rate_hz: 5.0

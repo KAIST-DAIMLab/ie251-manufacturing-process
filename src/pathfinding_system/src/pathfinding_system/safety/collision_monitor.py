@@ -1,7 +1,9 @@
 from __future__ import annotations
 from itertools import combinations
 import rospy
+from nav_msgs.msg import Odometry
 from std_msgs.msg import Empty
+from pathfinding_system.robot.robot_state import RobotState
 from pathfinding_system.safety.linear_predictor import LinearPredictor
 
 
@@ -12,21 +14,24 @@ class CollisionMonitor:
         robot_namespaces: list[str],
         horizon: float,
         check_rate_hz: float,
+        robot_odom_topics: dict[str, str] | None = None,
     ) -> None:
         self._predictor = predictor
         self._namespaces = robot_namespaces
+        self._robot_odom_topics = robot_odom_topics or {
+            ns: f'/{ns}/odom' for ns in robot_namespaces
+        }
         self._horizon = horizon
         self._check_rate_hz = check_rate_hz
         self._states: dict[str, object] = {}
         self._stop_pubs: dict[str, rospy.Publisher] = {}
 
     def start(self) -> None:
-        from pathfinding_system.msg import RobotState as RobotStateMsg  # type: ignore[import]
         for ns in self._namespaces:
             rospy.Subscriber(
-                f'/{ns}/robot_state',
-                RobotStateMsg,
-                lambda msg, n=ns: self.update_state(n, msg),
+                self._robot_odom_topics[ns],
+                Odometry,
+                lambda msg, n=ns: self.update_odom(n, msg),
             )
             self._stop_pubs[ns] = rospy.Publisher(
                 f'/{ns}/emergency_stop', Empty, queue_size=1
@@ -36,6 +41,9 @@ class CollisionMonitor:
 
     def update_state(self, ns: str, state) -> None:
         self._states[ns] = state
+
+    def update_odom(self, ns: str, msg: Odometry) -> None:
+        self.update_state(ns, RobotState.from_odometry(ns, msg))
 
     def _tick(self, event) -> None:
         for ns_a, ns_b in combinations(self._namespaces, 2):

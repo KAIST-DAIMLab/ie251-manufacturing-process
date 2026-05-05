@@ -94,7 +94,7 @@ source devel/setup.zsh
 roslaunch pathfinding_system system.launch
 ```
 
-Wait until both `/tb3_0/robot_state` and `/tb3_1/robot_state` topics are publishing before sending goals.
+Wait until the executor action servers are up and both odometry topics (`/tb3_0/sim/odom`, `/tb3_1/sim/odom`) are publishing before sending goals.
 
 ### 4. Send a goal
 
@@ -145,7 +145,7 @@ rosrun pathfinding_system user_client tb3_1 0   # top route: 5 → 3 → 1 → 0
 ### Monitor state
 
 ```bash
-rostopic echo /tb3_0/robot_state   # pose, velocity, status (0=IDLE 1=MOVING 2=STOPPED)
+rostopic echo /tb3_0/sim/odom        # pose and velocity from Gazebo
 rostopic echo /tb3_0/emergency_stop  # fires when collision is predicted
 ```
 
@@ -188,10 +188,10 @@ source devel/setup.zsh
 ```
 
 **Robot doesn't move after goal is sent**
-Check that both executor nodes are alive and publishing robot state:
+Check that both executor nodes are alive and odometry is available:
 ```bash
-rostopic hz /tb3_0/robot_state
-rostopic hz /tb3_1/robot_state
+rostopic hz /tb3_0/sim/odom
+rostopic hz /tb3_1/sim/odom
 ```
 
 **Both robots stop and never resume**

@@ -149,10 +149,20 @@ def _install_ros_stubs():
 
 _install_ros_stubs()
 
-from pathfinding_system.robot.robot_mode import RobotMode
 from pathfinding_system.robot.turtlebot import TurtleBot
 from pathfinding_system.robot.turtlebot_node import TurtleBotNode
 from pathfinding_system.world.node import Node
+
+
+class FakePublisher:
+    """Fake cmd_vel publisher that records published messages."""
+
+    def __init__(self):
+        self.published = []
+
+    def publish(self, message):
+        """Record published message."""
+        self.published.append(message)
 
 
 class FakeGraph:
@@ -215,98 +225,86 @@ class TurtleBotNodeTest(unittest.TestCase):
         actionlib.action_servers[:] = []
 
     def test_constructor_creates_expected_publishers_subscribers_and_timer(self):
-        robot = TurtleBot('tb3_0')
+        robot = TurtleBot('tb3_0', cmd_vel_publisher=FakePublisher())
 
-        TurtleBotNode(robot, state_publish_rate_hz=10.0)
+        TurtleBotNode(robot)
 
         import rospy
-        self.assertEqual([pub.topic for pub in rospy.publishers], [
-            '/tb3_0/cmd_vel',
-            '/tb3_0/robot_state',
-        ])
+        self.assertEqual(rospy.publishers, [])
         self.assertEqual([sub.topic for sub in rospy.subscribers], [
             '/tb3_0/odom',
             '/tb3_0/emergency_stop',
         ])
-        self.assertEqual(len(rospy.timers), 1)
-        self.assertEqual(rospy.timers[0].duration, 0.1)
+        self.assertEqual(rospy.timers, [])
+
+    def test_constructor_wires_odom_subscriber_to_robot_update_pose(self):
+        robot = TurtleBot('tb3_0', cmd_vel_publisher=FakePublisher())
+
+        TurtleBotNode(robot)
+
+        import rospy
+        self.assertIs(rospy.subscribers[0].callback.__self__, robot)
+        self.assertEqual(rospy.subscribers[0].callback.__func__.__name__, 'update_pose')
 
     def test_constructor_can_use_separate_robot_io_namespace(self):
-        robot = TurtleBot('tb3_0', topic_namespace='tb3_0/sim')
+        robot = TurtleBot('tb3_0', cmd_vel_publisher=FakePublisher())
 
-        TurtleBotNode(robot, state_publish_rate_hz=10.0)
+        node = TurtleBotNode(robot, topic_namespace='tb3_0/sim')
 
         import rospy
-        self.assertEqual([pub.topic for pub in rospy.publishers], [
-            '/tb3_0/sim/cmd_vel',
-            '/tb3_0/robot_state',
-        ])
+        self.assertEqual(node.topic_odom, '/tb3_0/sim/odom')
         self.assertEqual([sub.topic for sub in rospy.subscribers], [
             '/tb3_0/sim/odom',
             '/tb3_0/emergency_stop',
         ])
 
-    def test_constructor_can_use_separate_command_and_odom_topics(self):
-        robot = TurtleBot(
-            'tb3_0',
-            cmd_vel_topic='/tb3_0/shared/cmd_vel',
-            odom_topic='/tb3_0/sim/odom',
-        )
+    def test_constructor_uses_namespace_for_robot_io_topics(self):
+        robot = TurtleBot('tb3_0', cmd_vel_publisher=FakePublisher())
 
-        TurtleBotNode(robot, state_publish_rate_hz=10.0)
+        node = TurtleBotNode(robot, topic_namespace='tb3_0/custom')
 
         import rospy
-        self.assertEqual([pub.topic for pub in rospy.publishers], [
-            '/tb3_0/shared/cmd_vel',
-            '/tb3_0/robot_state',
-        ])
+        self.assertEqual(node.topic_odom, '/tb3_0/custom/odom')
         self.assertEqual([sub.topic for sub in rospy.subscribers], [
-            '/tb3_0/sim/odom',
+            '/tb3_0/custom/odom',
             '/tb3_0/emergency_stop',
         ])
 
-    def test_invalid_publish_rate_raises_value_error(self):
-        with self.assertRaises(ValueError):
-            TurtleBotNode(TurtleBot('tb3_0'), state_publish_rate_hz=0.0)
-
-    def test_timer_callback_publishes_robot_state(self):
-        robot = TurtleBot('tb3_0')
-        node = TurtleBotNode(robot, state_publish_rate_hz=10.0)
+    def test_constructor_does_not_publish_robot_state(self):
+        robot = TurtleBot('tb3_0', cmd_vel_publisher=FakePublisher())
+        node = TurtleBotNode(robot)
 
         import rospy
-        rospy.timers[0].callback(None)
-
-        self.assertIs(node.state_publisher.published[0].robot_id, 'tb3_0')
+        self.assertFalse(hasattr(node, 'state_publisher'))
+        self.assertNotIn('/tb3_0/robot_state', [pub.topic for pub in rospy.publishers])
+        self.assertEqual(rospy.timers, [])
 
     def test_odom_callback_updates_robot_pose_state(self):
-        robot = TurtleBot('tb3_0')
+        robot = TurtleBot('tb3_0', cmd_vel_publisher=FakePublisher())
         TurtleBotNode(robot)
 
         import rospy
         rospy.subscribers[0].callback(_odom_msg(yaw=0.5))
 
-        state = robot.state_snapshot()
-        self.assertEqual(state.pose.x, 1.0)
-        self.assertEqual(state.pose.y, 2.0)
-        self.assertAlmostEqual(state.pose.theta, 0.5)
-        self.assertEqual(state.velocity.linear.x, 0.1)
-        self.assertEqual(state.stamp, 'stamp')
+        self.assertEqual(robot._state.pose.x, 1.0)
+        self.assertEqual(robot._state.pose.y, 2.0)
+        self.assertAlmostEqual(robot._state.pose.theta, 0.5)
+        self.assertEqual(robot._state.velocity.linear.x, 0.1)
 
     def test_emergency_stop_requests_stop_and_publishes_zero_twist(self):
-        robot = TurtleBot('tb3_0')
-        node = TurtleBotNode(robot)
+        fake_pub = FakePublisher()
+        robot = TurtleBot('tb3_0', cmd_vel_publisher=fake_pub)
+        TurtleBotNode(robot)
 
         import rospy
         rospy.subscribers[1].callback(object())
 
-        self.assertTrue(robot.stop_requested())
-        self.assertEqual(robot.state_snapshot().status, RobotMode.STOPPED)
-        cmd = node.cmd_vel_publisher.published[0]
+        cmd = fake_pub.published[0]
         self.assertEqual(cmd.linear.x, 0.0)
         self.assertEqual(cmd.angular.z, 0.0)
 
     def test_start_creates_follow_path_action_server(self):
-        node = TurtleBotNode(TurtleBot('tb3_0'), graph=FakeGraph())
+        node = TurtleBotNode(TurtleBot('tb3_0', cmd_vel_publisher=FakePublisher()), graph=FakeGraph())
 
         node.start()
 
@@ -317,26 +315,26 @@ class TurtleBotNodeTest(unittest.TestCase):
         self.assertTrue(server.started)
 
     def test_follow_path_action_completes_and_succeeds(self):
-        robot = TurtleBot('tb3_0')
+        fake_pub = FakePublisher()
+        robot = TurtleBot('tb3_0', cmd_vel_publisher=fake_pub)
         node = TurtleBotNode(robot, graph=FakeGraph())
         fake_follower = FakePathFollower(return_value=True)
-        node._path_follower = fake_follower
+        robot._path_follower = fake_follower
         node.start()
 
         import actionlib
         server = actionlib.action_servers[0]
         server.execute_cb(types.SimpleNamespace(node_ids=[1]))
 
-        self.assertEqual(robot.state_snapshot().status, RobotMode.REACHED)
         self.assertTrue(server.succeeded.success)
         self.assertEqual(server.succeeded.message, 'reached goal')
-        self.assertEqual(node.cmd_vel_publisher.published[-1].linear.x, 0.0)
 
     def test_follow_path_action_preempt_marks_robot_idle(self):
-        robot = TurtleBot('tb3_0')
+        fake_pub = FakePublisher()
+        robot = TurtleBot('tb3_0', cmd_vel_publisher=fake_pub)
         node = TurtleBotNode(robot, graph=FakeGraph())
         fake_follower = FakePathFollower(return_value=True)
-        node._path_follower = fake_follower
+        robot._path_follower = fake_follower
         node.start()
 
         import actionlib
@@ -345,8 +343,6 @@ class TurtleBotNodeTest(unittest.TestCase):
         server.execute_cb(types.SimpleNamespace(node_ids=[2]))
 
         self.assertTrue(server.preempted)
-        self.assertEqual(robot.state_snapshot().status, RobotMode.IDLE)
-        self.assertEqual(node.cmd_vel_publisher.published[-1].linear.x, 0.0)
 
 
 if __name__ == '__main__':

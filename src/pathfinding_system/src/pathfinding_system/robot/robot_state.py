@@ -1,10 +1,9 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
-from typing import Optional
-import rospy
+from typing import Any
 from geometry_msgs.msg import Pose2D, Twist
-from pathfinding_system.msg import RobotState as RobotStateMsg  # type: ignore[import]
 from pathfinding_system.robot.robot_mode import RobotMode
+from pathfinding_system.utils.physics import yaw_from_quaternion
 
 
 @dataclass
@@ -13,26 +12,16 @@ class RobotState:
     pose: Pose2D = field(default_factory=Pose2D)
     velocity: Twist = field(default_factory=Twist)
     status: RobotMode = RobotMode.IDLE
-    stamp: Optional[rospy.Time] = None
 
     def is_moving(self) -> bool:
         return self.status == RobotMode.MOVING
 
-    def to_msg(self):
-        msg = RobotStateMsg()
-        msg.robot_id = self.id
-        msg.pose = self.pose
-        msg.velocity = self.velocity
-        msg.status = int(self.status)
-        msg.stamp = self.stamp if self.stamp is not None else rospy.Time.now()
-        return msg
-
     @classmethod
-    def from_msg(cls, msg) -> RobotState:
-        return cls(
-            id=msg.robot_id,
-            pose=msg.pose,
-            velocity=msg.velocity,
-            status=RobotMode(msg.status),
-            stamp=msg.stamp,
-        )
+    def from_odometry(cls, robot_id: str, msg: Any) -> RobotState:
+        state = cls(id=robot_id)
+        pose = msg.pose.pose
+        state.pose.x = pose.position.x
+        state.pose.y = pose.position.y
+        state.pose.theta = yaw_from_quaternion(pose.orientation)
+        state.velocity = msg.twist.twist
+        return state

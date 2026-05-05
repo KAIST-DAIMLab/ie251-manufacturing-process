@@ -15,12 +15,29 @@ def main():
     check_rate_hz = cast(float, rospy.get_param('~check_rate_hz', 10.0))
     safety_radius = cast(float, rospy.get_param('~safety_radius', 0.35))
     time_step = cast(float, rospy.get_param('~time_step', 0.1))
+    robot_namespaces = ['tb3_0', 'tb3_1']
+    robot_odom_topics = cast(dict, rospy.get_param(
+        '~robot_odom_topics',
+        {ns: f'/{ns}/odom' for ns in robot_namespaces},
+    ))
 
     graph = Graph.load_from_yaml(graph_file)
     planner = PathPlanner(graph)
     predictor = LinearPredictor(safety_radius, time_step)
-    monitor = CollisionMonitor(predictor, ['tb3_0', 'tb3_1'], horizon, check_rate_hz)
-    server = PathServer(graph, planner, monitor, ['tb3_0', 'tb3_1'])
+    monitor = CollisionMonitor(
+        predictor,
+        robot_namespaces,
+        horizon,
+        check_rate_hz,
+        robot_odom_topics=robot_odom_topics,
+    )
+    server = PathServer(
+        graph,
+        planner,
+        monitor,
+        robot_namespaces,
+        robot_odom_topics=robot_odom_topics,
+    )
     monitor.start()
     server.start()
     rospy.spin()

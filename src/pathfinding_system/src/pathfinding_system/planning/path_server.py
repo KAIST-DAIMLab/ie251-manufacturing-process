@@ -4,6 +4,8 @@ import time
 import rospy
 import actionlib
 from actionlib_msgs.msg import GoalStatus
+from nav_msgs.msg import Odometry
+from pathfinding_system.robot.robot_state import RobotState
 from pathfinding_system.world.graph import Graph
 from pathfinding_system.world.node import Node
 from pathfinding_system.planning.path_planner import PathPlanner
@@ -16,12 +18,16 @@ class PathServer:
         planner: PathPlanner,
         monitor,
         robot_namespaces: list[str],
+        robot_odom_topics: dict[str, str] | None = None,
         first_state_timeout_sec: float = 1.0,
     ) -> None:
         self._graph = graph
         self._planner = planner
         self._monitor = monitor
         self._namespaces = robot_namespaces
+        self._robot_odom_topics = robot_odom_topics or {
+            ns: f'/{ns}/odom' for ns in robot_namespaces
+        }
         self._first_state_timeout_sec = first_state_timeout_sec
         self._robot_states: dict[str, object] = {}
         self._states_lock = threading.Lock()
@@ -33,15 +39,14 @@ class PathServer:
 
     def start(self) -> None:
         from pathfinding_system.msg import (  # type: ignore[import]
-            RobotState as RobotStateMsg,
             MoveToNodeAction,
             FollowPathAction,
         )
         for ns in self._namespaces:
             rospy.Subscriber(
-                f'/{ns}/robot_state',
-                RobotStateMsg,
-                lambda msg, n=ns: self._on_robot_state(n, msg),
+                self._robot_odom_topics[ns],
+                Odometry,
+                lambda msg, n=ns: self._on_odom(n, msg),
             )
             self._follow_clients[ns] = actionlib.SimpleActionClient(
                 f'/{ns}/follow_path', FollowPathAction
@@ -58,9 +63,9 @@ class PathServer:
         self._server.start()
         rospy.loginfo("PathServer started.")
 
-    def _on_robot_state(self, ns: str, msg) -> None:
+    def _on_odom(self, ns: str, msg: Odometry) -> None:
         with self._state_available:
-            self._robot_states[ns] = msg
+            self._robot_states[ns] = RobotState.from_odometry(ns, msg)
             self._state_available.notify_all()
 
     def _on_cancel(self, goal_handle) -> None:
