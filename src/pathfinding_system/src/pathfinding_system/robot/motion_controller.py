@@ -1,9 +1,22 @@
 from __future__ import annotations
 import math
+from dataclasses import dataclass
 from typing import Callable, Protocol
 
-import rospy
 from geometry_msgs.msg import Pose2D, Twist
+
+from pathfinding_system.world.node import Node
+
+
+@dataclass(frozen=True)
+class MotionParameters:
+    """Tunable parameters shared by motion control methods."""
+    linear_speed: float = 0.22
+    angular_speed: float = 1.5
+    linear_gain: float = 0.5
+    angular_gain: float = 1.5
+    arrival_tolerance: float = 0.10
+    heading_tolerance: float = 0.2
 
 
 class CmdVelPublisher(Protocol):
@@ -12,93 +25,54 @@ class CmdVelPublisher(Protocol):
 
 
 class MotionController:
-    """Imperative blocking primitives that drive a robot via an injected cmd_vel publisher using a pose provider."""
+    """Single-tick proportional controller for waypoint and heading commands."""
 
     def __init__(
         self,
         cmd_vel_publisher: CmdVelPublisher,
         pose_provider: Callable[[], Pose2D],
-        linear_speed: float = 0.22,
-        angular_speed: float = 1.5,
-        rate_hz: float = 5.0,
+        params: MotionParameters = MotionParameters(),
     ) -> None:
         self._cmd_vel_publisher = cmd_vel_publisher
         self._pose_provider = pose_provider
-        self._linear_speed = linear_speed
-        self._angular_speed = angular_speed
-        self._rate_hz = rate_hz
-        self._stop = False
+        self._params = params
 
-    def turnLeft(self, radian: float) -> bool:
-        """Rotate counter-clockwise by `radian` radians; True on completion, False if interrupted."""
-        return self._turn(abs(radian), direction=+1.0)
+    def drive_towards(self, target: Node) -> bool:
+        """Publish one proportional cmd_vel toward target; True when within arrival tolerance."""
+        if self._get_distance(target) <= self._params.arrival_tolerance:
+            self._publish(0.0, 0.0)
+            return True
 
-    def turnRight(self, radian: float) -> bool:
-        """Rotate clockwise by `radian` radians; True on completion, False if interrupted."""
-        return self._turn(abs(radian), direction=-1.0)
+        distance = self._get_distance(target)
+        angle = self._get_angle(target)
+        speed_angular = _clamp(self._params.angular_gain * angle, self._params.angular_speed)
+        speed_linear = min(self._params.linear_gain * distance, self._params.linear_speed) if abs(angle) <= self._params.heading_tolerance else 0.0
 
-    def MoveTowards(self, meter: float) -> bool:
-        """Drive forward by `meter` meters; True on completion, False if interrupted."""
-        return self._move(abs(meter), direction=+1.0)
+        self._publish(speed_linear, speed_angular)
+        return False
 
-    def MoveBackwards(self, meter: float) -> bool:
-        """Drive backward by `meter` meters; True on completion, False if interrupted."""
-        return self._move(abs(meter), direction=-1.0)
+    def turn_towards(self, rad: float) -> bool:
+        """Publish one proportional angular cmd_vel toward absolute heading rad."""
+        angle = _wrap_to_pi(rad - self._pose_provider().theta)
+        if abs(angle) <= self._params.heading_tolerance:
+            self._publish(0.0, 0.0)
+            return True
 
-    def SetLinearSpeed(self, speed: float) -> None:
-        """Set the linear speed used by Move primitives."""
-        self._linear_speed = abs(speed)
-
-    def SetAngularSpeed(self, speed: float) -> None:
-        """Set the angular speed used by turn primitives."""
-        self._angular_speed = abs(speed)
+        speed_angular = _clamp(self._params.angular_gain * angle, self._params.angular_speed)
+        self._publish(0.0, speed_angular)
+        return False
 
     def stop(self) -> None:
-        """Interrupt any in-flight primitive and publish a zero Twist."""
-        self._stop = True
+        """Publish a zero Twist to halt the robot."""
         self._publish(0.0, 0.0)
 
-    def _move(self, distance: float, direction: float) -> bool:
-        if distance <= 0.0:
-            self.stop()
-            return True
+    def _get_distance(self, target: Node) -> float:
+        pose = self._pose_provider()
+        return math.hypot(target.x - pose.x, target.y - pose.y)
 
-        self._stop = False
-        start = self._pose_provider()
-
-        rate = rospy.Rate(self._rate_hz)
-        while not rospy.is_shutdown() and not self._stop:
-            current = self._pose_provider()
-            travelled = math.hypot(current.x - start.x, current.y - start.y)
-            if travelled >= distance:
-                self.stop()
-                return True
-            self._publish(direction * self._linear_speed, 0.0)
-            rate.sleep()
-
-        self.stop()
-        return False
-
-    def _turn(self, radian: float, direction: float) -> bool:
-        if radian <= 0.0:
-            self.stop()
-            return True
-
-        self._stop = False
-        start = self._pose_provider()
-
-        rate = rospy.Rate(self._rate_hz)
-        while not rospy.is_shutdown() and not self._stop:
-            current = self._pose_provider()
-            rotated = abs(self._wrap_to_pi(current.theta - start.theta))
-            if rotated >= radian:
-                self.stop()
-                return True
-            self._publish(0.0, direction * self._angular_speed)
-            rate.sleep()
-
-        self.stop()
-        return False
+    def _get_angle(self, target: Node) -> float:
+        pose = self._pose_provider()
+        return _wrap_to_pi(math.atan2(target.y - pose.y, target.x - pose.x) - pose.theta)
 
     def _publish(self, linear_x: float, angular_z: float) -> None:
         twist = Twist()
@@ -106,5 +80,10 @@ class MotionController:
         twist.angular.z = angular_z
         self._cmd_vel_publisher.publish(twist)
 
-    def _wrap_to_pi(self, radian: float) -> float:
-        return math.atan2(math.sin(radian), math.cos(radian))
+
+def _wrap_to_pi(radian: float) -> float:
+    return math.atan2(math.sin(radian), math.cos(radian))
+
+
+def _clamp(value: float, limit: float) -> float:
+    return max(-limit, min(limit, value))

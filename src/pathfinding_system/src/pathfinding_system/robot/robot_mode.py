@@ -1,7 +1,7 @@
 from enum import IntEnum
 
 
-class RobotStatus(IntEnum):
+class RobotMode(IntEnum):
     IDLE    = 0
     MOVING  = 1
     STOPPED = 2

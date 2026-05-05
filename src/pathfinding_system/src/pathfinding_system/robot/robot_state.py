@@ -4,7 +4,7 @@ from typing import Optional
 import rospy
 from geometry_msgs.msg import Pose2D, Twist
 from pathfinding_system.msg import RobotState as RobotStateMsg  # type: ignore[import]
-from pathfinding_system.robot.robot_status import RobotStatus
+from pathfinding_system.robot.robot_mode import RobotMode
 
 
 @dataclass
@@ -12,11 +12,11 @@ class RobotState:
     id: str
     pose: Pose2D = field(default_factory=Pose2D)
     velocity: Twist = field(default_factory=Twist)
-    status: RobotStatus = RobotStatus.IDLE
+    status: RobotMode = RobotMode.IDLE
     stamp: Optional[rospy.Time] = None
 
     def is_moving(self) -> bool:
-        return self.status == RobotStatus.MOVING
+        return self.status == RobotMode.MOVING
 
     def to_msg(self):
         msg = RobotStateMsg()
@@ -33,6 +33,6 @@ class RobotState:
             id=msg.robot_id,
             pose=msg.pose,
             velocity=msg.velocity,
-            status=RobotStatus(msg.status),
+            status=RobotMode(msg.status),
             stamp=msg.stamp,
         )

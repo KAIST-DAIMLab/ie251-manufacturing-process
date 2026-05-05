@@ -10,7 +10,7 @@ from nav_msgs.msg import Odometry
 from std_msgs.msg import Empty
 
 from pathfinding_system.msg import RobotState as RobotStateMsg  # type: ignore[import]
-from pathfinding_system.robot.motion_controller import MotionController
+from pathfinding_system.robot.motion_controller import MotionController, MotionParameters
 from pathfinding_system.robot.path_follower import PathFollower
 from pathfinding_system.robot.robot_state import RobotState
 from pathfinding_system.robot.turtlebot import TurtleBot
@@ -42,8 +42,7 @@ class TurtleBotNode:
         robot: TurtleBot,
         graph: Graph | None = None,
         state_publish_rate_hz: float = 10.0,
-        linear_speed: float = 0.22,
-        angular_speed: float = 1.5,
+        motion_params: MotionParameters = MotionParameters(),
         motion_rate_hz: float = 5.0,
     ) -> None:
         if state_publish_rate_hz <= 0:
@@ -73,11 +72,9 @@ class TurtleBotNode:
         self._motion_controller = MotionController(
             cmd_vel_publisher=self.cmd_vel_publisher,
             pose_provider=robot.current_pose,
-            linear_speed=linear_speed,
-            angular_speed=angular_speed,
-            rate_hz=motion_rate_hz,
+            params=motion_params,
         )
-        self._path_follower = PathFollower(self._motion_controller)
+        self._path_follower = PathFollower(self._motion_controller, rate_hz=motion_rate_hz)
 
     def start(self) -> None:
         """Start the FollowPath action server (no-op if no graph was provided)."""
@@ -144,7 +141,7 @@ class TurtleBotNode:
         rate = rospy.Rate(20)
         while follow_thread.is_alive():
             if self._action_server.is_preempt_requested():
-                self._motion_controller.stop()
+                self._path_follower.cancel()
                 follow_thread.join()
                 self._robot.mark_idle()
                 self.publish_stop()
@@ -152,7 +149,7 @@ class TurtleBotNode:
                 return
 
             if self._robot.stop_requested():
-                self._motion_controller.stop()
+                self._path_follower.cancel()
                 follow_thread.join()
                 self.publish_stop()
                 self._action_server.set_aborted(

@@ -3,7 +3,7 @@ import copy
 import threading
 from geometry_msgs.msg import Pose2D
 
-from pathfinding_system.robot.robot_status import RobotStatus
+from pathfinding_system.robot.robot_mode import RobotMode
 from pathfinding_system.robot.robot_state import RobotState
 
 
@@ -71,23 +71,23 @@ class TurtleBot:
     def mark_moving(self) -> None:
         """Set robot status to MOVING."""
         with self._lock:
-            self._state.status = RobotStatus.MOVING
+            self._state.status = RobotMode.MOVING
 
     def mark_idle(self) -> None:
         """Set robot status to IDLE."""
         with self._lock:
-            self._state.status = RobotStatus.IDLE
+            self._state.status = RobotMode.IDLE
 
     def mark_reached(self) -> None:
         """Set robot status to REACHED."""
         with self._lock:
-            self._state.status = RobotStatus.REACHED
+            self._state.status = RobotMode.REACHED
 
     def request_stop(self) -> None:
         """Latch a stop request and set status to STOPPED."""
         with self._lock:
             self._stop_requested = True
-            self._state.status = RobotStatus.STOPPED
+            self._state.status = RobotMode.STOPPED
 
     def clear_stop(self) -> None:
         """Clear the latched stop request."""

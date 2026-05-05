@@ -44,7 +44,7 @@ _install_ros_stubs()
 
 from pathfinding_system.robot.turtlebot import TurtleBot
 from pathfinding_system.robot.robot_state import RobotState
-from pathfinding_system.robot.robot_status import RobotStatus
+from pathfinding_system.robot.robot_mode import RobotMode
 
 
 class TurtleBotTest(unittest.TestCase):
@@ -69,7 +69,7 @@ class TurtleBotTest(unittest.TestCase):
         self.assertEqual(state.id, 'tb3_0')
         self.assertEqual(state.pose.x, 0.0)
         self.assertEqual(state.velocity.linear.x, 0.0)
-        self.assertEqual(state.status, RobotStatus.IDLE)
+        self.assertEqual(state.status, RobotMode.IDLE)
         self.assertIsNone(state.stamp)
 
     def test_update_pose_updates_state_without_ros_message_types(self):
@@ -91,7 +91,7 @@ class TurtleBotTest(unittest.TestCase):
         robot.request_stop()
 
         self.assertTrue(robot.stop_requested())
-        self.assertEqual(robot.state_snapshot().status, RobotStatus.STOPPED)
+        self.assertEqual(robot.state_snapshot().status, RobotMode.STOPPED)
 
     def test_explicit_status_methods_do_not_clear_stop_flag(self):
         robot = TurtleBot('tb3_0')
@@ -99,15 +99,15 @@ class TurtleBotTest(unittest.TestCase):
 
         robot.mark_moving()
         self.assertTrue(robot.stop_requested())
-        self.assertEqual(robot.state_snapshot().status, RobotStatus.MOVING)
+        self.assertEqual(robot.state_snapshot().status, RobotMode.MOVING)
 
         robot.mark_idle()
         self.assertTrue(robot.stop_requested())
-        self.assertEqual(robot.state_snapshot().status, RobotStatus.IDLE)
+        self.assertEqual(robot.state_snapshot().status, RobotMode.IDLE)
 
         robot.mark_reached()
         self.assertTrue(robot.stop_requested())
-        self.assertEqual(robot.state_snapshot().status, RobotStatus.REACHED)
+        self.assertEqual(robot.state_snapshot().status, RobotMode.REACHED)
 
     def test_clear_stop_clears_stop_flag_without_status_change(self):
         robot = TurtleBot('tb3_0')
@@ -116,7 +116,7 @@ class TurtleBotTest(unittest.TestCase):
         robot.clear_stop()
 
         self.assertFalse(robot.stop_requested())
-        self.assertEqual(robot.state_snapshot().status, RobotStatus.STOPPED)
+        self.assertEqual(robot.state_snapshot().status, RobotMode.STOPPED)
 
 
 if __name__ == '__main__':

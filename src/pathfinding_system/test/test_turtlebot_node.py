@@ -149,7 +149,7 @@ def _install_ros_stubs():
 
 _install_ros_stubs()
 
-from pathfinding_system.robot.robot_status import RobotStatus
+from pathfinding_system.robot.robot_mode import RobotMode
 from pathfinding_system.robot.turtlebot import TurtleBot
 from pathfinding_system.robot.turtlebot_node import TurtleBotNode
 from pathfinding_system.world.node import Node
@@ -300,7 +300,7 @@ class TurtleBotNodeTest(unittest.TestCase):
         rospy.subscribers[1].callback(object())
 
         self.assertTrue(robot.stop_requested())
-        self.assertEqual(robot.state_snapshot().status, RobotStatus.STOPPED)
+        self.assertEqual(robot.state_snapshot().status, RobotMode.STOPPED)
         cmd = node.cmd_vel_publisher.published[0]
         self.assertEqual(cmd.linear.x, 0.0)
         self.assertEqual(cmd.angular.z, 0.0)
@@ -327,7 +327,7 @@ class TurtleBotNodeTest(unittest.TestCase):
         server = actionlib.action_servers[0]
         server.execute_cb(types.SimpleNamespace(node_ids=[1]))
 
-        self.assertEqual(robot.state_snapshot().status, RobotStatus.REACHED)
+        self.assertEqual(robot.state_snapshot().status, RobotMode.REACHED)
         self.assertTrue(server.succeeded.success)
         self.assertEqual(server.succeeded.message, 'reached goal')
         self.assertEqual(node.cmd_vel_publisher.published[-1].linear.x, 0.0)
@@ -345,7 +345,7 @@ class TurtleBotNodeTest(unittest.TestCase):
         server.execute_cb(types.SimpleNamespace(node_ids=[2]))
 
         self.assertTrue(server.preempted)
-        self.assertEqual(robot.state_snapshot().status, RobotStatus.IDLE)
+        self.assertEqual(robot.state_snapshot().status, RobotMode.IDLE)
         self.assertEqual(node.cmd_vel_publisher.published[-1].linear.x, 0.0)
 
 
