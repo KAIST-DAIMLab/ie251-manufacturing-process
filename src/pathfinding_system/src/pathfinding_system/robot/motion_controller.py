@@ -1,17 +1,14 @@
 from __future__ import annotations
 import math
-from dataclasses import dataclass
+from typing import Callable, Protocol
 
 import rospy
-from geometry_msgs.msg import Twist
+from geometry_msgs.msg import Pose2D, Twist
 
 
-@dataclass(frozen=True)
-class Pose:
-    """Planar robot pose: 2D position and heading. Duck-typed — any object with x, y, theta floats works."""
-    x: float
-    y: float
-    theta: float
+class CmdVelPublisher(Protocol):
+    """Structural type for any object that can publish a Twist message."""
+    def publish(self, twist: Twist) -> None: ...
 
 
 class MotionController:
@@ -19,8 +16,8 @@ class MotionController:
 
     def __init__(
         self,
-        cmd_vel_publisher,
-        pose_provider,
+        cmd_vel_publisher: CmdVelPublisher,
+        pose_provider: Callable[[], Pose2D],
         linear_speed: float = 0.22,
         angular_speed: float = 1.5,
         rate_hz: float = 5.0,

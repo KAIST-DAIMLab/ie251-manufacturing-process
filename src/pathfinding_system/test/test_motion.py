@@ -38,11 +38,18 @@ def _install_ros_stubs():
     geometry_msgs = types.ModuleType('geometry_msgs')
     geometry_msgs_msg = types.ModuleType('geometry_msgs.msg')
 
+    class Pose2D:
+        def __init__(self):
+            self.x = 0.0
+            self.y = 0.0
+            self.theta = 0.0
+
     class Twist:
         def __init__(self):
             self.linear = types.SimpleNamespace(x=0.0, y=0.0, z=0.0)
             self.angular = types.SimpleNamespace(x=0.0, y=0.0, z=0.0)
 
+    geometry_msgs_msg.Pose2D = Pose2D
     geometry_msgs_msg.Twist = Twist
     sys.modules['geometry_msgs'] = geometry_msgs
     sys.modules['geometry_msgs.msg'] = geometry_msgs_msg

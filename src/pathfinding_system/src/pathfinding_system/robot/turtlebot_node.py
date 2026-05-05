@@ -1,6 +1,7 @@
 from __future__ import annotations
 import math
 import threading
+from typing import Any
 
 import rospy
 import actionlib
@@ -11,17 +12,18 @@ from std_msgs.msg import Empty
 from pathfinding_system.msg import RobotState as RobotStateMsg  # type: ignore[import]
 from pathfinding_system.robot.motion_controller import MotionController
 from pathfinding_system.robot.path_follower import PathFollower
+from pathfinding_system.robot.robot_state import RobotState
 from pathfinding_system.robot.turtlebot import TurtleBot
 from pathfinding_system.world.graph import Graph
 
 
-def _yaw_from_quaternion(q) -> float:
+def _yaw_from_quaternion(q: Any) -> float:
     siny_cosp = 2.0 * (q.w * q.z + q.x * q.y)
     cosy_cosp = 1.0 - 2.0 * (q.y * q.y + q.z * q.z)
     return math.atan2(siny_cosp, cosy_cosp)
 
 
-def robot_state_to_msg(state):
+def robot_state_to_msg(state: RobotState) -> RobotStateMsg:
     """Convert a RobotState dataclass to a RobotState ROS message."""
     msg = RobotStateMsg()
     msg.robot_id = state.id
@@ -97,7 +99,7 @@ class TurtleBotNode:
         """Publish a zero Twist to halt the robot."""
         self.cmd_vel_publisher.publish(Twist())
 
-    def _on_state_timer(self, event) -> None:
+    def _on_state_timer(self, event: Any) -> None:
         self.state_publisher.publish(robot_state_to_msg(self._robot.state_snapshot()))
 
     def _on_odom(self, msg: Odometry) -> None:
@@ -115,7 +117,7 @@ class TurtleBotNode:
         self._motion_controller.stop()
         rospy.logwarn(f"{self._robot.id}: emergency stop received.")
 
-    def _on_follow_path(self, goal) -> None:
+    def _on_follow_path(self, goal: Any) -> None:
         from pathfinding_system.msg import (  # type: ignore[import]
             FollowPathFeedback,
             FollowPathResult,
