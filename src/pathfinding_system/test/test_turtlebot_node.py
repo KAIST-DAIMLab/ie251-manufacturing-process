@@ -231,6 +231,25 @@ class TurtleBotNodeTest(unittest.TestCase):
             '/tb3_0/emergency_stop',
         ])
 
+    def test_constructor_can_use_separate_command_and_odom_topics(self):
+        robot = TurtleBot(
+            'tb3_0',
+            cmd_vel_topic='/tb3_0/shared/cmd_vel',
+            odom_topic='/tb3_0/sim/odom',
+        )
+
+        TurtleBotNode(robot, state_publish_rate_hz=10.0)
+
+        import rospy
+        self.assertEqual([pub.topic for pub in rospy.publishers], [
+            '/tb3_0/shared/cmd_vel',
+            '/tb3_0/robot_state',
+        ])
+        self.assertEqual([sub.topic for sub in rospy.subscribers], [
+            '/tb3_0/sim/odom',
+            '/tb3_0/emergency_stop',
+        ])
+
     def test_invalid_publish_rate_raises_value_error(self):
         with self.assertRaises(ValueError):
             TurtleBotNode(TurtleBot('tb3_0'), state_publish_rate_hz=0.0)

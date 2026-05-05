@@ -12,6 +12,7 @@
   <node name="executor" ns="tb3_0" pkg="pathfinding_system" type="robot_executor_node" output="screen">
     <param name="robot_id" value="tb3_0"/>
     <param name="topic_namespace" value="tb3_0/sim"/>
+    <param name="odom_topic" value="/tb3_0/sim/odom"/>
     <param name="graph_file" value="$(find pathfinding_system)/config/graph.yaml"/>
     <param name="state_publish_rate_hz" value="10.0"/>
   </node>
@@ -20,6 +21,7 @@
   <node name="executor" ns="tb3_1" pkg="pathfinding_system" type="robot_executor_node" output="screen">
     <param name="robot_id" value="tb3_1"/>
     <param name="topic_namespace" value="tb3_1/sim"/>
+    <param name="odom_topic" value="/tb3_1/sim/odom"/>
     <param name="graph_file" value="$(find pathfinding_system)/config/graph.yaml"/>
     <param name="state_publish_rate_hz" value="10.0"/>
   </node>

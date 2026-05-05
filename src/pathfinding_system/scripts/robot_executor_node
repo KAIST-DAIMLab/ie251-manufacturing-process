@@ -11,6 +11,14 @@ def main():
     rospy.init_node('executor')
     robot_id = cast(str, rospy.get_param('~robot_id'))
     topic_namespace = cast(str, rospy.get_param('~topic_namespace', robot_id))
+    cmd_vel_topic = cast(str, rospy.get_param(
+        '~cmd_vel_topic',
+        f'/{topic_namespace.strip("/")}/cmd_vel',
+    ))
+    odom_topic = cast(str, rospy.get_param(
+        '~odom_topic',
+        f'/{topic_namespace.strip("/")}/odom',
+    ))
     graph_file = cast(str, rospy.get_param('~graph_file'))
     state_publish_rate_hz = cast(float, rospy.get_param('~state_publish_rate_hz', 10.0))
     linear_gain = cast(float, rospy.get_param('~k_lin', 0.5))
@@ -32,6 +40,8 @@ def main():
             heading_tolerance=heading_tolerance,
         ),
         topic_namespace=topic_namespace,
+        cmd_vel_topic=cmd_vel_topic,
+        odom_topic=odom_topic,
     )
     turtlebot_node = TurtleBotNode(
         robot,

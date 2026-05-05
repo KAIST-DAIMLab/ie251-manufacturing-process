@@ -21,9 +21,13 @@ class TurtleBot:
         robot_id: str,
         motion_parameters: MotionParameters = MotionParameters(),
         topic_namespace: str | None = None,
+        cmd_vel_topic: str | None = None,
+        odom_topic: str | None = None,
     ) -> None:
         self.id = robot_id
         self._topic_ns = (topic_namespace or robot_id).strip('/')
+        self._cmd_vel_topic = cmd_vel_topic
+        self._odom_topic = odom_topic
         self._motion_controller = MotionController(motion_parameters)
         self._path_follower = PathFollower(self._motion_controller)
         self._state = RobotState(id=robot_id)
@@ -32,10 +36,14 @@ class TurtleBot:
 
     @property
     def cmd_vel_topic(self) -> str:
+        if self._cmd_vel_topic is not None:
+            return self._cmd_vel_topic
         return f'/{self._topic_ns}/cmd_vel'
 
     @property
     def odom_topic(self) -> str:
+        if self._odom_topic is not None:
+            return self._odom_topic
         return f'/{self._topic_ns}/odom'
 
     @property

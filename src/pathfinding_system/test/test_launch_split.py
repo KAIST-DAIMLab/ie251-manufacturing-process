@@ -37,6 +37,30 @@ class LaunchSplitTest(unittest.TestCase):
             'tb3_1': 'tb3_1/sim',
         })
 
+        cmd_vel_topic_params = [
+            node.find("./param[@name='cmd_vel_topic']")
+            for node in executor_nodes
+        ]
+        self.assertEqual(cmd_vel_topic_params, [None, None])
+
+        odom_topics = {
+            node.get('ns'): node.find("./param[@name='odom_topic']").get('value')
+            for node in executor_nodes
+        }
+        self.assertEqual(odom_topics, {
+            'tb3_0': '/tb3_0/sim/odom',
+            'tb3_1': '/tb3_1/sim/odom',
+        })
+
+    def test_system_launch_does_not_start_cmd_vel_router(self):
+        root = _launch_tree('system.launch')
+        router_nodes = [
+            node for node in root.findall('node')
+            if node.get('type') == 'cmd_vel_router_node'
+        ]
+
+        self.assertEqual(router_nodes, [])
+
 
 if __name__ == '__main__':
     unittest.main()
