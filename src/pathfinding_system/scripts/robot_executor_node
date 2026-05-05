@@ -2,7 +2,6 @@
 from typing import cast
 import rospy
 from pathfinding_system.world.graph import Graph
-from pathfinding_system.robot.motion_controller import MotionParameters
 from pathfinding_system.robot.turtlebot import TurtleBot
 from pathfinding_system.robot.turtlebot_node import TurtleBotNode
 
@@ -21,24 +20,13 @@ def main():
     ))
     graph_file = cast(str, rospy.get_param('~graph_file'))
     state_publish_rate_hz = cast(float, rospy.get_param('~state_publish_rate_hz', 10.0))
-    linear_gain = cast(float, rospy.get_param('~k_lin', 0.5))
-    angular_gain = cast(float, rospy.get_param('~k_ang', 1.5))
-    max_linear_velocity = cast(float, rospy.get_param('~max_lin_vel', 0.22))
-    max_angular_velocity = cast(float, rospy.get_param('~max_ang_vel', 1.5))
-    arrival_tolerance = cast(float, rospy.get_param('~arrival_tol', 0.10))
-    heading_tolerance = cast(float, rospy.get_param('~heading_tol', 0.2))
+    linear_speed = cast(float, rospy.get_param('~linear_speed', 0.22))
+    angular_speed = cast(float, rospy.get_param('~angular_speed', 1.5))
+    motion_rate_hz = cast(float, rospy.get_param('~motion_rate_hz', 5.0))
 
     graph = Graph.load_from_yaml(graph_file)
     robot = TurtleBot(
         robot_id,
-        motion_parameters=MotionParameters(
-            linear_gain=linear_gain,
-            angular_gain=angular_gain,
-            max_linear_velocity=max_linear_velocity,
-            max_angular_velocity=max_angular_velocity,
-            arrival_tolerance=arrival_tolerance,
-            heading_tolerance=heading_tolerance,
-        ),
         topic_namespace=topic_namespace,
         cmd_vel_topic=cmd_vel_topic,
         odom_topic=odom_topic,
@@ -47,6 +35,9 @@ def main():
         robot,
         graph=graph,
         state_publish_rate_hz=state_publish_rate_hz,
+        linear_speed=linear_speed,
+        angular_speed=angular_speed,
+        motion_rate_hz=motion_rate_hz,
     )
     turtlebot_node.start()
     rospy.spin()

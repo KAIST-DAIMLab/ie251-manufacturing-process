@@ -3,23 +3,16 @@ import copy
 import threading
 from geometry_msgs.msg import Pose2D
 
-from pathfinding_system.robot.motion_controller import (
-    DriveResult,
-    MotionController,
-    MotionParameters,
-    PathStep,
-)
-from pathfinding_system.robot.path_follower import PathFollower
-from pathfinding_system.robot.robot_status import RobotStatus
+from pathfinding_system.robot.robot_mode import RobotMode
 from pathfinding_system.robot.robot_state import RobotState
-from pathfinding_system.world.node import Node
 
 
 class TurtleBot:
+    """Thread-safe state container for a single TurtleBot robot."""
+
     def __init__(
         self,
         robot_id: str,
-        motion_parameters: MotionParameters = MotionParameters(),
         topic_namespace: str | None = None,
         cmd_vel_topic: str | None = None,
         odom_topic: str | None = None,
@@ -28,59 +21,31 @@ class TurtleBot:
         self._topic_ns = (topic_namespace or robot_id).strip('/')
         self._cmd_vel_topic = cmd_vel_topic
         self._odom_topic = odom_topic
-        self._motion_controller = MotionController(motion_parameters)
-        self._path_follower = PathFollower(self._motion_controller)
         self._state = RobotState(id=robot_id)
         self._stop_requested = False
         self._lock = threading.Lock()
 
     @property
     def cmd_vel_topic(self) -> str:
+        """Topic name for publishing velocity commands."""
         if self._cmd_vel_topic is not None:
             return self._cmd_vel_topic
         return f'/{self._topic_ns}/cmd_vel'
 
     @property
     def odom_topic(self) -> str:
+        """Topic name for subscribing to odometry."""
         if self._odom_topic is not None:
             return self._odom_topic
         return f'/{self._topic_ns}/odom'
 
     @property
     def state_topic(self) -> str:
+        """Topic name for publishing robot state."""
         return f'/{self.id}/robot_state'
 
-    def drive_towards(self, node: Node) -> DriveResult:
-        with self._lock:
-            pose = copy.deepcopy(self._state.pose)
-            self._state.status = RobotStatus.MOVING
-
-        return self._motion_controller.drive_towards(pose, node)
-
-    def start_path(self, waypoints: list[Node]) -> None:
-        with self._lock:
-            self._stop_requested = False
-            self._state.status = RobotStatus.MOVING
-            self._path_follower.start(waypoints)
-
-    def step_path(self) -> PathStep:
-        with self._lock:
-            pose = copy.deepcopy(self._state.pose)
-            step = self._path_follower.step(pose)
-            if step.completed:
-                self._state.status = RobotStatus.REACHED
-            return step
-
-    def cancel_path(self) -> None:
-        with self._lock:
-            self._path_follower.cancel()
-            self._state.status = RobotStatus.IDLE
-
-    def stop_requested(self) -> bool:
-        with self._lock:
-            return self._stop_requested
-
     def current_pose(self) -> Pose2D:
+        """Return a snapshot of the current pose."""
         with self._lock:
             pose = Pose2D()
             pose.x = self._state.pose.x
@@ -89,10 +54,12 @@ class TurtleBot:
             return pose
 
     def state_snapshot(self) -> RobotState:
+        """Return a deep copy of the current robot state."""
         with self._lock:
             return copy.deepcopy(self._state)
 
     def update_pose(self, x: float, y: float, theta: float, velocity=None, stamp=None) -> None:
+        """Update pose and optionally velocity and timestamp from an odometry message."""
         with self._lock:
             self._state.pose.x = x
             self._state.pose.y = y
@@ -102,22 +69,32 @@ class TurtleBot:
             self._state.stamp = stamp
 
     def mark_moving(self) -> None:
+        """Set robot status to MOVING."""
         with self._lock:
-            self._state.status = RobotStatus.MOVING
+            self._state.status = RobotMode.MOVING
 
     def mark_idle(self) -> None:
+        """Set robot status to IDLE."""
         with self._lock:
-            self._state.status = RobotStatus.IDLE
+            self._state.status = RobotMode.IDLE
 
     def mark_reached(self) -> None:
+        """Set robot status to REACHED."""
         with self._lock:
-            self._state.status = RobotStatus.REACHED
+            self._state.status = RobotMode.REACHED
 
     def request_stop(self) -> None:
+        """Latch a stop request and set status to STOPPED."""
         with self._lock:
             self._stop_requested = True
-            self._state.status = RobotStatus.STOPPED
+            self._state.status = RobotMode.STOPPED
 
     def clear_stop(self) -> None:
+        """Clear the latched stop request."""
         with self._lock:
             self._stop_requested = False
+
+    def stop_requested(self) -> bool:
+        """Return True if a stop has been latched."""
+        with self._lock:
+            return self._stop_requested

@@ -1,46 +1,39 @@
 from __future__ import annotations
 
-from pathfinding_system.robot.motion_controller import DriveResult, MotionController, PathStep
+import rospy
+
+from pathfinding_system.robot.motion_controller import MotionController
 from pathfinding_system.world.node import Node
 
 
 class PathFollower:
-    """Steps through an ordered list of waypoints, delegating per-tick drive commands to a MotionController."""
+    """Drives a robot through an ordered list of waypoints by ticking MotionController each cycle."""
 
-    def __init__(self, motion_controller: MotionController) -> None:
+    def __init__(self, motion_controller: MotionController, rate_hz: float = 5.0) -> None:
         self._motion_controller = motion_controller
-        self._waypoints: list[Node] = []
+        self._rate_hz = rate_hz
+        self._cancel = False
         self._current_index = 0
 
-    def start(self, waypoints: list[Node]) -> None:
-        """Begin following a new sequence of waypoints, resetting progress."""
-        self._waypoints = list(waypoints)
-        self._current_index = 0
+    @property
+    def current_index(self) -> int:
+        """Index of the waypoint currently being driven toward."""
+        return self._current_index
+
+    def follow(self, waypoints: list[Node]) -> bool:
+        """Drive through waypoints in order; True when all reached, False if cancelled or shutdown."""
+        self._cancel = False
+        rate = rospy.Rate(self._rate_hz)
+        for index, waypoint in enumerate(waypoints):
+            self._current_index = index
+            while True:
+                if rospy.is_shutdown() or self._cancel:
+                    return False
+                if self._motion_controller.drive_towards(waypoint):
+                    break
+                rate.sleep()
+        return True
 
     def cancel(self) -> None:
-        """Abort the active path and stop issuing drive commands."""
-        self._waypoints = []
-        self._current_index = 0
-
-    def step(self, pose) -> PathStep:
-        """Advance one control tick, returning drive commands and whether the full path is completed."""
-        if self._current_index >= len(self._waypoints):
-            return PathStep(
-                drive_result=DriveResult(arrived=True, linear_x=0.0, angular_z=0.0),
-                current_index=0,
-                completed=True,
-            )
-
-        current_index = self._current_index
-        drive_result = self._motion_controller.drive_towards(
-            pose,
-            self._waypoints[current_index],
-        )
-        if drive_result.arrived:
-            self._current_index += 1
-
-        return PathStep(
-            drive_result=drive_result,
-            current_index=current_index,
-            completed=self._current_index >= len(self._waypoints),
-        )
+        """Interrupt the active follow() on the next control tick."""
+        self._cancel = True
