@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
 from typing import cast
 import rospy
-from geometry_msgs.msg import Twist
 from pathfinding_system.world.graph import Graph
 from pathfinding_system.robot.motion_controller import MotionParameters
-from pathfinding_system.robot.turtlebot import TurtleBot
 from pathfinding_system.robot.turtlebot_node import TurtleBotNode
 
 
@@ -12,27 +10,18 @@ def main():
     rospy.init_node('executor')
     robot_id = cast(str, rospy.get_param('~robot_id'))
     topic_namespace = cast(str, rospy.get_param('~topic_namespace', robot_id))
-    cmd_vel_topic = cast(str, rospy.get_param(
-        '~cmd_vel_topic',
-        f'/{topic_namespace.strip("/")}/cmd_vel',
-    ))
     graph_file = cast(str, rospy.get_param('~graph_file'))
     linear_speed = cast(float, rospy.get_param('~linear_speed', 0.22))
     angular_speed = cast(float, rospy.get_param('~angular_speed', 1.5))
     motion_rate_hz = cast(float, rospy.get_param('~motion_rate_hz', 5.0))
 
     graph = Graph.load_from_yaml(graph_file)
-    cmd_vel_publisher = rospy.Publisher(cmd_vel_topic, Twist, queue_size=1)
-    robot = TurtleBot(
-        robot_id,
-        cmd_vel_publisher=cmd_vel_publisher,
-        params=MotionParameters(linear_speed=linear_speed, angular_speed=angular_speed),
-        motion_rate_hz=motion_rate_hz,
-    )
     turtlebot_node = TurtleBotNode(
-        robot,
+        robot_id,
         graph=graph,
         topic_namespace=topic_namespace,
+        params=MotionParameters(linear_speed=linear_speed, angular_speed=angular_speed),
+        motion_rate_hz=motion_rate_hz,
     )
     turtlebot_node.start()
     rospy.spin()
