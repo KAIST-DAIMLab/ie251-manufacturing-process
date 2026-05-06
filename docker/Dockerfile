@@ -3,7 +3,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 
 # Install things that need root first
 RUN apt-get update && apt-get install -y \
-        sudo vim git fonts-font-awesome curl wget zsh tmux \
+        sudo vim git fonts-font-awesome curl wget zsh tmux iproute2 \
         python3-pip python3-rosdep python3-rosinstall \
         python3-rosinstall-generator python3-wstool build-essential \
 	mesa-utils libgl1-mesa-dri libglx-mesa0 \

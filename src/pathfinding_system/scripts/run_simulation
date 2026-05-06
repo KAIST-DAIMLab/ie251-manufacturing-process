@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Wraps simulation.launch and ensures Gazebo processes don't leak between runs,
+# which otherwise causes "Address already in use" on relaunch.
+set -u
+
+cleanup() {
+  pkill -f gzserver  >/dev/null 2>&1 || true
+  pkill -f gzclient  >/dev/null 2>&1 || true
+  pkill -f rosmaster >/dev/null 2>&1 || true
+}
+trap cleanup EXIT INT TERM
+
+roslaunch pathfinding_system simulation.launch "$@"
