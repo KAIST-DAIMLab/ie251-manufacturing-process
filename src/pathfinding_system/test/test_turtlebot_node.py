@@ -159,7 +159,7 @@ def _install_ros_stubs():
 
 _install_ros_stubs()
 
-from pathfinding_system.robot.turtlebot_node import TurtleBotNode
+from pathfinding_system.ros.turtlebot_node import TurtleBotNode
 from pathfinding_system.world.node import Node
 
 

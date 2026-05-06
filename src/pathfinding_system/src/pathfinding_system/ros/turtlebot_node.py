@@ -5,10 +5,10 @@ from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry
 from std_msgs.msg import Empty
 
-from pathfinding_system.robot.follow_path_action_server import FollowPathActionServer
+from pathfinding_system.ros.follow_path_action_server import FollowPathActionServer
 from pathfinding_system.robot.motion_controller import MotionParameters
 from pathfinding_system.robot.turtlebot import TurtleBot
-from pathfinding_system.robot.robot_command_action_server import RobotCommandActionServer
+from pathfinding_system.ros.robot_command_action_server import RobotCommandActionServer
 from pathfinding_system.world.graph import Graph
 
 

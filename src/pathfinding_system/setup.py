@@ -8,6 +8,7 @@ d = generate_distutils_setup(
         'pathfinding_system.planning',
         'pathfinding_system.safety',
         'pathfinding_system.robot',
+        'pathfinding_system.ros',
         'pathfinding_system.client',
         'pathfinding_system.simulation',
     ],
