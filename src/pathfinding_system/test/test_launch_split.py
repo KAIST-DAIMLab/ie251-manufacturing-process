@@ -12,48 +12,31 @@ def _launch_tree(filename):
 
 
 class LaunchSplitTest(unittest.TestCase):
-    def test_simulation_launch_contains_only_simulation_nodes(self):
+    def test_simulation_launch_includes_system_stack_in_sim_mode(self):
         root = _launch_tree('simulation.launch')
 
-        node_types = [node.get('type') for node in root.findall('node')]
+        system_includes = [
+            include for include in root.findall('include')
+            if include.get('file') == '$(find pathfinding_system)/launch/system.launch'
+        ]
 
-        self.assertNotIn('path_server_node', node_types)
-        self.assertNotIn('robot_executor_node', node_types)
+        self.assertEqual(len(system_includes), 1)
+        mode_arg = system_includes[0].find("./arg[@name='mode']")
+        self.assertEqual(mode_arg.get('value'), 'sim')
 
-    def test_system_launch_points_executors_at_sim_topics(self):
+    def test_system_launch_has_real_default_and_single_executor_manager(self):
         root = _launch_tree('system.launch')
         executor_nodes = [
             node for node in root.findall('node')
             if node.get('type') == 'robot_executor_node'
         ]
+        executor_manager = root.find("./node[@type='robot_executors_node']")
 
-        self.assertEqual(len(executor_nodes), 2)
-        topic_namespaces = {
-            node.get('ns'): node.find("./param[@name='topic_namespace']").get('value')
-            for node in executor_nodes
-        }
-        self.assertEqual(topic_namespaces, {
-            'tb3_0': 'tb3_0/sim',
-            'tb3_1': 'tb3_1/sim',
-        })
+        self.assertEqual(executor_nodes, [])
+        self.assertIsNotNone(executor_manager)
+        mode_arg = root.find("./arg[@name='mode']")
+        self.assertEqual(mode_arg.get('default'), 'real')
 
-        explicit_topic_params = [
-            node.find("./param[@name='cmd_vel_topic']")
-            for node in executor_nodes
-        ] + [
-            node.find("./param[@name='odom_topic']")
-            for node in executor_nodes
-        ]
-        self.assertEqual(explicit_topic_params, [None, None, None, None])
-
-        derived_odom_topics = {
-            ns: f'/{topic_namespace}/odom'
-            for ns, topic_namespace in topic_namespaces.items()
-        }
-        self.assertEqual(derived_odom_topics, {
-            'tb3_0': '/tb3_0/sim/odom',
-            'tb3_1': '/tb3_1/sim/odom',
-        })
     def test_system_launch_does_not_start_cmd_vel_router(self):
         root = _launch_tree('system.launch')
         router_nodes = [
@@ -63,14 +46,28 @@ class LaunchSplitTest(unittest.TestCase):
 
         self.assertEqual(router_nodes, [])
 
-    def test_system_launch_configures_path_server_odom_topics(self):
+    def test_system_launch_loads_robot_config_by_mode_for_runtime_nodes(self):
         root = _launch_tree('system.launch')
-        path_server = root.find("./node[@type='path_server_node']")
 
-        odom_topics = path_server.find("./rosparam[@param='robot_odom_topics']").text
+        for node_type in ('path_server_node', 'robot_executors_node'):
+            node = root.find(f"./node[@type='{node_type}']")
+            real_config = node.find("./rosparam[@file='$(find pathfinding_system)/config/robots.real.yaml']")
+            sim_config = node.find("./rosparam[@file='$(find pathfinding_system)/config/robots.sim.yaml']")
 
-        self.assertIn('tb3_0: /tb3_0/sim/odom', odom_topics)
-        self.assertIn('tb3_1: /tb3_1/sim/odom', odom_topics)
+            self.assertEqual(real_config.get('if'), "$(eval arg('mode') == 'real')")
+            self.assertEqual(sim_config.get('if'), "$(eval arg('mode') == 'sim')")
+
+    def test_robot_mode_configs_are_auditable(self):
+        with open(os.path.join(ROOT, 'config', 'robots.real.yaml')) as f:
+            real_config = f.read()
+        with open(os.path.join(ROOT, 'config', 'robots.sim.yaml')) as f:
+            sim_config = f.read()
+
+        self.assertIn('robots:\n', real_config)
+        self.assertIn('  tb3_01:\n    topic_namespace: tb3_01\n', real_config)
+        self.assertIn('  tb3_05:\n    topic_namespace: tb3_05\n', real_config)
+        self.assertIn('  tb3_01:\n    topic_namespace: tb3_01/sim\n', sim_config)
+        self.assertIn('  tb3_05:\n    topic_namespace: tb3_05/sim\n', sim_config)
 
 
 if __name__ == '__main__':

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-from typing import cast
+from typing import Dict, cast
 import rospy
 from pathfinding_system.world.graph import Graph
 from pathfinding_system.planning.path_planner import PathPlanner
@@ -15,9 +15,12 @@ def main():
     check_rate_hz = cast(float, rospy.get_param('~check_rate_hz', 10.0))
     safety_radius = cast(float, rospy.get_param('~safety_radius', 0.35))
     time_step = cast(float, rospy.get_param('~time_step', 0.1))
-    robot_ids = ['tb3_0', 'tb3_1']
-    robot_odom_topics = {rid: f'/{rid}/sim/odom' for rid in robot_ids}
-    robot_action_namespaces = {rid: f'{rid}/sim' for rid in robot_ids}
+    robots = cast(Dict[str, Dict[str, str]], rospy.get_param('~robots'))
+    robot_ids = sorted(robots.keys())
+    robot_odom_topics = {
+        rid: f"/{robots[rid].get('topic_namespace', rid).strip('/')}/odom"
+        for rid in robot_ids
+    }
 
     graph = Graph.load_from_yaml(graph_file)
     planner = PathPlanner(graph)
@@ -35,7 +38,6 @@ def main():
         monitor,
         robot_ids,
         robot_odom_topics=robot_odom_topics,
-        robot_action_namespaces=robot_action_namespaces,
     )
     monitor.start()
     server.start()

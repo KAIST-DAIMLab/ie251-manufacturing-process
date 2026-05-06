@@ -30,7 +30,7 @@ class TurtleBotNode:
         rospy.Subscriber(self.topic_odom, Odometry, self._robot.update_pose)
         rospy.Subscriber(self.topic_stop, Empty, self._on_stop)
         self._user_command_server = RobotCommandActionServer(self._robot, robot_id)
-        self._follow_path_server = FollowPathActionServer(self._robot, graph, self._namespace) if graph is not None else None
+        self._follow_path_server = FollowPathActionServer(self._robot, graph, robot_id) if graph is not None else None
 
     @property
     def topic_odom(self) -> str:
@@ -40,7 +40,7 @@ class TurtleBotNode:
     @property
     def topic_stop(self) -> str:
         """Topic name for stop requests."""
-        return f'/{self._namespace}/stop'
+        return f'/{self._robot_id}/stop'
 
     def start(self) -> None:
         """Start executor action servers."""
