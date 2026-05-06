@@ -1,6 +1,7 @@
 <launch>
   <arg name="model" default="waffle"/>
-  <arg name="start_system" default="true"/>
+  <arg name="robots_config" default="$(find pathfinding_system)/config/robots.yaml"/>
+  <arg name="start_system" default="false"/>
 
   <!-- Gazebo with custom world -->
   <include file="$(find gazebo_ros)/launch/empty_world.launch">
@@ -15,7 +16,7 @@
   <!-- tb3_01: spawned at graph node 0 (x=1.0, y=0.75, yaw=0) -->
   <group ns="tb3_01/sim">
     <param name="robot_description"
-           command="$(find xacro)/xacro --inorder $(find turtlebot3_description)/urdf/turtlebot3_$(arg model).urdf.xacro"/>
+           command="$(find xacro)/xacro $(find turtlebot3_description)/urdf/turtlebot3_$(arg model).urdf.xacro"/>
     <node pkg="robot_state_publisher" type="robot_state_publisher"
           name="robot_state_publisher" output="screen">
       <param name="publish_frequency" type="double" value="50.0"/>
@@ -28,7 +29,7 @@
   <!-- tb3_05: spawned at graph node 5 (x=5.0, y=2.25, yaw=pi) -->
   <group ns="tb3_05/sim">
     <param name="robot_description"
-           command="$(find xacro)/xacro --inorder $(find turtlebot3_description)/urdf/turtlebot3_$(arg model).urdf.xacro"/>
+           command="$(find xacro)/xacro $(find turtlebot3_description)/urdf/turtlebot3_$(arg model).urdf.xacro"/>
     <node pkg="robot_state_publisher" type="robot_state_publisher"
           name="robot_state_publisher" output="screen">
       <param name="publish_frequency" type="double" value="50.0"/>
@@ -39,7 +40,8 @@
   </group>
 
   <include if="$(arg start_system)" file="$(find pathfinding_system)/launch/system.launch">
-    <arg name="mode" value="sim"/>
+    <arg name="robots_config" value="$(arg robots_config)"/>
+    <arg name="sim" value="true"/>
   </include>
 
 </launch>

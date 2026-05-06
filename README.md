@@ -217,7 +217,7 @@ rosrun pathfinding_system user_client <robot_id> <target_node_id>
 
 | Argument        | Values              |
 |-----------------|---------------------|
-| `robot_id`      | `tb3_0` or `tb3_1`  |
+| `robot_id`      | `tb3_01` or `tb3_05`  |
 | `target_node_id`| `0` – `5`           |
 
 ## 6. Examples

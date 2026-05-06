@@ -1,5 +1,6 @@
 <launch>
-  <arg name="mode" default="real"/>
+  <arg name="robots_config" default="$(find pathfinding_system)/config/robots.yaml"/>
+  <arg name="sim" default="false"/>
 
   <node name="path_server" pkg="pathfinding_system" type="path_server_node" output="screen">
     <param name="graph_file" value="$(find pathfinding_system)/config/graph.yaml"/>
@@ -7,13 +8,13 @@
     <param name="check_rate_hz" value="10.0"/>
     <param name="safety_radius" value="0.35"/>
     <param name="time_step" value="0.1"/>
-    <rosparam if="$(eval arg('mode') == 'real')" file="$(find pathfinding_system)/config/robots.real.yaml" command="load"/>
-    <rosparam if="$(eval arg('mode') == 'sim')" file="$(find pathfinding_system)/config/robots.sim.yaml" command="load"/>
+    <param name="sim" value="$(arg sim)"/>
+    <rosparam file="$(arg robots_config)" command="load"/>
   </node>
 
   <node name="robot_executors" pkg="pathfinding_system" type="robot_executors_node" output="screen">
     <param name="graph_file" value="$(find pathfinding_system)/config/graph.yaml"/>
-    <rosparam if="$(eval arg('mode') == 'real')" file="$(find pathfinding_system)/config/robots.real.yaml" command="load"/>
-    <rosparam if="$(eval arg('mode') == 'sim')" file="$(find pathfinding_system)/config/robots.sim.yaml" command="load"/>
+    <param name="sim" value="$(arg sim)"/>
+    <rosparam file="$(arg robots_config)" command="load"/>
   </node>
 </launch>

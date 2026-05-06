@@ -1,5 +1,0 @@
-robots:
-  tb3_01:
-    topic_namespace: tb3_01/sim
-  tb3_05:
-    topic_namespace: tb3_05/sim

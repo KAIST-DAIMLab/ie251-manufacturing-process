@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-from typing import Dict, List, cast
+from typing import List, cast
 
 import rospy
 
@@ -14,14 +14,15 @@ def main():
     linear_speed = cast(float, rospy.get_param('~linear_speed', 0.22))
     angular_speed = cast(float, rospy.get_param('~angular_speed', 1.5))
     motion_rate_hz = cast(float, rospy.get_param('~motion_rate_hz', 5.0))
-    robots = cast(Dict[str, Dict[str, str]], rospy.get_param('~robots'))
+    sim = cast(bool, rospy.get_param('~sim', False))
+    robot_ids = cast(List[str], rospy.get_param('~robot_ids'))
 
     graph = Graph.load_from_yaml(graph_file)
     params = MotionParameters(linear_speed=linear_speed, angular_speed=angular_speed)
     nodes: List[TurtleBotNode] = []
 
-    for robot_id in sorted(robots.keys()):
-        topic_namespace = robots[robot_id].get('topic_namespace', robot_id)
+    for robot_id in robot_ids:
+        topic_namespace = f'{robot_id}/sim' if sim else robot_id
         node = TurtleBotNode(
             robot_id,
             graph=graph,

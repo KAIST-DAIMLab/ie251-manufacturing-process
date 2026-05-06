@@ -40,7 +40,6 @@ catkin_package(
 
 install(PROGRAMS
   scripts/path_server_node
-  scripts/robot_executor_node
   scripts/robot_executors_node
   scripts/user_client
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
