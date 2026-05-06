@@ -12,48 +12,37 @@ def _launch_tree(filename):
 
 
 class LaunchSplitTest(unittest.TestCase):
-    def test_simulation_launch_contains_only_simulation_nodes(self):
+    def test_simulation_launch_can_optionally_include_system_stack_in_sim_mode(self):
         root = _launch_tree('simulation.launch')
 
-        node_types = [node.get('type') for node in root.findall('node')]
+        system_includes = [
+            include for include in root.findall('include')
+            if include.get('file') == '$(find pathfinding_system)/launch/system.launch'
+        ]
+        start_system_arg = root.find("./arg[@name='start_system']")
 
-        self.assertNotIn('path_server_node', node_types)
-        self.assertNotIn('robot_executor_node', node_types)
+        self.assertEqual(len(system_includes), 1)
+        self.assertEqual(start_system_arg.get('default'), 'false')
+        robots_config_arg = system_includes[0].find("./arg[@name='robots_config']")
+        sim_arg = system_includes[0].find("./arg[@name='sim']")
+        self.assertEqual(robots_config_arg.get('value'), '$(arg robots_config)')
+        self.assertEqual(sim_arg.get('value'), 'true')
 
-    def test_system_launch_points_executors_at_sim_topics(self):
+    def test_system_launch_has_config_and_sim_defaults(self):
         root = _launch_tree('system.launch')
         executor_nodes = [
             node for node in root.findall('node')
             if node.get('type') == 'robot_executor_node'
         ]
+        executor_manager = root.find("./node[@type='robot_executors_node']")
 
-        self.assertEqual(len(executor_nodes), 2)
-        topic_namespaces = {
-            node.get('ns'): node.find("./param[@name='topic_namespace']").get('value')
-            for node in executor_nodes
-        }
-        self.assertEqual(topic_namespaces, {
-            'tb3_0': 'tb3_0/sim',
-            'tb3_1': 'tb3_1/sim',
-        })
+        self.assertEqual(executor_nodes, [])
+        self.assertIsNotNone(executor_manager)
+        config_arg = root.find("./arg[@name='robots_config']")
+        self.assertEqual(config_arg.get('default'), '$(find pathfinding_system)/config/robots.yaml')
+        sim_arg = root.find("./arg[@name='sim']")
+        self.assertEqual(sim_arg.get('default'), 'false')
 
-        explicit_topic_params = [
-            node.find("./param[@name='cmd_vel_topic']")
-            for node in executor_nodes
-        ] + [
-            node.find("./param[@name='odom_topic']")
-            for node in executor_nodes
-        ]
-        self.assertEqual(explicit_topic_params, [None, None, None, None])
-
-        derived_odom_topics = {
-            ns: f'/{topic_namespace}/odom'
-            for ns, topic_namespace in topic_namespaces.items()
-        }
-        self.assertEqual(derived_odom_topics, {
-            'tb3_0': '/tb3_0/sim/odom',
-            'tb3_1': '/tb3_1/sim/odom',
-        })
     def test_system_launch_does_not_start_cmd_vel_router(self):
         root = _launch_tree('system.launch')
         router_nodes = [
@@ -63,14 +52,24 @@ class LaunchSplitTest(unittest.TestCase):
 
         self.assertEqual(router_nodes, [])
 
-    def test_system_launch_configures_path_server_odom_topics(self):
+    def test_system_launch_loads_robot_config_for_runtime_nodes(self):
         root = _launch_tree('system.launch')
-        path_server = root.find("./node[@type='path_server_node']")
 
-        odom_topics = path_server.find("./rosparam[@param='robot_odom_topics']").text
+        for node_type in ('path_server_node', 'robot_executors_node'):
+            node = root.find(f"./node[@type='{node_type}']")
+            robots_config = node.find("./rosparam[@file='$(arg robots_config)']")
+            sim_param = node.find("./param[@name='sim']")
 
-        self.assertIn('tb3_0: /tb3_0/sim/odom', odom_topics)
-        self.assertIn('tb3_1: /tb3_1/sim/odom', odom_topics)
+            self.assertIsNotNone(robots_config)
+            self.assertEqual(sim_param.get('value'), '$(arg sim)')
+
+    def test_robot_config_is_auditable(self):
+        with open(os.path.join(ROOT, 'config', 'robots.yaml')) as f:
+            config = f.read()
+
+        self.assertIn('robot_ids:\n', config)
+        self.assertIn('  - tb3_01\n', config)
+        self.assertIn('  - tb3_05\n', config)
 
 
 if __name__ == '__main__':

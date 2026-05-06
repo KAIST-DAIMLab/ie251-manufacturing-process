@@ -1,28 +1,20 @@
 <launch>
-  <!-- path_server node -->
+  <arg name="robots_config" default="$(find pathfinding_system)/config/robots.yaml"/>
+  <arg name="sim" default="false"/>
+
   <node name="path_server" pkg="pathfinding_system" type="path_server_node" output="screen">
     <param name="graph_file" value="$(find pathfinding_system)/config/graph.yaml"/>
     <param name="horizon" value="2.0"/>
     <param name="check_rate_hz" value="10.0"/>
     <param name="safety_radius" value="0.35"/>
     <param name="time_step" value="0.1"/>
-    <rosparam param="robot_odom_topics">
-      tb3_01: /tb3_01/odom
-      tb3_05: /tb3_05/odom
-    </rosparam>
+    <param name="sim" value="$(arg sim)"/>
+    <rosparam file="$(arg robots_config)" command="load"/>
   </node>
 
-  <!-- tb3_01 executor -->
-  <node name="executor" ns="tb3_01" pkg="pathfinding_system" type="robot_executor_node" output="screen">
-    <param name="robot_id" value="tb3_01"/>
-    <param name="topic_namespace" value="tb3_01"/>
+  <node name="robot_executors" pkg="pathfinding_system" type="robot_executors_node" output="screen">
     <param name="graph_file" value="$(find pathfinding_system)/config/graph.yaml"/>
-  </node>
-
-  <!-- tb3_05 executor -->
-  <node name="executor" ns="tb3_05" pkg="pathfinding_system" type="robot_executor_node" output="screen">
-    <param name="robot_id" value="tb3_05"/>
-    <param name="topic_namespace" value="tb3_05"/>
-    <param name="graph_file" value="$(find pathfinding_system)/config/graph.yaml"/>
+    <param name="sim" value="$(arg sim)"/>
+    <rosparam file="$(arg robots_config)" command="load"/>
   </node>
 </launch>

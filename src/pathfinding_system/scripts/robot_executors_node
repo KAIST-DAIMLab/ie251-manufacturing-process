@@ -1,0 +1,41 @@
+#!/usr/bin/env python3
+from typing import List, cast
+
+import rospy
+
+from pathfinding_system.robot.motion_controller import MotionParameters
+from pathfinding_system.ros.turtlebot_node import TurtleBotNode
+from pathfinding_system.world.graph import Graph
+
+
+def main():
+    rospy.init_node('robot_executors')
+    graph_file = cast(str, rospy.get_param('~graph_file'))
+    linear_speed = cast(float, rospy.get_param('~linear_speed', 0.22))
+    angular_speed = cast(float, rospy.get_param('~angular_speed', 1.5))
+    motion_rate_hz = cast(float, rospy.get_param('~motion_rate_hz', 5.0))
+    sim = cast(bool, rospy.get_param('~sim', False))
+    robot_ids = cast(List[str], rospy.get_param('~robot_ids'))
+
+    graph = Graph.load_from_yaml(graph_file)
+    params = MotionParameters(linear_speed=linear_speed, angular_speed=angular_speed)
+    nodes: List[TurtleBotNode] = []
+
+    for robot_id in robot_ids:
+        topic_namespace = f'{robot_id}/sim' if sim else robot_id
+        node = TurtleBotNode(
+            robot_id,
+            graph=graph,
+            namespace=topic_namespace,
+            params=params,
+            motion_rate_hz=motion_rate_hz,
+        )
+        node.start()
+        nodes.append(node)
+
+    rospy.loginfo(f"Started {len(nodes)} robot executors.")
+    rospy.spin()
+
+
+if __name__ == '__main__':
+    main()

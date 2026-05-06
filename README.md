@@ -10,12 +10,12 @@ user_client (CLI)
       │  MoveToNode action
       ▼
   path_server ──── CollisionMonitor (10 Hz)
-      │  FollowPath action        │ /tb3_0/emergency_stop
-      ├──────────────────┐        │ /tb3_1/emergency_stop
+      │  FollowPath action        │ /tb3_01/emergency_stop
+      ├──────────────────┐        │ /tb3_05/emergency_stop
       ▼                  ▼        ▼
-tb3_0_executor     tb3_1_executor
-  /tb3_0/cmd_vel    /tb3_1/cmd_vel
-  /tb3_0/odom       /tb3_1/odom
+tb3_01_executor    tb3_05_executor
+  /tb3_01/cmd_vel   /tb3_05/cmd_vel
+  /tb3_01/odom      /tb3_05/odom
       │                  │
       └──────────────────┘
               Gazebo
@@ -40,7 +40,7 @@ N0 ─── N2 ─────── N4      (bottom row, y = 0.75 m)
 | 4    | 5.0    | 0.75   |
 | 5    | 5.0    | 2.25   |
 
-Spawn poses: `tb3_0` at node 0 (bottom-left), `tb3_1` at node 5 (top-right, facing left).
+Spawn poses: `tb3_01` at node 0 (bottom-left), `tb3_05` at node 5 (top-right, facing left).
 
 ---
 
@@ -93,10 +93,16 @@ Gazebo opens. Two TurtleBot3 Waffles appear: one near the bottom-left, one near 
 
 ```bash
 source devel/setup.zsh
-roslaunch pathfinding_system system.launch
+roslaunch pathfinding_system system.launch sim:=true
 ```
 
-Wait until the executor action servers are up and both odometry topics (`/tb3_0/sim/odom`, `/tb3_1/sim/odom`) are publishing before sending goals.
+Wait until the executor action servers are up and both odometry topics (`/tb3_01/sim/odom`, `/tb3_05/sim/odom`) are publishing before sending goals.
+
+You can also launch Gazebo and the pathfinding system together:
+
+```bash
+roslaunch pathfinding_system simulation.launch start_system:=true
+```
 
 ### 4.1.4. Send a goal
 
@@ -104,10 +110,10 @@ Wait until the executor action servers are up and both odometry topics (`/tb3_0/
 
 ```bash
 source devel/setup.zsh
-rosrun pathfinding_system user_client tb3_0 5
+rosrun pathfinding_system user_client tb3_01 5
 ```
 
-`tb3_0` drives from node 0 to node 5 via the top route (0 → 1 → 3 → 5). The client prints feedback as each waypoint is reached and exits with code 0 on success.
+`tb3_01` drives from node 0 to node 5 via the top route (0 → 1 → 3 → 5). The client prints feedback as each waypoint is reached and exits with code 0 on success.
 
 ## 4.2. Real Robots
 
@@ -156,6 +162,7 @@ SSH into each robot's Raspberry Pi and set it to use the laptop as the ROS maste
 ```bash
 export ROS_MASTER_URI=http://<laptop-ip>:11311
 export ROS_IP=<tb3_01-ip>
+export ROS_NAMESPACE=tb3_01
 roslaunch turtlebot3_bringup turtlebot3_robot.launch
 ```
 
@@ -164,6 +171,7 @@ roslaunch turtlebot3_bringup turtlebot3_robot.launch
 ```bash
 export ROS_MASTER_URI=http://<laptop-ip>:11311
 export ROS_IP=<tb3_05-ip>
+export ROS_NAMESPACE=tb3_05
 roslaunch turtlebot3_bringup turtlebot3_robot.launch
 ```
 
@@ -217,36 +225,36 @@ rosrun pathfinding_system user_client <robot_id> <target_node_id>
 
 | Argument        | Values              |
 |-----------------|---------------------|
-| `robot_id`      | `tb3_0` or `tb3_1`  |
+| `robot_id`      | `tb3_01` or `tb3_05`  |
 | `target_node_id`| `0` – `5`           |
 
 ## 6. Examples
 
 **Single robot — corner to corner:**
 ```bash
-rosrun pathfinding_system user_client tb3_0 5   # 0 → 1 → 3 → 5
+rosrun pathfinding_system user_client tb3_01 5   # 0 → 1 → 3 → 5
 ```
 
 **Two robots — parallel rows (no collision):**
 ```bash
 # Terminal A                                # Terminal B
-rosrun pathfinding_system user_client tb3_0 4   rosrun pathfinding_system user_client tb3_1 1
-# tb3_0: bottom row 0 → 2 → 4              # tb3_1: top row 5 → 3 → 1
+rosrun pathfinding_system user_client tb3_01 4   rosrun pathfinding_system user_client tb3_05 1
+# tb3_01: bottom row 0 → 2 → 4             # tb3_05: top row 5 → 3 → 1
 ```
 
 **Collision avoidance — head-on on N1–N3 edge:**
 ```bash
 # Start both within ~1 s of each other
-rosrun pathfinding_system user_client tb3_0 5   # top route: 0 → 1 → 3 → 5
-rosrun pathfinding_system user_client tb3_1 0   # top route: 5 → 3 → 1 → 0
+rosrun pathfinding_system user_client tb3_01 5   # top route: 0 → 1 → 3 → 5
+rosrun pathfinding_system user_client tb3_05 0   # top route: 5 → 3 → 1 → 0
 # CollisionMonitor fires; both robots stop before impact.
 ```
 
 ## Monitor state
 
 ```bash
-rostopic echo /tb3_0/sim/odom        # pose and velocity from Gazebo
-rostopic echo /tb3_0/emergency_stop  # fires when collision is predicted
+rostopic echo /tb3_01/sim/odom        # pose and velocity from Gazebo
+rostopic echo /tb3_01/emergency_stop  # fires when collision is predicted
 ```
 
 ---
@@ -254,6 +262,8 @@ rostopic echo /tb3_0/emergency_stop  # fires when collision is predicted
 # 7. Configuration
 
 **`config/graph.yaml`** — edit nodes and edges to change the layout.
+
+**`config/robots.yaml`** — edit robot IDs when adding or renaming robots.
 
 **`config/params.yaml`** — key tuning values:
 
@@ -290,8 +300,8 @@ source devel/setup.zsh
 **Robot doesn't move after goal is sent**
 Check that both executor nodes are alive and odometry is available:
 ```bash
-rostopic hz /tb3_0/sim/odom
-rostopic hz /tb3_1/sim/odom
+rostopic hz /tb3_01/sim/odom
+rostopic hz /tb3_05/sim/odom
 ```
 
 **Both robots stop and never resume**
