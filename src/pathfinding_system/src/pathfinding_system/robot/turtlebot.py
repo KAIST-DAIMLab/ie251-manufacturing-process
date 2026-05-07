@@ -20,6 +20,7 @@ class TurtleBot:
         cmd_vel_publisher: CmdVelPublisher,
         params: MotionParameters = MotionParameters(),
         motion_rate_hz: float = 5.0,
+        origin: Pose2D | None = None
     ) -> None:
         self.id = robot_id
         self._state = RobotState(id=robot_id)
@@ -27,6 +28,7 @@ class TurtleBot:
         self._cancel = False
         self._motion_controller = MotionController(cmd_vel_publisher, self.current_pose, params)
         self._path_follower = PathFollower(self._motion_controller, rate_hz=motion_rate_hz)
+        self._origin = origin
 
     @property
     def motion_controller(self) -> MotionController:
@@ -48,7 +50,7 @@ class TurtleBot:
 
     def update_pose(self, msg: Odometry) -> None:
         """Update pose and velocity from an Odometry message."""
-        self._state = RobotState.from_odometry(self.id, msg)
+        self._state = RobotState.from_odometry(self.id, msg, self._origin)
 
     def follow_path(self, nodes: list[Node]) -> bool:
         """Follow an ordered list of graph nodes; True when all reached, False if cancelled."""
