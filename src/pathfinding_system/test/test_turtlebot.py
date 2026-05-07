@@ -95,6 +95,22 @@ def _odom_msg(x=1.0, y=2.0, yaw=0.5, linear_x=0.1, stamp='stamp'):
     )
 
 
+def _build_turtlebot(robot_id='tb3_0', state=None):
+    state = state or RobotState(id=robot_id)
+    publisher = FakePublisher()
+    motion_controller = MotionController(
+        cmd_vel_publisher=publisher,
+        pose_provider=state.current_pose,
+    )
+    path_follower = PathFollower(motion_controller)
+    return TurtleBot(
+        robot_id,
+        state=state,
+        motion_controller=motion_controller,
+        path_follower=path_follower,
+    )
+
+
 class TurtleBotTest(unittest.TestCase):
     def setUp(self):
         import rospy
@@ -107,7 +123,7 @@ class TurtleBotTest(unittest.TestCase):
         rospy.Timer = unexpected_ros_lifecycle
 
     def test_constructing_turtlebot_creates_no_ros_lifecycle_objects(self):
-        robot = TurtleBot('tb3_0', cmd_vel_publisher=FakePublisher())
+        robot = _build_turtlebot()
 
         self.assertEqual(robot.id, 'tb3_0')
 
@@ -138,45 +154,46 @@ class TurtleBotTest(unittest.TestCase):
         self.assertIs(hints['return'], type(None))
 
     def test_turtlebot_exposes_motion_controller(self):
-        robot = TurtleBot('tb3_0', cmd_vel_publisher=FakePublisher())
+        robot = _build_turtlebot()
 
         self.assertIsInstance(robot.motion_controller, MotionController)
 
     def test_turtlebot_exposes_path_follower(self):
-        robot = TurtleBot('tb3_0', cmd_vel_publisher=FakePublisher())
+        robot = _build_turtlebot()
 
         self.assertIsInstance(robot.path_follower, PathFollower)
 
     def test_update_state_camel_case_api_is_removed(self):
-        robot = TurtleBot('tb3_0', cmd_vel_publisher=FakePublisher())
+        robot = _build_turtlebot()
 
         self.assertFalse(hasattr(robot, 'updateState'))
 
     def test_turtlebot_does_not_create_lock(self):
-        robot = TurtleBot('tb3_0', cmd_vel_publisher=FakePublisher())
+        robot = _build_turtlebot()
 
         self.assertFalse(hasattr(robot, '_lock'))
 
     def test_turtlebot_does_not_define_robot_state_topic(self):
-        robot = TurtleBot('tb3_0', cmd_vel_publisher=FakePublisher())
+        robot = _build_turtlebot()
 
         self.assertFalse(hasattr(robot, 'state_topic'))
 
     def test_turtlebot_does_not_define_ros_io_topics(self):
-        robot = TurtleBot('tb3_0', cmd_vel_publisher=FakePublisher())
+        robot = _build_turtlebot()
 
         self.assertFalse(hasattr(robot, 'cmd_vel_topic'))
         self.assertFalse(hasattr(robot, 'odom_topic'))
 
     def test_update_pose_updates_state_from_odometry_message(self):
-        robot = TurtleBot('tb3_0', cmd_vel_publisher=FakePublisher())
+        state = RobotState(id='tb3_0')
+        robot = _build_turtlebot(state=state)
 
         robot.update_pose(_odom_msg(x=1.5, y=2.5, yaw=0.75, linear_x=0.4, stamp='odom-stamp'))
 
-        self.assertEqual(robot._state.pose.x, 1.5)
-        self.assertEqual(robot._state.pose.y, 2.5)
-        self.assertAlmostEqual(robot._state.pose.theta, 0.75)
-        self.assertEqual(robot._state.velocity.linear.x, 0.4)
+        self.assertEqual(state.pose.x, 1.5)
+        self.assertEqual(state.pose.y, 2.5)
+        self.assertAlmostEqual(state.pose.theta, 0.75)
+        self.assertEqual(state.velocity.linear.x, 0.4)
 
     def test_state_update_from_odometry_mutates_in_place(self):
         state = RobotState(id='tb3_0')
