@@ -21,29 +21,6 @@ tb3_01_executor    tb3_05_executor
               Gazebo
 ```
 
-# 2. Graph
-
-Six nodes in a 3 × 2 grid. Seven edges (top row, bottom row, three verticals).
-
-```
-N1 ─── N3 ─────── N5      (top row,    y = 2.25 m)
-│       │          │
-N0 ─── N2 ─────── N4      (bottom row, y = 0.75 m)
-```
-
-| Node | x (m) | y (m) |
-|------|--------|--------|
-| 0    | 1.0    | 0.75   |
-| 1    | 1.0    | 2.25   |
-| 2    | 3.0    | 0.75   |
-| 3    | 3.0    | 2.25   |
-| 4    | 5.0    | 0.75   |
-| 5    | 5.0    | 2.25   |
-
-Spawn poses: `tb3_01` at node 0 (bottom-left), `tb3_05` at node 5 (top-right, facing left).
-
----
-
 # 3. Prerequisites
 
 - Docker + Docker Compose
