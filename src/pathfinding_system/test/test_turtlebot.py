@@ -178,5 +178,29 @@ class TurtleBotTest(unittest.TestCase):
         self.assertAlmostEqual(robot._state.pose.theta, 0.75)
         self.assertEqual(robot._state.velocity.linear.x, 0.4)
 
+    def test_state_update_from_odometry_mutates_in_place(self):
+        state = RobotState(id='tb3_0')
+        original_pose = state.pose
+        state.update_from_odometry(_odom_msg(x=1.5, y=2.5, yaw=0.75, linear_x=0.4))
+
+        self.assertIs(state.pose, original_pose)
+        self.assertEqual(state.pose.x, 1.5)
+        self.assertEqual(state.pose.y, 2.5)
+        self.assertAlmostEqual(state.pose.theta, 0.75)
+        self.assertEqual(state.velocity.linear.x, 0.4)
+
+    def test_state_current_pose_returns_independent_snapshot(self):
+        state = RobotState(id='tb3_0')
+        state.pose.x = 1.0
+        state.pose.y = 2.0
+        state.pose.theta = 0.5
+
+        snapshot = state.current_pose()
+        snapshot.x = 99.0
+
+        self.assertEqual(state.pose.x, 1.0)
+        self.assertEqual(snapshot.y, 2.0)
+        self.assertEqual(snapshot.theta, 0.5)
+
 if __name__ == '__main__':
     unittest.main()
