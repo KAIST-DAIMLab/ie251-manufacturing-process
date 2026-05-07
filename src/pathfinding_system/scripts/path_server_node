@@ -16,7 +16,8 @@ def main():
     safety_radius = cast(float, rospy.get_param('~safety_radius', 0.35))
     time_step = cast(float, rospy.get_param('~time_step', 0.1))
     sim = cast(bool, rospy.get_param('~sim', False))
-    robot_ids = cast(List[str], rospy.get_param('~robot_ids'))
+    robots = cast(list, rospy.get_param('~robots'))
+    robot_ids = [r['id'] for r in robots]
     robot_odom_topics = {
         rid: f"/{rid}/sim/odom" if sim else f"/{rid}/odom"
         for rid in robot_ids
