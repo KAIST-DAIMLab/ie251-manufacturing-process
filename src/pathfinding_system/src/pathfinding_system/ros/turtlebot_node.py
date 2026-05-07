@@ -22,11 +22,12 @@ class TurtleBotNode:
         graph: Graph | None = None,
         params: MotionParameters = MotionParameters(),
         motion_rate_hz: float = 5.0,
+        origin: Pose2D | None = None,
     ) -> None:
         self._robot_id = robot_id
         self._namespace = (namespace or robot_id).strip('/')
         cmd_vel_publisher = rospy.Publisher(f'/{self._namespace}/cmd_vel', Twist, queue_size=1)
-        self._robot = TurtleBot(robot_id, cmd_vel_publisher=cmd_vel_publisher, params=params, motion_rate_hz=motion_rate_hz)
+        self._robot = TurtleBot(robot_id, cmd_vel_publisher=cmd_vel_publisher, params=params, motion_rate_hz=motion_rate_hz, origin=origin)
         rospy.Subscriber(self.topic_odom, Odometry, self._robot.update_pose)
         rospy.Subscriber(self.topic_stop, Empty, self._on_stop)
         self._user_command_server = RobotCommandActionServer(self._robot, robot_id)
