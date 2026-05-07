@@ -17,11 +17,13 @@ class RobotState:
         return self.status == RobotMode.MOVING
 
     @classmethod
-    def from_odometry(cls, robot_id: str, msg: Any) -> RobotState:
+    def from_odometry(cls, robot_id: str, msg: Any, origin: Pose2D | None = None) -> RobotState:
         state = cls(id=robot_id)
+        ox = origin.x if origin else 0.0
+        oy = origin.y if origin else 0.0
         pose = msg.pose.pose
-        state.pose.x = pose.position.x
-        state.pose.y = pose.position.y
+        state.pose.x = pose.position.x + ox
+        state.pose.y = pose.position.y + oy
         state.pose.theta = yaw_from_quaternion(pose.orientation)
         state.velocity = msg.twist.twist
         return state
