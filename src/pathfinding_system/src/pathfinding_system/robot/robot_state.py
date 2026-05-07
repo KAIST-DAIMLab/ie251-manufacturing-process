@@ -21,9 +21,10 @@ class RobotState:
         state = cls(id=robot_id)
         ox = origin.x if origin else 0.0
         oy = origin.y if origin else 0.0
+        ot = origin.theta if origin else 0.0
         pose = msg.pose.pose
         state.pose.x = pose.position.x + ox
         state.pose.y = pose.position.y + oy
-        state.pose.theta = yaw_from_quaternion(pose.orientation)
+        state.pose.theta = yaw_from_quaternion(pose.orientation) + ot
         state.velocity = msg.twist.twist
         return state
