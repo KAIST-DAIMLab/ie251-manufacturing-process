@@ -5,30 +5,29 @@ import rospy
 from geometry_msgs.msg import Pose2D
 from nav_msgs.msg import Odometry
 
-from pathfinding_system.robot.motion_controller import CmdVelPublisher, MotionController, MotionParameters
+from pathfinding_system.robot.motion_controller import MotionController
 from pathfinding_system.robot.path_follower import PathFollower
 from pathfinding_system.robot.robot_state import RobotState
 from pathfinding_system.world.node import Node
 
 
 class TurtleBot:
-    """Robot facade: owns state, motion controller, and path follower."""
+    """Robot facade: behavior coordinator wired with injected state and motion collaborators."""
 
     def __init__(
         self,
         robot_id: str,
-        cmd_vel_publisher: CmdVelPublisher,
-        params: MotionParameters = MotionParameters(),
+        state: RobotState,
+        motion_controller: MotionController,
+        path_follower: PathFollower,
         motion_rate_hz: float = 5.0,
-        origin: Pose2D | None = None
     ) -> None:
         self.id = robot_id
-        self._state = RobotState(id=robot_id)
+        self._state = state
+        self._motion_controller = motion_controller
+        self._path_follower = path_follower
         self._rate_hz = motion_rate_hz
         self._cancel = False
-        self._motion_controller = MotionController(cmd_vel_publisher, self.current_pose, params)
-        self._path_follower = PathFollower(self._motion_controller, rate_hz=motion_rate_hz)
-        self._origin = origin
 
     @property
     def motion_controller(self) -> MotionController:
@@ -42,15 +41,11 @@ class TurtleBot:
 
     def current_pose(self) -> Pose2D:
         """Return a snapshot of the current pose."""
-        pose = Pose2D()
-        pose.x = self._state.pose.x
-        pose.y = self._state.pose.y
-        pose.theta = self._state.pose.theta
-        return pose
+        return self._state.current_pose()
 
     def update_pose(self, msg: Odometry) -> None:
-        """Update pose and velocity from an Odometry message."""
-        self._state = RobotState.from_odometry(self.id, msg, self._origin)
+        """Update pose and velocity in place from an Odometry message."""
+        self._state.update_from_odometry(msg)
 
     def follow_path(self, nodes: list[Node]) -> bool:
         """Follow an ordered list of graph nodes; True when all reached, False if cancelled."""
