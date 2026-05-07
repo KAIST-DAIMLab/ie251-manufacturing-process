@@ -21,7 +21,7 @@ tb3_01_executor    tb3_05_executor
               Gazebo
 ```
 
-# 3. Prerequisites
+# 2. Prerequisites
 
 - Docker + Docker Compose
 - An X server on the host (any Linux desktop, or XQuartz on macOS)
@@ -50,8 +50,7 @@ sudo docker exec -it noetic zsh
 ### 4.1.2. Build (first time only)
 
 ```bash
-echo "127.0.0.1 noetic" | sudo tee -a /etc/hosts
-catkin_make --only-pkg-with-deps pathfinding_system
+catkin_make
 source devel/setup.zsh
 ```
 
@@ -283,3 +282,9 @@ rostopic hz /tb3_05/sim/odom
 
 **Both robots stop and never resume**
 An emergency stop is latched until a new `FollowPath` goal arrives. Send a new goal via `user_client` to resume.
+
+---
+
+# 8. Design Decisions
+
+**`*Node` classes are the assembly layer and are not unit-tested.** `TurtleBotNode`, `PathServerNode`, and similar classes are responsible for instantiating components, wiring them together, and creating all ROS publishers/subscribers. All topic names live here. They are covered by integration tests only. Every other class follows constructor injection and must be unit-testable without a running ROS core.
