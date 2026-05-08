@@ -2,6 +2,8 @@ from __future__ import annotations
 import math
 from sensor_msgs.msg import LaserScan
 
+CENTER_DEGREE = 180
+
 
 class ObstacleDetector:
     """Returns True when a LaserScan return is inside the front cone and within stop distance."""
@@ -23,11 +25,10 @@ class ObstacleDetector:
             return True
 
         if self._cone_slice is None:
-            center = round(-scan.angle_min / scan.angle_increment)
             half_span = math.floor(self._cone_half_degree / math.degrees(scan.angle_increment))
             self._cone_slice = slice(
-                max(0, center - half_span),
-                min(len(ranges), center + half_span + 1),
+                max(0, CENTER_DEGREE - half_span),
+                min(len(ranges), CENTER_DEGREE + half_span + 1),
             )
 
         cone_ranges = ranges[self._cone_slice]

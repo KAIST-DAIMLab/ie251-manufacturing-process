@@ -13,7 +13,7 @@ sys.path.insert(0, ROOT)
 from pathfinder.safety.obstacle_detector import ObstacleDetector
 
 
-def _make_scan(ranges, angle_min=0.0, angle_increment=None):
+def _make_scan(ranges, angle_min=-math.pi, angle_increment=None):
     if angle_increment is None:
         angle_increment = 2 * math.pi / 360
     return types.SimpleNamespace(
@@ -28,10 +28,7 @@ def _make_full_scan(front_range, detect_degree=20):
     angle_increment = 2 * math.pi / num_samples
     ranges = [float('inf')] * num_samples
     for index in range(num_samples):
-        angle = math.atan2(
-            math.sin(index * angle_increment),
-            math.cos(index * angle_increment),
-        )
+        angle = -math.pi + index * angle_increment
         if abs(angle) <= math.radians(detect_degree) / 2.0:
             ranges[index] = front_range
     return _make_scan(ranges)
@@ -74,7 +71,7 @@ class ObstacleDetectorTest(unittest.TestCase):
         ranges = [float('inf')] * num_samples
 
         target_angle = math.pi / 2.0
-        side_index = round(target_angle / angle_increment) % num_samples
+        side_index = round((target_angle + math.pi) / angle_increment) % num_samples
         ranges[side_index] = 0.1
 
         self.assertFalse(_make_detector().detect(_make_scan(ranges)))
