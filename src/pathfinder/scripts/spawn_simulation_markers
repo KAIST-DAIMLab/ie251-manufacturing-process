@@ -46,8 +46,8 @@ _EDGE_MARKER_SDF_TEMPLATE = """<?xml version="1.0" ?>
           </box>
         </geometry>
         <material>
-          <ambient>0.5 0.5 0.5 1</ambient>
-          <diffuse>0.5 0.5 0.5 1</diffuse>
+          <ambient>0 0 0 1</ambient>
+          <diffuse>0 0 0 1</diffuse>
         </material>
       </visual>
     </link>
@@ -155,11 +155,11 @@ def main():
     rospy.wait_for_service('/gazebo/spawn_sdf_model')
     spawn_service = rospy.ServiceProxy('/gazebo/spawn_sdf_model', SpawnModel)
 
-    for node in nodes:
-        _spawn_node_marker(spawn_service, node)
-
     for edge in edges:
         _spawn_edge_marker(spawn_service, edge, node_map)
+
+    for node in nodes:
+        _spawn_node_marker(spawn_service, node)
 
     rospy.loginfo(
         f"All {len(nodes)} node markers and {len(edges)} edge markers spawned."
