@@ -42,6 +42,7 @@ install(PROGRAMS
   scripts/path_server_node
   scripts/robot_executors_node
   scripts/spawn_simulation_robots
+  scripts/spawn_simulation_markers
   scripts/client
   scripts/run_simulation
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

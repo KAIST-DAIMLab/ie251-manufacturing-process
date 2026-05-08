@@ -19,6 +19,10 @@
     <param name="model" value="$(arg model)"/>
   </node>
 
+  <node name="simulation_marker_spawner" pkg="pathfinder" type="spawn_simulation_markers" output="screen">
+    <param name="graph_config" value="$(arg graph_config)"/>
+  </node>
+
   <include if="$(arg start_system)" file="$(find pathfinder)/launch/robots.launch">
     <arg name="robots_config" value="$(arg robots_config)"/>
     <arg name="sim" value="true"/>

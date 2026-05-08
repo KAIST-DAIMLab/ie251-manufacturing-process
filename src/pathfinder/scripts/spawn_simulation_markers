@@ -1,0 +1,74 @@
+#!/usr/bin/env python3
+"""One-shot node: reads graph.yaml and spawns a green disc per node in Gazebo."""
+from __future__ import annotations
+import yaml
+
+import rospy
+from gazebo_msgs.srv import SpawnModel, SpawnModelRequest
+from geometry_msgs.msg import Pose, Point, Quaternion
+
+
+_MARKER_SDF_TEMPLATE = """<?xml version="1.0" ?>
+<sdf version="1.6">
+  <model name="node_{node_id}">
+    <static>true</static>
+    <link name="link">
+      <visual name="visual">
+        <geometry>
+          <cylinder>
+            <radius>0.1</radius>
+            <length>0.001</length>
+          </cylinder>
+        </geometry>
+        <material>
+          <ambient>0 1 0 1</ambient>
+          <diffuse>0 1 0 1</diffuse>
+        </material>
+      </visual>
+    </link>
+  </model>
+</sdf>
+"""
+
+
+def main():
+    rospy.init_node('simulation_marker_spawner')
+
+    graph_config = rospy.get_param('~graph_config')
+
+    with open(graph_config, 'r') as graph_file:
+        nodes = yaml.safe_load(graph_file)['nodes']
+
+    rospy.wait_for_service('/gazebo/spawn_sdf_model')
+    spawn_service = rospy.ServiceProxy('/gazebo/spawn_sdf_model', SpawnModel)
+
+    for node in nodes:
+        node_id = node['id']
+        x = float(node['x'])
+        y = float(node['y'])
+
+        sdf_string = _MARKER_SDF_TEMPLATE.format(node_id=node_id)
+
+        pose = Pose(
+            position=Point(x=x, y=y, z=0.0),
+            orientation=Quaternion(x=0.0, y=0.0, z=0.0, w=1.0),
+        )
+
+        request = SpawnModelRequest()
+        request.model_name = f'node_{node_id}'
+        request.model_xml = sdf_string
+        request.robot_namespace = ''
+        request.initial_pose = pose
+        request.reference_frame = 'world'
+        response = spawn_service(request)
+        if not response.success:
+            rospy.logerr(f"Failed to spawn marker for node {node_id}: {response.status_message}")
+            raise RuntimeError(f"Marker spawn failed for node {node_id}: {response.status_message}")
+
+        rospy.loginfo(f"Spawned marker node_{node_id} at (x={x}, y={y})")
+
+    rospy.loginfo(f"All {len(nodes)} node markers spawned.")
+
+
+if __name__ == '__main__':
+    main()
