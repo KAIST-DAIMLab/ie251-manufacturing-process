@@ -1,6 +1,9 @@
 from __future__ import annotations
 import math
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
+
+if TYPE_CHECKING:
+    from sensor_msgs.msg import LaserScan
 
 
 def _wrap_to_pi(radian: float) -> float:
@@ -26,7 +29,7 @@ class ObstacleGate:
         self._last_scan = None
         self._last_update_time: float | None = None
 
-    def update(self, scan) -> None:
+    def update(self, scan: LaserScan) -> None:
         """Store the most recent scan and record the current time."""
         self._last_scan = scan
         self._last_update_time = self._time_provider()
