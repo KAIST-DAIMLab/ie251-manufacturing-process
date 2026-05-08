@@ -19,7 +19,7 @@ USER_COMMANDS = {
 _TURN_COMMANDS = {'turn_left', 'turn_right'}
 
 
-class UserClient:
+class Client:
     def __init__(self) -> None:
         self._move_client = actionlib.SimpleActionClient(
             '/path_server/move_to_node', MoveToNodeAction

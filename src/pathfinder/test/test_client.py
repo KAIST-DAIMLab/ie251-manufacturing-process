@@ -88,10 +88,10 @@ def _install_ros_stubs():
 
 _install_ros_stubs()
 
-from pathfinder.client.user_client import UserClient
+from pathfinder.client.client import Client
 
 
-class UserClientTest(unittest.TestCase):
+class ClientTest(unittest.TestCase):
     def setUp(self):
         import actionlib
         import rospy
@@ -99,7 +99,7 @@ class UserClientTest(unittest.TestCase):
         rospy.publishers[:] = []
 
     def test_send_goal_still_targets_path_server(self):
-        client = UserClient()
+        client = Client()
 
         ok = client.send_goal('tb3_0', 5)
 
@@ -110,7 +110,7 @@ class UserClientTest(unittest.TestCase):
         self.assertEqual(actionlib.clients[0].goal.target_node_id, 5)
 
     def test_cancel_still_publishes_stop_topic(self):
-        client = UserClient()
+        client = Client()
 
         client.cancel('tb3_0')
 
@@ -119,7 +119,7 @@ class UserClientTest(unittest.TestCase):
         self.assertEqual(len(rospy.publishers[0].published), 1)
 
     def test_turn_commands_convert_degrees_to_radians(self):
-        client = UserClient()
+        client = Client()
 
         ok = client.send_command('tb3_0', 'turn_left', 90.0)
 
@@ -130,7 +130,7 @@ class UserClientTest(unittest.TestCase):
         self.assertAlmostEqual(actionlib.clients[-1].goal.value, math.pi / 2.0)
 
     def test_move_commands_keep_meter_value(self):
-        client = UserClient()
+        client = Client()
 
         ok = client.send_command('tb3_0', 'move_backward', 0.5)
 

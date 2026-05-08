@@ -6,7 +6,7 @@ A centralized path-finding system for two TurtleBot3 Waffle robots navigating a 
 ![architecture](.images/README-architecture.png)  
 
 ```
-user_client (CLI)
+client (CLI)
       │  MoveToNode action
       ▼
   path_server ──── CollisionMonitor (10 Hz)
@@ -56,7 +56,7 @@ source devel/setup.zsh
 
 ```bash
 source devel/setup.zsh
-roslaunch pathfinding_system simulation.launch
+roslaunch pathfinder simulation.launch
 ```
 
 Wait until the executor action servers are up and both odometry topics (`/tb3_01/sim/odom`, `/tb3_05/sim/odom`) are publishing before sending goals.
@@ -68,7 +68,7 @@ Wait until the executor action servers are up and both odometry topics (`/tb3_01
 
 ```bash
 source devel/setup.zsh
-rosrun pathfinding_system user_client tb3_01 5
+rosrun pathfinder client tb3_01 5
 ```
 
 `tb3_01` drives from node 0 to node 5 via the top route (0 → 1 → 3 → 5). The client prints feedback as each waypoint is reached and exits with code 0 on success.
@@ -138,7 +138,7 @@ Back in the laptop container (**Terminal 1**):
 
 ```bash
 source devel/setup.zsh
-roslaunch pathfinding_system robots.launch
+roslaunch pathfinder robots.launch
 ```
 
 Confirm the executors are ready by checking that odometry is arriving:
@@ -156,7 +156,7 @@ Both should report ~30 Hz before you send any goals.
 
 ```bash
 source devel/setup.zsh
-rosrun pathfinding_system user_client tb3_01 5   # drives node 0 → 1 → 3 → 5
+rosrun pathfinder client tb3_01 5   # drives node 0 → 1 → 3 → 5
 ```
 
 The client prints feedback at each waypoint and exits with code 0 on success.
@@ -166,7 +166,7 @@ The client prints feedback at each waypoint and exits with code 0 on success.
 # 5. Usage
 
 ```
-rosrun pathfinding_system user_client <robot_id> <target_node_id>
+rosrun pathfinder client <robot_id> <target_node_id>
 ```
 
 | Argument        | Values              |
@@ -178,21 +178,21 @@ rosrun pathfinding_system user_client <robot_id> <target_node_id>
 
 **Single robot — corner to corner:**
 ```bash
-rosrun pathfinding_system user_client tb3_01 5   # 0 → 1 → 3 → 5
+rosrun pathfinder client tb3_01 5   # 0 → 1 → 3 → 5
 ```
 
 **Two robots — parallel rows (no collision):**
 ```bash
 # Terminal A                                # Terminal B
-rosrun pathfinding_system user_client tb3_01 4   rosrun pathfinding_system user_client tb3_05 1
+rosrun pathfinder client tb3_01 4   rosrun pathfinder client tb3_05 1
 # tb3_01: bottom row 0 → 2 → 4             # tb3_05: top row 5 → 3 → 1
 ```
 
 **Collision avoidance — head-on on N1–N3 edge:**
 ```bash
 # Start both within ~1 s of each other
-rosrun pathfinding_system user_client tb3_01 5   # top route: 0 → 1 → 3 → 5
-rosrun pathfinding_system user_client tb3_05 0   # top route: 5 → 3 → 1 → 0
+rosrun pathfinder client tb3_01 5   # top route: 0 → 1 → 3 → 5
+rosrun pathfinder client tb3_05 0   # top route: 5 → 3 → 1 → 0
 # CollisionMonitor fires; both robots stop before impact.
 ```
 
@@ -235,10 +235,10 @@ xauth nlist $DISPLAY | sed -e 's/^..../ffff/' | xauth -f /tmp/.docker.xauth nmer
 **`Failed to load model 'waffle'`**
 ```bash
 export TURTLEBOT3_MODEL=waffle
-roslaunch pathfinding_system simulation.launch
+roslaunch pathfinder simulation.launch
 ```
 
-**`rospack find pathfinding_system` fails**
+**`rospack find pathfinder` fails**
 ```bash
 source devel/setup.zsh
 ```
@@ -251,7 +251,7 @@ rostopic hz /tb3_05/sim/odom
 ```
 
 **Both robots stop and never resume**
-An emergency stop is latched until a new `FollowPath` goal arrives. Send a new goal via `user_client` to resume.
+An emergency stop is latched until a new `FollowPath` goal arrives. Send a new goal via `client` to resume.
 
 ---
 

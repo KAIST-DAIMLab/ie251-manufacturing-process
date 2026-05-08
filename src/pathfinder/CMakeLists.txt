@@ -41,7 +41,7 @@ catkin_package(
 install(PROGRAMS
   scripts/path_server_node
   scripts/robot_executors_node
-  scripts/user_client
+  scripts/client
   scripts/run_simulation
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
@@ -53,5 +53,5 @@ if(CATKIN_ENABLE_TESTING)
   catkin_add_nosetests(test/test_path_server.py)
   catkin_add_nosetests(test/test_physics_utils.py)
   catkin_add_nosetests(test/test_turtlebot.py)
-  catkin_add_nosetests(test/test_user_client.py)
+  catkin_add_nosetests(test/test_client.py)
 endif()
