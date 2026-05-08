@@ -15,11 +15,15 @@ class CollisionMonitor:
         horizon: float,
         check_rate_hz: float,
         robot_odom_topics: dict[str, str] | None = None,
+        robot_stop_topics: dict[str, str] | None = None,
     ) -> None:
         self._predictor = predictor
         self._namespaces = robot_namespaces
         self._robot_odom_topics = robot_odom_topics or {
             ns: f'/{ns}/odom' for ns in robot_namespaces
+        }
+        self._robot_stop_topics = robot_stop_topics or {
+            ns: f'/{ns}/stop' for ns in robot_namespaces
         }
         self._horizon = horizon
         self._check_rate_hz = check_rate_hz
@@ -34,7 +38,7 @@ class CollisionMonitor:
                 lambda msg, n=ns: self.update_odom(n, msg),
             )
             self._stop_pubs[ns] = rospy.Publisher(
-                f'/{ns}/stop', Empty, queue_size=1
+                self._robot_stop_topics[ns], Empty, queue_size=1
             )
         rospy.Timer(rospy.Duration(1.0 / self._check_rate_hz), self._tick)
         rospy.loginfo("CollisionMonitor started.")

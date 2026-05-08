@@ -31,6 +31,7 @@ class TurtleBotNode:
         self._namespace = (namespace or robot_id).strip('/')
 
         cmd_vel_publisher = rospy.Publisher(self.topic_cmd_vel, Twist, queue_size=1)
+        
         self._state = RobotState(id=robot_id, origin=origin or Pose2D())
         state = self._state
         motion_controller = MotionController(
@@ -65,7 +66,7 @@ class TurtleBotNode:
     @property
     def topic_stop(self) -> str:
         """Topic name for stop requests."""
-        return f'/{self._robot_id}/stop'
+        return f'/{self._namespace}/stop'
 
     @property
     def topic_user_command(self) -> str:
