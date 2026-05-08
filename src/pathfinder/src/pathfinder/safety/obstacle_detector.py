@@ -9,10 +9,10 @@ class ObstacleDetector:
     def __init__(
         self,
         stop_distance: float,
-        detect_radian: float,
+        detect_degree: float,
     ) -> None:
         self._stop_distance = stop_distance
-        self._cone_half_width_radian = detect_radian / 2.0
+        self._cone_half_width_radian = math.radians(detect_degree) / 2.0
         self._cone_slice: slice | None = None
 
     def detect(self, scan: LaserScan) -> bool:

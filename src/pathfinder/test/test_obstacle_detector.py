@@ -23,7 +23,7 @@ def _make_scan(ranges, angle_min=0.0, angle_increment=None):
     )
 
 
-def _make_full_scan(front_range, detect_radian=math.radians(20)):
+def _make_full_scan(front_range, detect_degree=20):
     num_samples = 360
     angle_increment = 2 * math.pi / num_samples
     ranges = [float('inf')] * num_samples
@@ -32,7 +32,7 @@ def _make_full_scan(front_range, detect_radian=math.radians(20)):
             math.sin(index * angle_increment),
             math.cos(index * angle_increment),
         )
-        if abs(angle) <= detect_radian / 2.0:
+        if abs(angle) <= math.radians(detect_degree) / 2.0:
             ranges[index] = front_range
     return _make_scan(ranges)
 
@@ -40,7 +40,7 @@ def _make_full_scan(front_range, detect_radian=math.radians(20)):
 def _make_detector():
     return ObstacleDetector(
         stop_distance=0.6,
-        detect_radian=math.radians(20),
+        detect_degree=20,
     )
 
 
