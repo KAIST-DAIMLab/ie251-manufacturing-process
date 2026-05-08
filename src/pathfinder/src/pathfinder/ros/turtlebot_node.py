@@ -112,4 +112,7 @@ class TurtleBotNode:
         rospy.logwarn(f"{self._robot.id}: stop received.")
 
     def _on_scan(self, message: LaserScan) -> None:
-        self._robot.set_pause(self._obstacle_detector.detect(message))
+        detected = self._obstacle_detector.detect(message)
+        self._robot.set_pause(detected)
+        if detected:
+            rospy.logwarn(f"{self._robot.id}: obstacle detected, pausing")

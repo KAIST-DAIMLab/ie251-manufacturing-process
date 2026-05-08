@@ -9,6 +9,4 @@ executor:
   angular_speed: 1.5
   motion_rate_hz: 5.0
   obstacle_pause_enabled: true
-  obstacle_stop_distance: 0.20
-  lidar_error_margin: 0.05
-  scan_stale_timeout_seconds: 1.0
+  obstacle_stop_distance: 0.5
