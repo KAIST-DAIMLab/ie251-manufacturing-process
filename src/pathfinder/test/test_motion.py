@@ -291,5 +291,77 @@ class PathFollowerTest(unittest.TestCase):
         self.assertEqual(observed[-1], 1)
 
 
+class FakeGate:
+    """Fake obstacle gate with configurable blocked state."""
+
+    def __init__(self, blocked: bool = False):
+        self.blocked = blocked
+
+    def is_blocked(self) -> bool:
+        """Return whether the gate is currently blocked."""
+        return self.blocked
+
+
+class ObstacleGateTest(unittest.TestCase):
+    """Tests for MotionController's optional obstacle gate integration."""
+
+    def setUp(self):
+        _reset_rospy_state()
+
+    def _controller_at(self, x=0.0, y=0.0, theta=0.0, gate=None, **params_kwargs):
+        publisher = FakePublisher()
+        pose = _odom_pose(x=x, y=y, yaw=theta)
+        controller = MotionController(
+            cmd_vel_publisher=publisher,
+            pose_provider=lambda: pose,
+            params=MotionParameters(**params_kwargs),
+            obstacle_gate=gate,
+        )
+        controller._publisher = publisher
+        return controller
+
+    def test_drive_towards_publishes_zero_and_returns_false_when_gate_blocked(self):
+        gate = FakeGate(blocked=True)
+        controller = self._controller_at(x=0.0, y=0.0, theta=0.0, gate=gate, arrival_tolerance=0.10)
+
+        result = controller.drive_towards(Node(id=1, x=1.0, y=0.0))
+
+        self.assertFalse(result)
+        self.assertEqual(controller._publisher.published[-1].linear.x, 0.0)
+        self.assertEqual(controller._publisher.published[-1].angular.z, 0.0)
+
+    def test_drive_towards_publishes_normal_command_when_gate_clear(self):
+        gate = FakeGate(blocked=False)
+        controller = self._controller_at(x=0.0, y=0.0, theta=0.0, gate=gate, arrival_tolerance=0.10)
+
+        result = controller.drive_towards(Node(id=1, x=1.0, y=0.0))
+
+        self.assertFalse(result)
+        self.assertGreater(controller._publisher.published[-1].linear.x, 0.0)
+
+    def test_drive_towards_arrival_within_tolerance_ignores_gate(self):
+        gate = FakeGate(blocked=True)
+        controller = self._controller_at(x=0.0, y=0.0, theta=0.0, gate=gate, arrival_tolerance=0.10)
+
+        result = controller.drive_towards(Node(id=1, x=0.05, y=0.0))
+
+        self.assertTrue(result)
+        self.assertEqual(controller._publisher.published[-1].linear.x, 0.0)
+        self.assertEqual(controller._publisher.published[-1].angular.z, 0.0)
+
+    def test_in_place_rotation_is_not_blocked(self):
+        gate = FakeGate(blocked=True)
+        controller = self._controller_at(
+            x=0.0, y=0.0, theta=math.pi / 2.0, gate=gate,
+            arrival_tolerance=0.10, heading_tolerance=0.2,
+        )
+
+        result = controller.drive_towards(Node(id=1, x=1.0, y=0.0))
+
+        self.assertFalse(result)
+        self.assertEqual(controller._publisher.published[-1].linear.x, 0.0)
+        self.assertNotEqual(controller._publisher.published[-1].angular.z, 0.0)
+
+
 if __name__ == '__main__':
     unittest.main()
