@@ -2,16 +2,20 @@ robots:
   - id: tb3_01
     start_node: 1
     yaw: 0.0
-    linear_speed: 0.22
-    angular_speed: 1.5
-    motion_rate_hz: 5.0
-    obstacle_pause_enabled: true
-    obstacle_stop_distance: 0.5
+    motion:
+      linear_speed: 0.22
+      angular_speed: 1.5
+      rate_hz: 5.0
+    obstacle:
+      enabled: true
+      stop_distance: 0.5
   - id: tb3_05
     start_node: 4
     yaw: 0.0
-    linear_speed: 0.22
-    angular_speed: 1.5
-    motion_rate_hz: 5.0
-    obstacle_pause_enabled: true
-    obstacle_stop_distance: 0.5
+    motion:
+      linear_speed: 0.22
+      angular_speed: 1.5
+      rate_hz: 5.0
+    obstacle:
+      enabled: true
+      stop_distance: 0.5

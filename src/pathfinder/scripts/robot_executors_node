@@ -22,11 +22,13 @@ def main():
 
     for robot_cfg in robots:
         robot_id = robot_cfg['id']
-        linear_speed = float(robot_cfg.get('linear_speed', 0.22))
-        angular_speed = float(robot_cfg.get('angular_speed', 1.5))
-        motion_rate_hz = float(robot_cfg.get('motion_rate_hz', 5.0))
-        obstacle_pause_enabled = bool(robot_cfg.get('obstacle_pause_enabled', True))
-        obstacle_stop_distance = float(robot_cfg.get('obstacle_stop_distance', 0.25))
+        motion_cfg = robot_cfg.get('motion', {})
+        obstacle_cfg = robot_cfg.get('obstacle', {})
+        linear_speed = float(motion_cfg.get('linear_speed', 0.22))
+        angular_speed = float(motion_cfg.get('angular_speed', 1.5))
+        motion_rate_hz = float(motion_cfg.get('rate_hz', 5.0))
+        obstacle_pause_enabled = bool(obstacle_cfg.get('enabled', True))
+        obstacle_stop_distance = float(obstacle_cfg.get('stop_distance', 0.25))
 
         origin = None
         if not sim:
