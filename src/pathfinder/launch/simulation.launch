@@ -1,6 +1,6 @@
 <launch>
   <arg name="model" default="waffle"/>
-  <arg name="robots_config" default="$(find pathfinder)/config/robots.yaml"/>
+  <arg name="robots_config" default="$(find pathfinder)/config/robot.yaml"/>
   <arg name="graph_config" default="$(find pathfinder)/config/graph.yaml"/>
   <arg name="start_system" default="true"/>
 

@@ -1,5 +1,5 @@
 <launch>
-  <arg name="robots_config" default="$(find pathfinder)/config/robots.yaml"/>
+  <arg name="robots_config" default="$(find pathfinder)/config/robot.yaml"/>
   <arg name="sim" default="false"/>
 
   <node name="path_server" pkg="pathfinder" type="path_server_node" output="screen">
