@@ -290,75 +290,37 @@ class PathFollowerTest(unittest.TestCase):
         self.assertEqual(observed[-1], 1)
 
 
-class FakeGate:
-    """Fake obstacle gate with configurable blocked state."""
+    def test_follow_pauses_when_pause_check_returns_true(self):
+        """PathFollower calls stop and does not call drive_towards when pause_check is blocked."""
+        controller = FakeMotionController(return_value=False)
+        follower = PathFollower(controller)
+        blocked = [True]
+        follower.set_pause_check(lambda: blocked[0])
 
-    def __init__(self, blocked: bool = False):
-        self.blocked = blocked
+        tick = [0]
 
-    def is_blocked(self) -> bool:
-        """Return whether the gate is currently blocked."""
-        return self.blocked
+        def unblock():
+            tick[0] += 1
+            if tick[0] >= 2:
+                blocked[0] = False
+                controller.return_value = True
 
+        sys.modules['rospy'].sleep_callbacks.append(unblock)
 
-class ObstacleGateTest(unittest.TestCase):
-    """Tests for MotionController's optional obstacle gate integration."""
-
-    def setUp(self):
-        _reset_rospy_state()
-
-    def _controller_at(self, x=0.0, y=0.0, theta=0.0, gate=None, **params_kwargs):
-        publisher = FakePublisher()
-        pose = _odom_pose(x=x, y=y, yaw=theta)
-        controller = MotionController(
-            cmd_vel_publisher=publisher,
-            pose_provider=lambda: pose,
-            params=MotionParameters(**params_kwargs),
-            obstacle_gate=gate,
-        )
-        return (controller, publisher)
-
-    def test_drive_towards_publishes_zero_and_returns_false_when_gate_blocked(self):
-        gate = FakeGate(blocked=True)
-        controller, publisher = self._controller_at(x=0.0, y=0.0, theta=0.0, gate=gate, arrival_tolerance=0.10)
-
-        result = controller.drive_towards(Node(id=1, x=1.0, y=0.0))
-
-        self.assertFalse(result)
-        self.assertEqual(publisher.published[-1].linear.x, 0.0)
-        self.assertEqual(publisher.published[-1].angular.z, 0.0)
-
-    def test_drive_towards_publishes_normal_command_when_gate_clear(self):
-        gate = FakeGate(blocked=False)
-        controller, publisher = self._controller_at(x=0.0, y=0.0, theta=0.0, gate=gate, arrival_tolerance=0.10)
-
-        result = controller.drive_towards(Node(id=1, x=1.0, y=0.0))
-
-        self.assertFalse(result)
-        self.assertGreater(publisher.published[-1].linear.x, 0.0)
-
-    def test_drive_towards_arrival_within_tolerance_ignores_gate(self):
-        gate = FakeGate(blocked=True)
-        controller, publisher = self._controller_at(x=0.0, y=0.0, theta=0.0, gate=gate, arrival_tolerance=0.10)
-
-        result = controller.drive_towards(Node(id=1, x=0.05, y=0.0))
+        result = follower.follow([Node(id=1, x=1.0, y=0.0)])
 
         self.assertTrue(result)
-        self.assertEqual(publisher.published[-1].linear.x, 0.0)
-        self.assertEqual(publisher.published[-1].angular.z, 0.0)
+        self.assertTrue(controller.stopped)
 
-    def test_in_place_rotation_is_not_blocked(self):
-        gate = FakeGate(blocked=True)
-        controller, publisher = self._controller_at(
-            x=0.0, y=0.0, theta=math.pi / 2.0, gate=gate,
-            arrival_tolerance=0.10, heading_tolerance=0.2,
-        )
+    def test_follow_proceeds_normally_when_pause_check_is_none(self):
+        """PathFollower follows waypoints normally when no pause_check is set."""
+        controller = FakeMotionController(return_value=True)
+        follower = PathFollower(controller)
 
-        result = controller.drive_towards(Node(id=1, x=1.0, y=0.0))
+        result = follower.follow([Node(id=1, x=1.0, y=0.0)])
 
-        self.assertFalse(result)
-        self.assertEqual(publisher.published[-1].linear.x, 0.0)
-        self.assertNotEqual(publisher.published[-1].angular.z, 0.0)
+        self.assertTrue(result)
+        self.assertEqual(len(controller.calls), 1)
 
 
 if __name__ == '__main__':

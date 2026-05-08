@@ -1,14 +1,11 @@
 from __future__ import annotations
 import math
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Callable, Protocol
+from typing import Callable, Protocol
 
 from geometry_msgs.msg import Pose2D, Twist
 
 from pathfinder.world.node import Node
-
-if TYPE_CHECKING:
-    from pathfinder.safety.obstacle_gate import ObstacleGate
 
 
 @dataclass(frozen=True)
@@ -35,15 +32,13 @@ class MotionController:
         cmd_vel_publisher: CmdVelPublisher,
         pose_provider: Callable[[], Pose2D],
         params: MotionParameters = MotionParameters(),
-        obstacle_gate: ObstacleGate | None = None,
     ) -> None:
         self._cmd_vel_publisher = cmd_vel_publisher
         self._pose_provider = pose_provider
         self._params = params
-        self._obstacle_gate = obstacle_gate
 
     def drive_towards(self, target: Node) -> bool:
-        """Publish one proportional cmd_vel toward target; True when arrived, False when in-progress or blocked."""
+        """Publish one proportional cmd_vel toward target; True when within arrival tolerance."""
         if self._get_distance(target) <= self._params.arrival_tolerance:
             self._publish(0.0, 0.0)
             return True
@@ -52,10 +47,6 @@ class MotionController:
         angle = self._get_angle(target)
         speed_angular = _clamp(self._params.angular_gain * angle, self._params.angular_speed)
         speed_linear = min(self._params.linear_gain * distance, self._params.linear_speed) if abs(angle) <= self._params.heading_tolerance else 0.0
-
-        if speed_linear > 0 and self._obstacle_gate is not None and self._obstacle_gate.is_blocked():
-            self._publish(0.0, 0.0)
-            return False
 
         self._publish(speed_linear, speed_angular)
         return False

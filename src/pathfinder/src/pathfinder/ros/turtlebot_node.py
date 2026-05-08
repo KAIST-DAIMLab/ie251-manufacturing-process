@@ -17,7 +17,7 @@ from pathfinder.utils.physics import yaw_from_quaternion
 from pathfinder.world.graph import Graph
 
 if TYPE_CHECKING:
-    from pathfinder.safety.obstacle_gate import ObstacleGate
+    from pathfinder.safety.obstacle_detector import ObstacleDetector
 
 
 class TurtleBotNode:
@@ -31,7 +31,7 @@ class TurtleBotNode:
         params: MotionParameters = MotionParameters(),
         motion_rate_hz: float = 5.0,
         origin: Pose2D | None = None,
-        obstacle_gate: ObstacleGate | None = None,
+        obstacle_gate: ObstacleDetector | None = None,
     ) -> None:
         self._robot_id = robot_id
         self._namespace = (namespace or robot_id).strip('/')
@@ -45,7 +45,6 @@ class TurtleBotNode:
             cmd_vel_publisher=cmd_vel_publisher,
             pose_provider=state.get_pose,
             params=params,
-            obstacle_gate=obstacle_gate,
         )
         path_follower = PathFollower(motion_controller, rate_hz=motion_rate_hz)
         self._robot = TurtleBot(
@@ -54,6 +53,7 @@ class TurtleBotNode:
             motion_controller=motion_controller,
             path_follower=path_follower,
             motion_rate_hz=motion_rate_hz,
+            obstacle_detector=obstacle_gate,
         )
 
         rospy.Subscriber(self.topic_odom, Odometry, self._on_odom)

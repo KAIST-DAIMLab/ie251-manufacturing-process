@@ -7,7 +7,7 @@ import rospy
 from pathfinder.robot.motion_controller import MotionParameters
 from pathfinder.ros.turtlebot_node import TurtleBotNode
 from pathfinder.world.graph import Graph
-from pathfinder.safety.obstacle_gate import ObstacleGate
+from pathfinder.safety.obstacle_detector import ObstacleDetector
 from geometry_msgs.msg import Pose2D
 
 
@@ -39,7 +39,7 @@ def main():
             origin.theta = math.radians(float(robot_cfg['yaw']))
 
         topic_namespace = f'{robot_id}/sim' if sim else robot_id
-        gate = ObstacleGate(
+        gate = ObstacleDetector(
             stop_distance=obstacle_stop_distance,
             error_margin=lidar_error_margin,
             stale_timeout_seconds=scan_stale_timeout_seconds,

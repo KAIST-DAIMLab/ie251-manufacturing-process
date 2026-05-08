@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Callable
+
 import rospy
 
 from pathfinder.robot.motion_controller import MotionController
@@ -14,6 +16,7 @@ class PathFollower:
         self._rate_hz = rate_hz
         self._cancel = False
         self._current_index = 0
+        self._pause_check: Callable[[], bool] | None = None
 
     @property
     def current_index(self) -> int:
@@ -29,7 +32,9 @@ class PathFollower:
             while True:
                 if rospy.is_shutdown() or self._cancel:
                     return False
-                if self._motion_controller.drive_towards(waypoint):
+                if self._pause_check is not None and self._pause_check():
+                    self._motion_controller.stop()
+                elif self._motion_controller.drive_towards(waypoint):
                     break
                 rate.sleep()
         return True
@@ -37,3 +42,7 @@ class PathFollower:
     def cancel(self) -> None:
         """Interrupt the active follow() on the next control tick."""
         self._cancel = True
+
+    def set_pause_check(self, pause_check: Callable[[], bool] | None) -> None:
+        """Set the callable consulted before each tick; when it returns True, motion pauses."""
+        self._pause_check = pause_check

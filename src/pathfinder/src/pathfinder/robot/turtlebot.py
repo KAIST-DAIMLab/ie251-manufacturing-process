@@ -1,5 +1,6 @@
 from __future__ import annotations
 import math
+from typing import TYPE_CHECKING
 
 import rospy
 from geometry_msgs.msg import Pose2D
@@ -8,6 +9,9 @@ from pathfinder.robot.motion_controller import MotionController
 from pathfinder.robot.path_follower import PathFollower
 from pathfinder.robot.robot_state import RobotState
 from pathfinder.world.node import Node
+
+if TYPE_CHECKING:
+    from pathfinder.safety.obstacle_detector import ObstacleDetector
 
 
 class TurtleBot:
@@ -20,6 +24,7 @@ class TurtleBot:
         motion_controller: MotionController,
         path_follower: PathFollower,
         motion_rate_hz: float = 5.0,
+        obstacle_detector: ObstacleDetector | None = None,
     ) -> None:
         self.id = robot_id
         self._state = state
@@ -27,6 +32,9 @@ class TurtleBot:
         self._path_follower = path_follower
         self._rate_hz = motion_rate_hz
         self._cancel = False
+        if obstacle_detector is not None:
+            self._path_follower.set_pause_check(obstacle_detector.is_blocked)
+        self._obstacle_detector = obstacle_detector
 
     @property
     def motion_controller(self) -> MotionController:
@@ -76,7 +84,9 @@ class TurtleBot:
         self._cancel = False
         rate = rospy.Rate(self._rate_hz)
         while not rospy.is_shutdown() and not self._cancel:
-            if self._motion_controller.drive_towards(target):
+            if self._obstacle_detector is not None and self._obstacle_detector.is_blocked():
+                self._motion_controller.stop()
+            elif self._motion_controller.drive_towards(target):
                 return True
             rate.sleep()
         return False

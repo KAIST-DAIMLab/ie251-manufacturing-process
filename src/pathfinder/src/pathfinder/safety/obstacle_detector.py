@@ -10,7 +10,7 @@ def _wrap_to_pi(radian: float) -> float:
     return math.atan2(math.sin(radian), math.cos(radian))
 
 
-class ObstacleGate:
+class ObstacleDetector:
     """Pauses forward motion when a LaserScan return is inside the front cone."""
 
     def __init__(
