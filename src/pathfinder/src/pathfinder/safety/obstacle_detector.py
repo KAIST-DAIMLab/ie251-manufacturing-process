@@ -11,10 +11,10 @@ class ObstacleDetector:
     def __init__(
         self,
         stop_distance: float,
-        cone_angle_radian: float,
+        detect_radian: float,
     ) -> None:
         self._stop_distance = stop_distance
-        self._cone_half_width_radian = cone_angle_radian / 2.0
+        self._cone_half_width_radian = detect_radian / 2.0
         self._blocked = False
 
     def update(self, scan: LaserScan) -> None:
