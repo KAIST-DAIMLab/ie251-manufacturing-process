@@ -1,7 +1,7 @@
 robots:
   - id: tb3_01
-    start_node: 4
+    start_node: 1
     yaw: 0.0
   - id: tb3_05
-    start_node: 5
-    yaw: 180.0
+    start_node: 4
+    yaw: 0.0
