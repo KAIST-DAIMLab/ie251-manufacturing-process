@@ -22,6 +22,10 @@ def main():
         rid: f"/{rid}/sim/odom" if sim else f"/{rid}/odom"
         for rid in robot_ids
     }
+    robot_action_namespaces = {
+        rid: f"{rid}/sim" if sim else rid
+        for rid in robot_ids
+    }
 
     graph = Graph.load_from_yaml(graph_file)
     planner = PathPlanner(graph)
@@ -39,6 +43,7 @@ def main():
         monitor,
         robot_ids,
         robot_odom_topics=robot_odom_topics,
+        robot_action_namespaces=robot_action_namespaces,
     )
     monitor.start()
     server.start()
