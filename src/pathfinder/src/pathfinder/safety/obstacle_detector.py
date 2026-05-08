@@ -6,7 +6,7 @@ from pathfinder.utils.physics import wrap_to_pi
 
 
 class ObstacleDetector:
-    """Pauses forward motion when a LaserScan return is inside the front cone."""
+    """Returns True when a LaserScan return is inside the front cone and within stop distance."""
 
     def __init__(
         self,
@@ -15,15 +15,13 @@ class ObstacleDetector:
     ) -> None:
         self._stop_distance = stop_distance
         self._cone_half_width_radian = detect_radian / 2.0
-        self._blocked = False
 
-    def update(self, scan: LaserScan) -> None:
-        """Update whether forward motion should be paused from one scan."""
+    def detect(self, scan: LaserScan) -> bool:
+        """Return True if forward motion should be paused based on this scan."""
         ranges = scan.ranges
 
         if len(ranges) == 0 or scan.angle_increment <= 0:
-            self._blocked = True
-            return
+            return True
 
         cone_beam_found = False
 
@@ -35,18 +33,12 @@ class ObstacleDetector:
             cone_beam_found = True
 
             if math.isnan(distance):
-                self._blocked = True
-                return
+                return True
 
             if math.isinf(distance):
                 continue
 
             if distance < self._stop_distance:
-                self._blocked = True
-                return
+                return True
 
-        self._blocked = not cone_beam_found
-
-    def is_blocked(self) -> bool:
-        """Return True if forward motion should be paused."""
-        return self._blocked
+        return not cone_beam_found
