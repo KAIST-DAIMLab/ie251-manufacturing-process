@@ -12,14 +12,16 @@ Drive simulated robot spawning from `robots.yaml` + `graph.yaml`, so the launch 
 
 ## Schema change: `robots.yaml`
 
-Replace `origin: {x, y, theta}` with `start_node: <id>` and optional `yaw: <radians>` (default `0.0`).
+Replace `origin: {x, y, theta}` with `start_node: <id>` and `yaw: <radians>`. Both fields are mandatory.
 
 ```yaml
 robots:
   - id: tb3_01
     start_node: 4
+    yaw: 0.0
   - id: tb3_05
     start_node: 5
+    yaw: 3.14159
 ```
 
 Single source of truth: spawn coordinates always come from `graph.yaml`.
@@ -40,6 +42,7 @@ A Python one-shot node launched by `simulation.launch`. Responsibilities:
 
 Failure modes:
 - Missing `start_node` value: log error, raise.
+- Missing `yaw` value: log error, raise.
 - `start_node` not present in graph: log error listing valid ids, raise.
 - xacro render failure: propagate.
 
@@ -86,7 +89,7 @@ if not sim:
     origin = Pose2D()
     origin.x = node.x
     origin.y = node.y
-    origin.theta = robot_cfg.get('yaw', 0.0)
+    origin.theta = robot_cfg['yaw']
 ```
 
 `graph` is already loaded in this script, so no extra plumbing.
@@ -107,7 +110,7 @@ Add `scripts/spawn_simulation_robots` to the `install(PROGRAMS …)` list so `ro
 
 | File | Change |
 |------|--------|
-| `src/pathfinder/config/robots.yaml` | Replace `origin` with `start_node` (+ optional `yaw`) |
+| `src/pathfinder/config/robots.yaml` | Replace `origin` with `start_node` + `yaw` (both mandatory) |
 | `src/pathfinder/scripts/spawn_simulation_robots` | New file |
 | `src/pathfinder/launch/simulation.launch` | Drop `<group>` blocks, add spawner node + `graph_config` arg |
 | `src/pathfinder/scripts/robot_executors_node` | Compute `origin` from `start_node` + graph in non-sim mode |
