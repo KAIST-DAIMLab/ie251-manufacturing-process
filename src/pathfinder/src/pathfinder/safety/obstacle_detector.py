@@ -13,6 +13,7 @@ class ObstacleDetector:
     ) -> None:
         self._stop_distance = stop_distance
         self._cone_half_width_radian = detect_radian / 2.0
+        self._cone_slice: slice | None = None
 
     def detect(self, scan: LaserScan) -> bool:
         """Return True if forward motion should be paused based on this scan."""
@@ -21,11 +22,15 @@ class ObstacleDetector:
         if len(ranges) == 0 or scan.angle_increment <= 0:
             return True
 
-        center = round(-scan.angle_min / scan.angle_increment)
-        half_span = math.floor(self._cone_half_width_radian / scan.angle_increment)
-        cone_ranges = ranges[
-            max(0, center - half_span):min(len(ranges), center + half_span + 1)
-        ]
+        if self._cone_slice is None:
+            center = round(-scan.angle_min / scan.angle_increment)
+            half_span = math.floor(self._cone_half_width_radian / scan.angle_increment)
+            self._cone_slice = slice(
+                max(0, center - half_span),
+                min(len(ranges), center + half_span + 1),
+            )
+
+        cone_ranges = ranges[self._cone_slice]
 
         if not cone_ranges:
             return True
