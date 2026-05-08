@@ -18,9 +18,7 @@ def main():
     angular_speed = cast(float, rospy.get_param('~angular_speed', 1.5))
     motion_rate_hz = cast(float, rospy.get_param('~motion_rate_hz', 5.0))
     obstacle_pause_enabled = cast(bool, rospy.get_param('~obstacle_pause_enabled', True))
-    obstacle_stop_distance = cast(float, rospy.get_param('~obstacle_stop_distance', 0.20))
-    lidar_error_margin = cast(float, rospy.get_param('~lidar_error_margin', 0.05))
-    scan_stale_timeout_seconds = cast(float, rospy.get_param('~scan_stale_timeout_seconds', 1.0))
+    obstacle_stop_distance = cast(float, rospy.get_param('~obstacle_stop_distance', 0.25))
     sim = cast(bool, rospy.get_param('~sim', False))
     robots = cast(list, rospy.get_param('~robots'))
 
@@ -41,10 +39,7 @@ def main():
         topic_namespace = f'{robot_id}/sim' if sim else robot_id
         gate = ObstacleDetector(
             stop_distance=obstacle_stop_distance,
-            error_margin=lidar_error_margin,
-            stale_timeout_seconds=scan_stale_timeout_seconds,
-            cone_half_width_radian=math.radians(10.0),
-            time_provider=rospy.get_time,
+            cone_angle_radian=math.radians(20.0),
         ) if obstacle_pause_enabled else None
         node = TurtleBotNode(
             robot_id,
