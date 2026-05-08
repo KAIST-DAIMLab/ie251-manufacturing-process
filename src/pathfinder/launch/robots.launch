@@ -15,6 +15,10 @@
   <node name="robot_executors" pkg="pathfinder" type="robot_executors_node" output="screen">
     <param name="graph_file" value="$(find pathfinder)/config/graph.yaml"/>
     <param name="sim" value="$(arg sim)"/>
+    <param name="obstacle_pause_enabled" value="true"/>
+    <param name="obstacle_stop_distance" value="0.20"/>
+    <param name="lidar_error_margin" value="0.05"/>
+    <param name="scan_stale_timeout_seconds" value="1.0"/>
     <rosparam file="$(arg robots_config)" command="load"/>
   </node>
 </launch>
