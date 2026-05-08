@@ -87,6 +87,18 @@ class ObstacleDetectorTest(unittest.TestCase):
         """Detector returns True when angle_increment is zero (degenerate scan)."""
         self.assertTrue(_make_detector().detect(_make_scan(ranges=[1.0, 2.0, 3.0], angle_increment=0.0)))
 
+    def test_blocked_with_gazebo_scan_obstacle_at_index_zero(self):
+        """Detector recognises a forward obstacle in Gazebo scans where angle_min=0 and front is index 0."""
+        ranges = [float('inf')] * 360
+        ranges[0] = 0.3
+        self.assertTrue(_make_detector().detect(_make_scan(ranges, angle_min=0.0)))
+
+    def test_not_blocked_with_gazebo_scan_obstacle_behind(self):
+        """Detector returns False when obstacle is at index 180 (behind) in a Gazebo scan with angle_min=0."""
+        ranges = [float('inf')] * 360
+        ranges[180] = 0.3
+        self.assertFalse(_make_detector().detect(_make_scan(ranges, angle_min=0.0)))
+
 
 if __name__ == '__main__':
     unittest.main()
