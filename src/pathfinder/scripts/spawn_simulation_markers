@@ -1,14 +1,17 @@
 #!/usr/bin/env python3
-"""One-shot node: reads graph.yaml and spawns a green disc per node in Gazebo."""
+"""One-shot node: reads graph.yaml and spawns a marker per node and per edge in Gazebo."""
 from __future__ import annotations
+import math
 import yaml
 
 import rospy
 from gazebo_msgs.srv import SpawnModel, SpawnModelRequest
 from geometry_msgs.msg import Pose, Point, Quaternion
 
+from pathfinder.utils.physics import segment_pose
 
-_MARKER_SDF_TEMPLATE = """<?xml version="1.0" ?>
+
+_NODE_MARKER_SDF_TEMPLATE = """<?xml version="1.0" ?>
 <sdf version="1.6">
   <model name="node_{node_id}">
     <static>true</static>
@@ -31,43 +34,136 @@ _MARKER_SDF_TEMPLATE = """<?xml version="1.0" ?>
 """
 
 
+_EDGE_MARKER_SDF_TEMPLATE = """<?xml version="1.0" ?>
+<sdf version="1.6">
+  <model name="edge_{from_id}_{to_id}">
+    <static>true</static>
+    <link name="link">
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>{length} 0.02 0.001</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.5 0.5 0.5 1</ambient>
+          <diffuse>0.5 0.5 0.5 1</diffuse>
+        </material>
+      </visual>
+    </link>
+  </model>
+</sdf>
+"""
+
+
+def _quaternion_from_yaw(yaw: float) -> Quaternion:
+    """Build a quaternion for a pure yaw rotation around the z-axis."""
+    quaternion = Quaternion()
+    quaternion.x = 0.0
+    quaternion.y = 0.0
+    quaternion.z = math.sin(yaw / 2.0)
+    quaternion.w = math.cos(yaw / 2.0)
+    return quaternion
+
+
+def _spawn_node_marker(spawn_service, node: dict) -> None:
+    """Spawn one green disc at the node's (x, y)."""
+    node_id = node['id']
+    x = float(node['x'])
+    y = float(node['y'])
+
+    sdf_string = _NODE_MARKER_SDF_TEMPLATE.format(node_id=node_id)
+
+    pose = Pose(
+        position=Point(x=x, y=y, z=0.0),
+        orientation=Quaternion(x=0.0, y=0.0, z=0.0, w=1.0),
+    )
+
+    request = SpawnModelRequest()
+    request.model_name = f'node_{node_id}'
+    request.model_xml = sdf_string
+    request.robot_namespace = ''
+    request.initial_pose = pose
+    request.reference_frame = 'world'
+    response = spawn_service(request)
+    if not response.success:
+        rospy.logerr(f"Failed to spawn marker for node {node_id}: {response.status_message}")
+        raise RuntimeError(f"Marker spawn failed for node {node_id}: {response.status_message}")
+
+    rospy.loginfo(f"Spawned marker node_{node_id} at (x={x}, y={y})")
+
+
+def _spawn_edge_marker(
+    spawn_service,
+    edge: dict,
+    node_map: dict[int, tuple[float, float]],
+) -> None:
+    """Spawn one gray bar between the edge's two endpoint nodes."""
+    from_id = edge['from']
+    to_id = edge['to']
+    if from_id not in node_map:
+        raise KeyError(f"edge references unknown 'from' node {from_id}")
+    if to_id not in node_map:
+        raise KeyError(f"edge references unknown 'to' node {to_id}")
+
+    midpoint, length, yaw = segment_pose(node_map[from_id], node_map[to_id])
+
+    sdf_string = _EDGE_MARKER_SDF_TEMPLATE.format(
+        from_id=from_id,
+        to_id=to_id,
+        length=length,
+    )
+
+    pose = Pose(
+        position=Point(x=midpoint[0], y=midpoint[1], z=0.0),
+        orientation=_quaternion_from_yaw(yaw),
+    )
+
+    request = SpawnModelRequest()
+    request.model_name = f'edge_{from_id}_{to_id}'
+    request.model_xml = sdf_string
+    request.robot_namespace = ''
+    request.initial_pose = pose
+    request.reference_frame = 'world'
+    response = spawn_service(request)
+    if not response.success:
+        rospy.logerr(
+            f"Failed to spawn marker for edge {from_id}->{to_id}: {response.status_message}"
+        )
+        raise RuntimeError(
+            f"Marker spawn failed for edge {from_id}->{to_id}: {response.status_message}"
+        )
+
+    rospy.loginfo(
+        f"Spawned marker edge_{from_id}_{to_id} at midpoint=({midpoint[0]:.3f}, "
+        f"{midpoint[1]:.3f}), length={length:.3f}, yaw={yaw:.3f}"
+    )
+
+
 def main():
     rospy.init_node('simulation_marker_spawner')
 
     graph_config = rospy.get_param('~graph_config')
 
     with open(graph_config, 'r') as graph_file:
-        nodes = yaml.safe_load(graph_file)['nodes']
+        graph_data = yaml.safe_load(graph_file)
+
+    nodes = graph_data['nodes']
+    edges = graph_data.get('edges', [])
+    node_map = {n['id']: (float(n['x']), float(n['y'])) for n in nodes}
 
     rospy.wait_for_service('/gazebo/spawn_sdf_model')
     spawn_service = rospy.ServiceProxy('/gazebo/spawn_sdf_model', SpawnModel)
 
     for node in nodes:
-        node_id = node['id']
-        x = float(node['x'])
-        y = float(node['y'])
+        _spawn_node_marker(spawn_service, node)
 
-        sdf_string = _MARKER_SDF_TEMPLATE.format(node_id=node_id)
+    for edge in edges:
+        _spawn_edge_marker(spawn_service, edge, node_map)
 
-        pose = Pose(
-            position=Point(x=x, y=y, z=0.0),
-            orientation=Quaternion(x=0.0, y=0.0, z=0.0, w=1.0),
-        )
-
-        request = SpawnModelRequest()
-        request.model_name = f'node_{node_id}'
-        request.model_xml = sdf_string
-        request.robot_namespace = ''
-        request.initial_pose = pose
-        request.reference_frame = 'world'
-        response = spawn_service(request)
-        if not response.success:
-            rospy.logerr(f"Failed to spawn marker for node {node_id}: {response.status_message}")
-            raise RuntimeError(f"Marker spawn failed for node {node_id}: {response.status_message}")
-
-        rospy.loginfo(f"Spawned marker node_{node_id} at (x={x}, y={y})")
-
-    rospy.loginfo(f"All {len(nodes)} node markers spawned.")
+    rospy.loginfo(
+        f"All {len(nodes)} node markers and {len(edges)} edge markers spawned."
+    )
 
 
 if __name__ == '__main__':
