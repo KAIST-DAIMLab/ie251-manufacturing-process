@@ -117,45 +117,44 @@ class DriveTowardsTest(unittest.TestCase):
             pose_provider=lambda: pose,
             params=MotionParameters(**params_kwargs),
         )
-        controller._publisher = publisher
-        return controller
+        return (controller, publisher)
 
     def test_arrival_within_tolerance_returns_true_and_publishes_zero(self):
-        controller = self._controller_at(x=0.0, y=0.0, arrival_tolerance=0.10)
+        controller, publisher = self._controller_at(x=0.0, y=0.0, arrival_tolerance=0.10)
 
         arrived = controller.drive_towards(Node(id=1, x=0.05, y=0.0))
 
         self.assertTrue(arrived)
-        self.assertEqual(controller._publisher.published[-1].linear.x, 0.0)
-        self.assertEqual(controller._publisher.published[-1].angular.z, 0.0)
+        self.assertEqual(publisher.published[-1].linear.x, 0.0)
+        self.assertEqual(publisher.published[-1].angular.z, 0.0)
 
     def test_heading_error_above_tolerance_blocks_forward_velocity(self):
-        controller = self._controller_at(x=0.0, y=0.0, theta=math.pi / 2.0, heading_tolerance=0.2)
+        controller, publisher = self._controller_at(x=0.0, y=0.0, theta=math.pi / 2.0, heading_tolerance=0.2)
 
         arrived = controller.drive_towards(Node(id=1, x=1.0, y=0.0))
 
         self.assertFalse(arrived)
-        self.assertEqual(controller._publisher.published[-1].linear.x, 0.0)
-        self.assertLess(controller._publisher.published[-1].angular.z, 0.0)
+        self.assertEqual(publisher.published[-1].linear.x, 0.0)
+        self.assertLess(publisher.published[-1].angular.z, 0.0)
 
     def test_large_distance_clamps_linear_velocity(self):
-        controller = self._controller_at(linear_gain=2.0, linear_speed=0.3)
+        controller, publisher = self._controller_at(linear_gain=2.0, linear_speed=0.3)
 
         arrived = controller.drive_towards(Node(id=1, x=10.0, y=0.0))
 
         self.assertFalse(arrived)
-        self.assertEqual(controller._publisher.published[-1].linear.x, 0.3)
+        self.assertEqual(publisher.published[-1].linear.x, 0.3)
 
     def test_large_heading_error_clamps_angular_velocity(self):
-        controller = self._controller_at(angular_gain=10.0, angular_speed=1.5)
+        controller, publisher = self._controller_at(angular_gain=10.0, angular_speed=1.5)
 
         arrived = controller.drive_towards(Node(id=1, x=0.0, y=1.0))
 
         self.assertFalse(arrived)
-        self.assertEqual(controller._publisher.published[-1].angular.z, 1.5)
+        self.assertEqual(publisher.published[-1].angular.z, 1.5)
 
     def test_wrap_around_heading_uses_shortest_angular_direction(self):
-        controller = self._controller_at(
+        controller, publisher = self._controller_at(
             theta=math.radians(179.0),
             angular_gain=1.0,
             angular_speed=1.5,
@@ -165,8 +164,8 @@ class DriveTowardsTest(unittest.TestCase):
         arrived = controller.drive_towards(Node(id=1, x=-1.0, y=-0.01))
 
         self.assertFalse(arrived)
-        self.assertGreater(controller._publisher.published[-1].angular.z, 0.0)
-        self.assertLess(controller._publisher.published[-1].angular.z, math.radians(2.0))
+        self.assertGreater(publisher.published[-1].angular.z, 0.0)
+        self.assertLess(publisher.published[-1].angular.z, math.radians(2.0))
 
 
 class TurnTowardsTest(unittest.TestCase):
@@ -317,41 +316,40 @@ class ObstacleGateTest(unittest.TestCase):
             params=MotionParameters(**params_kwargs),
             obstacle_gate=gate,
         )
-        controller._publisher = publisher
-        return controller
+        return (controller, publisher)
 
     def test_drive_towards_publishes_zero_and_returns_false_when_gate_blocked(self):
         gate = FakeGate(blocked=True)
-        controller = self._controller_at(x=0.0, y=0.0, theta=0.0, gate=gate, arrival_tolerance=0.10)
+        controller, publisher = self._controller_at(x=0.0, y=0.0, theta=0.0, gate=gate, arrival_tolerance=0.10)
 
         result = controller.drive_towards(Node(id=1, x=1.0, y=0.0))
 
         self.assertFalse(result)
-        self.assertEqual(controller._publisher.published[-1].linear.x, 0.0)
-        self.assertEqual(controller._publisher.published[-1].angular.z, 0.0)
+        self.assertEqual(publisher.published[-1].linear.x, 0.0)
+        self.assertEqual(publisher.published[-1].angular.z, 0.0)
 
     def test_drive_towards_publishes_normal_command_when_gate_clear(self):
         gate = FakeGate(blocked=False)
-        controller = self._controller_at(x=0.0, y=0.0, theta=0.0, gate=gate, arrival_tolerance=0.10)
+        controller, publisher = self._controller_at(x=0.0, y=0.0, theta=0.0, gate=gate, arrival_tolerance=0.10)
 
         result = controller.drive_towards(Node(id=1, x=1.0, y=0.0))
 
         self.assertFalse(result)
-        self.assertGreater(controller._publisher.published[-1].linear.x, 0.0)
+        self.assertGreater(publisher.published[-1].linear.x, 0.0)
 
     def test_drive_towards_arrival_within_tolerance_ignores_gate(self):
         gate = FakeGate(blocked=True)
-        controller = self._controller_at(x=0.0, y=0.0, theta=0.0, gate=gate, arrival_tolerance=0.10)
+        controller, publisher = self._controller_at(x=0.0, y=0.0, theta=0.0, gate=gate, arrival_tolerance=0.10)
 
         result = controller.drive_towards(Node(id=1, x=0.05, y=0.0))
 
         self.assertTrue(result)
-        self.assertEqual(controller._publisher.published[-1].linear.x, 0.0)
-        self.assertEqual(controller._publisher.published[-1].angular.z, 0.0)
+        self.assertEqual(publisher.published[-1].linear.x, 0.0)
+        self.assertEqual(publisher.published[-1].angular.z, 0.0)
 
     def test_in_place_rotation_is_not_blocked(self):
         gate = FakeGate(blocked=True)
-        controller = self._controller_at(
+        controller, publisher = self._controller_at(
             x=0.0, y=0.0, theta=math.pi / 2.0, gate=gate,
             arrival_tolerance=0.10, heading_tolerance=0.2,
         )
@@ -359,8 +357,8 @@ class ObstacleGateTest(unittest.TestCase):
         result = controller.drive_towards(Node(id=1, x=1.0, y=0.0))
 
         self.assertFalse(result)
-        self.assertEqual(controller._publisher.published[-1].linear.x, 0.0)
-        self.assertNotEqual(controller._publisher.published[-1].angular.z, 0.0)
+        self.assertEqual(publisher.published[-1].linear.x, 0.0)
+        self.assertNotEqual(publisher.published[-1].angular.z, 0.0)
 
 
 if __name__ == '__main__':
