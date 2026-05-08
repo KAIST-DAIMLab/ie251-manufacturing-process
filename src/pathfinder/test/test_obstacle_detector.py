@@ -60,9 +60,9 @@ class ObstacleDetectorTest(unittest.TestCase):
         """Detector returns False when all in-cone returns are infinite (no obstacle detected)."""
         self.assertFalse(_make_detector().detect(_make_full_scan(front_range=float('inf'))))
 
-    def test_nan_in_cone_treated_as_blocked(self):
-        """Detector returns True when a cone beam returns NaN (sensor error or no return)."""
-        self.assertTrue(_make_detector().detect(_make_full_scan(front_range=float('nan'))))
+    def test_nan_in_cone_treated_as_clear(self):
+        """Detector returns False when a cone beam returns NaN (treated same as no return)."""
+        self.assertFalse(_make_detector().detect(_make_full_scan(front_range=float('nan'))))
 
     def test_obstacle_outside_cone_does_not_block(self):
         """A close obstacle at ~90 degrees outside the cone does not return True."""

@@ -53,7 +53,7 @@ class TurtleBotNode:
             motion_controller=motion_controller,
             path_follower=path_follower,
             motion_rate_hz=motion_rate_hz,
-            obstacle_detector_enabled=obstacle_detector is not None,
+            obstacle_detector=obstacle_detector,
         )
 
         rospy.Subscriber(self.topic_odom, Odometry, self._on_odom)
