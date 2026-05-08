@@ -12,7 +12,7 @@
     <rosparam file="$(arg robots_config)" command="load"/>
   </node>
 
-  <node name="robot_executors" pkg="pathfinder" type="robot_executors_node" output="screen">
+  <node name="robot_executors" pkg="pathfinder" type="robot" output="screen">
     <param name="graph_file" value="$(find pathfinder)/config/graph.yaml"/>
     <param name="sim" value="$(arg sim)"/>
     <rosparam file="$(arg robots_config)" command="load"/>

@@ -42,7 +42,7 @@ catkin_package(
 
 install(PROGRAMS
   scripts/path_server_node
-  scripts/robot_executors_node
+  scripts/robot
   scripts/spawn_simulation_robots
   scripts/spawn_simulation_markers
   scripts/client
