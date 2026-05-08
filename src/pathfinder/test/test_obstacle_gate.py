@@ -93,9 +93,7 @@ class ObstacleGateTest(unittest.TestCase):
     def test_inf_in_cone_treated_as_clear(self):
         """Gate is clear when all in-cone returns are infinite (no obstacle detected)."""
         gate, _ = _make_gate()
-        num_samples = 360
-        ranges = [float('inf')] * num_samples
-        scan = _make_scan(ranges)
+        scan = _make_full_scan(front_range=float('inf'))
         gate.update(scan)
         self.assertFalse(gate.is_blocked())
 
@@ -133,6 +131,13 @@ class ObstacleGateTest(unittest.TestCase):
 
         scan_below_threshold = _make_full_scan(front_range=threshold - 0.001)
         gate.update(scan_below_threshold)
+        self.assertTrue(gate.is_blocked())
+
+    def test_blocked_when_angle_increment_is_zero(self):
+        """Gate is blocked when angle_increment is zero (degenerate scan)."""
+        gate, _ = _make_gate()
+        scan = _make_scan(ranges=[1.0, 2.0, 3.0], angle_increment=0.0)
+        gate.update(scan)
         self.assertTrue(gate.is_blocked())
 
 
