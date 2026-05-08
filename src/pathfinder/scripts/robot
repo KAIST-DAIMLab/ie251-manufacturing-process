@@ -7,7 +7,6 @@ import rospy
 from pathfinder.robot.motion_engine import MotionParameters
 from pathfinder.ros.turtlebot_node import TurtleBotNode
 from pathfinder.world.graph import Graph
-from pathfinder.safety.obstacle_detector import ObstacleDetector
 from geometry_msgs.msg import Pose2D
 
 
@@ -40,10 +39,6 @@ def main():
 
         topic_namespace = f'{robot_id}/sim' if sim else robot_id
         params = MotionParameters(linear_speed=linear_speed, angular_speed=angular_speed)
-        gate = ObstacleDetector(
-            stop_distance=obstacle_stop_distance,
-            detect_degree=20,
-        ) if obstacle_pause_enabled else None
         node = TurtleBotNode(
             robot_id,
             graph=graph,
@@ -51,7 +46,8 @@ def main():
             params=params,
             motion_rate_hz=motion_rate_hz,
             origin=origin,
-            obstacle_detector=gate,
+            obstacle_enabled=obstacle_pause_enabled,
+            obstacle_stop_distance=obstacle_stop_distance,
         )
         node.start()
         nodes.append(node)

@@ -5,7 +5,6 @@ from geometry_msgs.msg import Pose2D, Twist
 from nav_msgs.msg import Odometry
 from sensor_msgs.msg import LaserScan
 from std_msgs.msg import Empty
-from typing import TYPE_CHECKING
 
 from pathfinder.ros.follow_path_action_server import FollowPathActionServer
 from pathfinder.robot.motion_engine import MotionEngine, MotionParameters
@@ -14,11 +13,9 @@ from pathfinder.robot.path_follower import PathFollower
 from pathfinder.robot.robot_state import RobotState
 from pathfinder.robot.turtlebot import TurtleBot
 from pathfinder.ros.robot_command_action_server import RobotCommandActionServer
+from pathfinder.safety.obstacle_detector import ObstacleDetector
 from pathfinder.utils.physics import yaw_from_quaternion
 from pathfinder.world.graph import Graph
-
-if TYPE_CHECKING:
-    from pathfinder.safety.obstacle_detector import ObstacleDetector
 
 
 class TurtleBotNode:
@@ -32,11 +29,15 @@ class TurtleBotNode:
         params: MotionParameters = MotionParameters(),
         motion_rate_hz: float = 5.0,
         origin: Pose2D | None = None,
-        obstacle_detector: ObstacleDetector | None = None,
+        obstacle_enabled: bool = True,
+        obstacle_stop_distance: float = 0.25,
     ) -> None:
         self._robot_id = robot_id
         self._namespace = (namespace or robot_id).strip('/')
-        self._obstacle_detector = obstacle_detector
+        self._obstacle_detector = ObstacleDetector(
+            stop_distance=obstacle_stop_distance,
+            detect_degree=20,
+        ) if obstacle_enabled else None
 
         cmd_vel_publisher = rospy.Publisher(self.topic_cmd_vel, Twist, queue_size=1)
 
@@ -58,7 +59,7 @@ class TurtleBotNode:
 
         rospy.Subscriber(self.topic_odom, Odometry, self._on_odom)
         rospy.Subscriber(self.topic_stop, Empty, self._on_stop)
-        if obstacle_detector is not None:
+        if self._obstacle_detector is not None:
             rospy.Subscriber(self.topic_scan, LaserScan, self._on_scan)
         self._user_command_server = RobotCommandActionServer(self._robot, self.topic_user_command)
         self._follow_path_server = FollowPathActionServer(self._robot, graph, self.topic_follow_path) if graph is not None else None
