@@ -53,7 +53,6 @@ class TurtleBotNode:
             motion_controller=motion_controller,
             path_follower=path_follower,
             motion_rate_hz=motion_rate_hz,
-            obstacle_detector=obstacle_detector,
         )
 
         rospy.Subscriber(self.topic_odom, Odometry, self._on_odom)
@@ -112,4 +111,4 @@ class TurtleBotNode:
         rospy.logwarn(f"{self._robot.id}: stop received.")
 
     def _on_scan(self, message: LaserScan) -> None:
-        self._robot.set_obstacle_blocked(self._obstacle_detector.detect(message))
+        self._robot.set_pause(self._obstacle_detector.detect(message))

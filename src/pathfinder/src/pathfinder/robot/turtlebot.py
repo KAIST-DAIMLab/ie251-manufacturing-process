@@ -1,6 +1,5 @@
 from __future__ import annotations
 import math
-from typing import TYPE_CHECKING
 
 import rospy
 from geometry_msgs.msg import Pose2D
@@ -9,9 +8,6 @@ from pathfinder.robot.motion_controller import MotionController
 from pathfinder.robot.path_follower import PathFollower
 from pathfinder.robot.robot_state import RobotState
 from pathfinder.world.node import Node
-
-if TYPE_CHECKING:
-    from pathfinder.safety.obstacle_detector import ObstacleDetector
 
 
 class TurtleBot:
@@ -24,7 +20,6 @@ class TurtleBot:
         motion_controller: MotionController,
         path_follower: PathFollower,
         motion_rate_hz: float = 5.0,
-        obstacle_detector: ObstacleDetector | None = None,
     ) -> None:
         self.id = robot_id
         self._state = state
@@ -32,10 +27,8 @@ class TurtleBot:
         self._path_follower = path_follower
         self._rate_hz = motion_rate_hz
         self._cancel = False
-        self._obstacle_blocked = False
-        if obstacle_detector is not None:
-            self._path_follower.set_pause_check(lambda: self._obstacle_blocked)
-
+        self._pause = False
+        
     @property
     def motion_controller(self) -> MotionController:
         """The proportional controller for this robot's velocity commands."""
@@ -74,9 +67,9 @@ class TurtleBot:
         target = Node(id=0, x=pose.x - meter * math.cos(pose.theta), y=pose.y - meter * math.sin(pose.theta))
         return self._move_to(target)
 
-    def set_obstacle_blocked(self, blocked: bool) -> None:
-        """Update the obstacle-blocked flag from the scan subscriber callback."""
-        self._obstacle_blocked = blocked
+    def set_pause(self, paused: bool) -> None:
+        """Update the pause flag from the scan subscriber callback."""
+        self._pause = paused
 
     def stop(self) -> None:
         """Cancel current movement and halt immediately."""
@@ -88,9 +81,10 @@ class TurtleBot:
         self._cancel = False
         rate = rospy.Rate(self._rate_hz)
         while not rospy.is_shutdown() and not self._cancel:
-            if self._obstacle_blocked:
+            while self._pause and not rospy.is_shutdown() and not self._cancel:
                 self._motion_controller.stop()
-            elif self._motion_controller.drive_towards(target):
+                rate.sleep()
+            if self._motion_controller.drive_towards(target):
                 return True
             rate.sleep()
         return False
