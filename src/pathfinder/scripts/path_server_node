@@ -1,0 +1,49 @@
+#!/usr/bin/env python3
+from typing import List, cast
+import rospy
+from pathfinder.world.graph import Graph
+from pathfinder.planning.path_planner import PathPlanner
+from pathfinder.planning.path_server import PathServer
+from pathfinder.safety.linear_predictor import LinearPredictor
+from pathfinder.safety.collision_monitor import CollisionMonitor
+
+
+def main():
+    rospy.init_node('path_server')
+    graph_file = cast(str, rospy.get_param('~graph_file'))
+    horizon = cast(float, rospy.get_param('~horizon', 2.0))
+    check_rate_hz = cast(float, rospy.get_param('~check_rate_hz', 10.0))
+    safety_radius = cast(float, rospy.get_param('~safety_radius', 0.35))
+    time_step = cast(float, rospy.get_param('~time_step', 0.1))
+    sim = cast(bool, rospy.get_param('~sim', False))
+    robots = cast(list, rospy.get_param('~robots'))
+    robot_ids = [r['id'] for r in robots]
+    robot_odom_topics = {
+        rid: f"/{rid}/sim/odom" if sim else f"/{rid}/odom"
+        for rid in robot_ids
+    }
+
+    graph = Graph.load_from_yaml(graph_file)
+    planner = PathPlanner(graph)
+    predictor = LinearPredictor(safety_radius, time_step)
+    monitor = CollisionMonitor(
+        predictor,
+        robot_ids,
+        horizon,
+        check_rate_hz,
+        robot_odom_topics=robot_odom_topics,
+    )
+    server = PathServer(
+        graph,
+        planner,
+        monitor,
+        robot_ids,
+        robot_odom_topics=robot_odom_topics,
+    )
+    monitor.start()
+    server.start()
+    rospy.spin()
+
+
+if __name__ == '__main__':
+    main()
