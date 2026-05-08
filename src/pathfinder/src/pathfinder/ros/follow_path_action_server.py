@@ -59,7 +59,7 @@ class FollowPathActionServer:
 
             fb = FollowPathFeedback()
             fb.current_index = self._robot.path_follower.current_index
-            fb.current_pose = self._robot.current_pose()
+            fb.current_pose = self._robot.get_pose()
             self._server.publish_feedback(fb)
             rate.sleep()
 

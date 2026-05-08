@@ -100,7 +100,7 @@ def _build_turtlebot(robot_id='tb3_0', state=None):
     publisher = FakePublisher()
     motion_controller = MotionController(
         cmd_vel_publisher=publisher,
-        pose_provider=state.current_pose,
+        pose_provider=state.get_pose,
     )
     path_follower = PathFollower(motion_controller)
     return TurtleBot(
@@ -145,14 +145,6 @@ class TurtleBotTest(unittest.TestCase):
         self.assertAlmostEqual(state.pose.theta, 0.75)
         self.assertEqual(state.velocity.linear.x, 0.4)
 
-    def test_update_pose_is_typed_for_odometry_messages(self):
-        from nav_msgs.msg import Odometry
-
-        hints = get_type_hints(TurtleBot.update_pose)
-
-        self.assertIs(hints['msg'], Odometry)
-        self.assertIs(hints['return'], type(None))
-
     def test_turtlebot_exposes_motion_controller(self):
         robot = _build_turtlebot()
 
@@ -184,35 +176,13 @@ class TurtleBotTest(unittest.TestCase):
         self.assertFalse(hasattr(robot, 'cmd_vel_topic'))
         self.assertFalse(hasattr(robot, 'odom_topic'))
 
-    def test_update_pose_updates_state_from_odometry_message(self):
-        state = RobotState(id='tb3_0')
-        robot = _build_turtlebot(state=state)
-
-        robot.update_pose(_odom_msg(x=1.5, y=2.5, yaw=0.75, linear_x=0.4, stamp='odom-stamp'))
-
-        self.assertEqual(state.pose.x, 1.5)
-        self.assertEqual(state.pose.y, 2.5)
-        self.assertAlmostEqual(state.pose.theta, 0.75)
-        self.assertEqual(state.velocity.linear.x, 0.4)
-
-    def test_state_update_from_odometry_mutates_in_place(self):
-        state = RobotState(id='tb3_0')
-        original_pose = state.pose
-        state.update_from_odometry(_odom_msg(x=1.5, y=2.5, yaw=0.75, linear_x=0.4))
-
-        self.assertIs(state.pose, original_pose)
-        self.assertEqual(state.pose.x, 1.5)
-        self.assertEqual(state.pose.y, 2.5)
-        self.assertAlmostEqual(state.pose.theta, 0.75)
-        self.assertEqual(state.velocity.linear.x, 0.4)
-
-    def test_state_current_pose_returns_independent_snapshot(self):
+    def test_state_get_pose_returns_independent_snapshot(self):
         state = RobotState(id='tb3_0')
         state.pose.x = 1.0
         state.pose.y = 2.0
         state.pose.theta = 0.5
 
-        snapshot = state.current_pose()
+        snapshot = state.get_pose()
         snapshot.x = 99.0
 
         self.assertEqual(state.pose.x, 1.0)

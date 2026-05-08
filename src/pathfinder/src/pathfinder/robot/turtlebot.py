@@ -3,7 +3,6 @@ import math
 
 import rospy
 from geometry_msgs.msg import Pose2D
-from nav_msgs.msg import Odometry
 
 from pathfinder.robot.motion_controller import MotionController
 from pathfinder.robot.path_follower import PathFollower
@@ -39,13 +38,9 @@ class TurtleBot:
         """The path follower that sequences waypoint traversal."""
         return self._path_follower
 
-    def current_pose(self) -> Pose2D:
+    def get_pose(self) -> Pose2D:
         """Return a snapshot of the current pose."""
-        return self._state.current_pose()
-
-    def update_pose(self, msg: Odometry) -> None:
-        """Update pose and velocity in place from an Odometry message."""
-        self._state.update_from_odometry(msg)
+        return self._state.get_pose()
 
     def follow_path(self, nodes: list[Node]) -> bool:
         """Follow an ordered list of graph nodes; True when all reached, False if cancelled."""
@@ -53,21 +48,21 @@ class TurtleBot:
 
     def turn_left(self, radian: float) -> bool:
         """Turn left by radian; True when heading reached, False if cancelled or shutdown."""
-        return self._turn_to(self.current_pose().theta + radian)
+        return self._turn_to(self.get_pose().theta + radian)
 
     def turn_right(self, radian: float) -> bool:
         """Turn right by radian; True when heading reached, False if cancelled or shutdown."""
-        return self._turn_to(self.current_pose().theta - radian)
+        return self._turn_to(self.get_pose().theta - radian)
 
     def move_forward(self, meter: float) -> bool:
         """Drive forward by meter along current heading; True when reached, False if cancelled."""
-        pose = self.current_pose()
+        pose = self.get_pose()
         target = Node(id=0, x=pose.x + meter * math.cos(pose.theta), y=pose.y + meter * math.sin(pose.theta))
         return self._move_to(target)
 
     def move_backward(self, meter: float) -> bool:
         """Drive backward by meter along current heading; True when reached, False if cancelled."""
-        pose = self.current_pose()
+        pose = self.get_pose()
         target = Node(id=0, x=pose.x - meter * math.cos(pose.theta), y=pose.y - meter * math.sin(pose.theta))
         return self._move_to(target)
 
