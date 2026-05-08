@@ -2,7 +2,7 @@
   <arg name="robots_config" default="$(find pathfinder)/config/robots.yaml"/>
   <arg name="sim" default="false"/>
 
-  <node name="path_server" pkg="pathfinder" type="path_server_node" output="screen">
+  <node name="path_server" pkg="pathfinder" type="path_server" output="screen">
     <param name="graph_file" value="$(find pathfinder)/config/graph.yaml"/>
     <param name="horizon" value="2.0"/>
     <param name="check_rate_hz" value="10.0"/>

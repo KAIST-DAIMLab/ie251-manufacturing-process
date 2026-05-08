@@ -55,7 +55,7 @@ class LaunchSplitTest(unittest.TestCase):
     def test_system_launch_loads_robot_config_for_runtime_nodes(self):
         root = _launch_tree('system.launch')
 
-        for node_type in ('path_server_node', 'robot'):
+        for node_type in ('path_server', 'robot'):
             node = root.find(f"./node[@type='{node_type}']")
             robots_config = node.find("./rosparam[@file='$(arg robots_config)']")
             sim_param = node.find("./param[@name='sim']")
