@@ -38,6 +38,7 @@ xhost +local:docker
 # 4. Quick Start
 
 ## 4.1. Simulation
+![simulation](.images/README-simulation.png)  
 
 **Start the container**  
 ```bash
