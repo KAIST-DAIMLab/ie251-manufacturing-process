@@ -6,6 +6,7 @@ from typing import Callable, Protocol
 from geometry_msgs.msg import Pose2D, Twist
 
 from pathfinder.world.node import Node
+from pathfinder.utils.physics import wrap_to_pi
 
 
 @dataclass(frozen=True)
@@ -53,7 +54,7 @@ class MotionController:
 
     def turn_towards(self, rad: float) -> bool:
         """Publish one proportional angular cmd_vel toward absolute heading rad."""
-        angle = _wrap_to_pi(rad - self._pose_provider().theta)
+        angle = wrap_to_pi(rad - self._pose_provider().theta)
         if abs(angle) <= self._params.heading_tolerance:
             self._publish(0.0, 0.0)
             return True
@@ -72,17 +73,13 @@ class MotionController:
 
     def _get_angle(self, target: Node) -> float:
         pose = self._pose_provider()
-        return _wrap_to_pi(math.atan2(target.y - pose.y, target.x - pose.x) - pose.theta)
+        return wrap_to_pi(math.atan2(target.y - pose.y, target.x - pose.x) - pose.theta)
 
     def _publish(self, linear_x: float, angular_z: float) -> None:
         twist = Twist()
         twist.linear.x = linear_x
         twist.angular.z = angular_z
         self._cmd_vel_publisher.publish(twist)
-
-
-def _wrap_to_pi(radian: float) -> float:
-    return math.atan2(math.sin(radian), math.cos(radian))
 
 
 def _clamp(value: float, limit: float) -> float:
