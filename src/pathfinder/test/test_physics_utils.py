@@ -25,5 +25,47 @@ class PhysicsUtilsTest(unittest.TestCase):
         self.assertAlmostEqual(yaw_from_quaternion(q), yaw)
 
 
+class SegmentPoseTest(unittest.TestCase):
+    """Pure-math tests for the edge segment pose helper."""
+
+    def test_horizontal_segment(self):
+        from pathfinder.utils.physics import segment_pose
+
+        midpoint, length, yaw = segment_pose((0.0, 0.0), (2.0, 0.0))
+
+        self.assertAlmostEqual(midpoint[0], 1.0)
+        self.assertAlmostEqual(midpoint[1], 0.0)
+        self.assertAlmostEqual(length, 2.0)
+        self.assertAlmostEqual(yaw, 0.0)
+
+    def test_vertical_segment(self):
+        from pathfinder.utils.physics import segment_pose
+
+        midpoint, length, yaw = segment_pose((1.0, 1.0), (1.0, 4.0))
+
+        self.assertAlmostEqual(midpoint[0], 1.0)
+        self.assertAlmostEqual(midpoint[1], 2.5)
+        self.assertAlmostEqual(length, 3.0)
+        self.assertAlmostEqual(yaw, math.pi / 2.0)
+
+    def test_diagonal_segment(self):
+        from pathfinder.utils.physics import segment_pose
+
+        midpoint, length, yaw = segment_pose((0.0, 0.0), (1.0, 1.0))
+
+        self.assertAlmostEqual(midpoint[0], 0.5)
+        self.assertAlmostEqual(midpoint[1], 0.5)
+        self.assertAlmostEqual(length, math.sqrt(2.0))
+        self.assertAlmostEqual(yaw, math.pi / 4.0)
+
+    def test_reversed_endpoints_flip_yaw_by_pi(self):
+        from pathfinder.utils.physics import segment_pose
+
+        _, _, forward_yaw = segment_pose((0.0, 0.0), (1.0, 1.0))
+        _, _, reverse_yaw = segment_pose((1.0, 1.0), (0.0, 0.0))
+
+        self.assertAlmostEqual(abs(forward_yaw - reverse_yaw), math.pi)
+
+
 if __name__ == '__main__':
     unittest.main()
