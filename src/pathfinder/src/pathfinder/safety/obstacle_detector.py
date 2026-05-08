@@ -2,8 +2,6 @@ from __future__ import annotations
 import math
 from sensor_msgs.msg import LaserScan
 
-from pathfinder.utils.physics import wrap_to_pi
-
 
 class ObstacleDetector:
     """Returns True when a LaserScan return is inside the front cone and within stop distance."""
@@ -23,22 +21,21 @@ class ObstacleDetector:
         if len(ranges) == 0 or scan.angle_increment <= 0:
             return True
 
-        cone_beam_found = False
+        center = round(-scan.angle_min / scan.angle_increment)
+        half_span = math.floor(self._cone_half_width_radian / scan.angle_increment)
+        cone_ranges = ranges[
+            max(0, center - half_span):min(len(ranges), center + half_span + 1)
+        ]
 
-        for index, distance in enumerate(ranges):
-            angle = wrap_to_pi(scan.angle_min + index * scan.angle_increment)
-            if abs(angle) > self._cone_half_width_radian:
-                continue
+        if not cone_ranges:
+            return True
 
-            cone_beam_found = True
-
+        for distance in cone_ranges:
             if math.isnan(distance):
                 return True
-
             if math.isinf(distance):
                 continue
-
             if distance < self._stop_distance:
                 return True
 
-        return not cone_beam_found
+        return False
