@@ -1,4 +1,18 @@
-# IE251 Manufacturing Process — TurtleBot3 Path-Finding System
+# TurtleBot3 Pathfinder
+
+- [TurtleBot3 Pathfinder](#turtlebot3-pathfinder)
+- [1. Architecture](#1-architecture)
+- [2. Prerequisites](#2-prerequisites)
+- [4. Quick Start](#4-quick-start)
+  - [4.1. Simulation](#41-simulation)
+  - [4.2. Real Robots](#42-real-robots)
+- [5. Usage](#5-usage)
+  - [6. Examples](#6-examples)
+  - [Monitor state](#monitor-state)
+- [7. Configuration](#7-configuration)
+- [8. Troubleshooting](#8-troubleshooting)
+- [8. Design Decisions](#8-design-decisions)
+
 
 A centralized path-finding system for two TurtleBot3 Waffle robots navigating a shared graph on a 6 m × 3 m table. A user sends a target node ID to a central server; the server plans an A* path and dispatches it to the robot's executor, which drives between waypoints using a proportional controller. A collision monitor predicts head-on encounters and stops both robots before impact.
 
