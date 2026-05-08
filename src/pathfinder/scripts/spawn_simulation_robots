@@ -91,7 +91,7 @@ def main():
     for robot_cfg in robots:
         robot_id = robot_cfg['id']
         start_node = robot_cfg['start_node']
-        yaw = float(robot_cfg['yaw'])
+        yaw = math.radians(float(robot_cfg['yaw']))
 
         x, y = node_map[start_node]
         pose = Pose(

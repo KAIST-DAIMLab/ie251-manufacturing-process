@@ -4,4 +4,4 @@ robots:
     yaw: 0.0
   - id: tb3_05
     start_node: 5
-    yaw: 3.14159
+    yaw: 180.0
