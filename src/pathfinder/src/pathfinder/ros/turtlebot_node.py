@@ -30,7 +30,7 @@ class TurtleBotNode:
         motion_rate_hz: float = 5.0,
         origin: Pose2D | None = None,
         obstacle_enabled: bool = True,
-        obstacle_stop_distance: float = 0.25,
+        obstacle_stop_distance: float = 0.5,
     ) -> None:
         self._robot_id = robot_id
         self._namespace = (namespace or robot_id).strip('/')

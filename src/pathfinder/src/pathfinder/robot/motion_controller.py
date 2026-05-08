@@ -20,12 +20,14 @@ class MotionController:
         self._cancel = False
         rate = rospy.Rate(self._rate_hz)
         while not rospy.is_shutdown() and not self._cancel:
-            while self._pause and not rospy.is_shutdown() and not self._cancel:
+            while self._pause:
                 self._engine.stop()
                 rate.sleep()
+                
             if self._engine.drive_towards(target):
                 return True
             rate.sleep()
+            
         return False
 
     def turn_to(self, heading: float) -> bool:
@@ -41,6 +43,7 @@ class MotionController:
     def stop(self) -> None:
         """Cancel any in-flight drive_to or turn_to and halt the engine."""
         self._cancel = True
+        self._pause = False
         self._engine.stop()
 
     def set_pause(self, paused: bool) -> None:
