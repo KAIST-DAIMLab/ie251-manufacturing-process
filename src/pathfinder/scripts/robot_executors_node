@@ -14,20 +14,20 @@ from geometry_msgs.msg import Pose2D
 def main():
     rospy.init_node('robot_executors')
     graph_file = cast(str, rospy.get_param('~graph_file'))
-    linear_speed = cast(float, rospy.get_param('~linear_speed', 0.22))
-    angular_speed = cast(float, rospy.get_param('~angular_speed', 1.5))
-    motion_rate_hz = cast(float, rospy.get_param('~motion_rate_hz', 5.0))
-    obstacle_pause_enabled = cast(bool, rospy.get_param('~obstacle_pause_enabled', True))
-    obstacle_stop_distance = cast(float, rospy.get_param('~obstacle_stop_distance', 0.25))
     sim = cast(bool, rospy.get_param('~sim', False))
     robots = cast(list, rospy.get_param('~robots'))
 
     graph = Graph.load_from_yaml(graph_file)
-    params = MotionParameters(linear_speed=linear_speed, angular_speed=angular_speed)
     nodes: List[TurtleBotNode] = []
 
     for robot_cfg in robots:
         robot_id = robot_cfg['id']
+        linear_speed = float(robot_cfg.get('linear_speed', 0.22))
+        angular_speed = float(robot_cfg.get('angular_speed', 1.5))
+        motion_rate_hz = float(robot_cfg.get('motion_rate_hz', 5.0))
+        obstacle_pause_enabled = bool(robot_cfg.get('obstacle_pause_enabled', True))
+        obstacle_stop_distance = float(robot_cfg.get('obstacle_stop_distance', 0.25))
+
         origin = None
         if not sim:
             start_node = graph.get_node(robot_cfg['start_node'])
@@ -37,6 +37,7 @@ def main():
             origin.theta = math.radians(float(robot_cfg['yaw']))
 
         topic_namespace = f'{robot_id}/sim' if sim else robot_id
+        params = MotionParameters(linear_speed=linear_speed, angular_speed=angular_speed)
         gate = ObstacleDetector(
             stop_distance=obstacle_stop_distance,
             detect_degree=20,

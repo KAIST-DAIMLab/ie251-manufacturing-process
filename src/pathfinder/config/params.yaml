@@ -3,10 +3,3 @@ path_server:
   check_rate_hz: 10.0
   safety_radius: 0.35
   time_step: 0.1
-
-executor:
-  linear_speed: 0.22
-  angular_speed: 1.5
-  motion_rate_hz: 5.0
-  obstacle_pause_enabled: true
-  obstacle_stop_distance: 0.5
