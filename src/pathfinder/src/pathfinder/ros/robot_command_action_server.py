@@ -17,9 +17,9 @@ _COMMANDS = {
 class RobotCommandActionServer:
     """Handles primitive user motion commands for a single robot."""
 
-    def __init__(self, robot: TurtleBot, namespace: str) -> None:
+    def __init__(self, robot: TurtleBot, topic: str) -> None:
         self._robot = robot
-        self._namespace = namespace
+        self._topic = topic
         self._server = None
 
     def start(self) -> None:
@@ -27,7 +27,7 @@ class RobotCommandActionServer:
         from pathfinder.msg import RobotCommandAction  # type: ignore[import]
 
         self._server = actionlib.SimpleActionServer(
-            f'/{self._namespace}/user_command',
+            self._topic,
             RobotCommandAction,
             execute_cb=self._on_user_command,
             auto_start=False,

@@ -12,10 +12,10 @@ from pathfinder.world.graph import Graph
 class FollowPathActionServer:
     """Handles the FollowPath action for a single robot."""
 
-    def __init__(self, robot: TurtleBot, graph: Graph, namespace: str) -> None:
+    def __init__(self, robot: TurtleBot, graph: Graph, topic: str) -> None:
         self._robot = robot
         self._graph = graph
-        self._namespace = namespace
+        self._topic = topic
         self._server = None
 
     def start(self) -> None:
@@ -23,7 +23,7 @@ class FollowPathActionServer:
         from pathfinder.msg import FollowPathAction  # type: ignore[import]
 
         self._server = actionlib.SimpleActionServer(
-            f'/{self._namespace}/follow_path',
+            self._topic,
             FollowPathAction,
             execute_cb=self._on_follow_path,
             auto_start=False,
@@ -59,7 +59,7 @@ class FollowPathActionServer:
 
             fb = FollowPathFeedback()
             fb.current_index = self._robot.path_follower.current_index
-            fb.current_pose = self._robot.current_pose()
+            fb.current_pose = self._robot.get_pose()
             self._server.publish_feedback(fb)
             rate.sleep()
 

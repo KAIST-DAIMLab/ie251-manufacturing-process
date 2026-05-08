@@ -13,24 +13,13 @@ class RobotState:
     pose: Pose2D = field(default_factory=Pose2D)
     velocity: Twist = field(default_factory=Twist)
     status: RobotMode = RobotMode.IDLE
-    origin: Pose2D | None = None
+    origin: Pose2D = field(default_factory=Pose2D)
 
     def is_moving(self) -> bool:
         """True when the robot is actively moving."""
         return self.status == RobotMode.MOVING
 
-    def update_from_odometry(self, msg: Any) -> None:
-        """Update pose and velocity in place from an Odometry message, applying origin offset."""
-        ox = self.origin.x if self.origin else 0.0
-        oy = self.origin.y if self.origin else 0.0
-        ot = self.origin.theta if self.origin else 0.0
-        odom_pose = msg.pose.pose
-        self.pose.x = odom_pose.position.x + ox
-        self.pose.y = odom_pose.position.y + oy
-        self.pose.theta = yaw_from_quaternion(odom_pose.orientation) + ot
-        self.velocity = msg.twist.twist
-
-    def current_pose(self) -> Pose2D:
+    def get_pose(self) -> Pose2D:
         """Return a Pose2D snapshot of the current pose."""
         snapshot = Pose2D()
         snapshot.x = self.pose.x
@@ -41,6 +30,10 @@ class RobotState:
     @classmethod
     def from_odometry(cls, robot_id: str, msg: Any, origin: Pose2D | None = None) -> RobotState:
         """Construct a new RobotState seeded from an Odometry message."""
-        state = cls(id=robot_id, origin=origin)
-        state.update_from_odometry(msg)
+        state = cls(id=robot_id, origin=origin or Pose2D())
+        odom_pose = msg.pose.pose
+        state.pose.x = odom_pose.position.x + state.origin.x
+        state.pose.y = odom_pose.position.y + state.origin.y
+        state.pose.theta = yaw_from_quaternion(odom_pose.orientation) + state.origin.theta
+        state.velocity = msg.twist.twist
         return state
