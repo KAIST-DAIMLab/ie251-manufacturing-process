@@ -26,11 +26,11 @@ def main():
         robot_id = robot_cfg['id']
         origin = None
         if not sim:
-            o = robot_cfg.get('origin', {})
+            start_node = graph.get_node(robot_cfg['start_node'])
             origin = Pose2D()
-            origin.x = o.get('x', 0.0)
-            origin.y = o.get('y', 0.0)
-            origin.theta = o.get('theta', 0.0)
+            origin.x = start_node.x
+            origin.y = start_node.y
+            origin.theta = float(robot_cfg['yaw'])
 
         topic_namespace = f'{robot_id}/sim' if sim else robot_id
         node = TurtleBotNode(
