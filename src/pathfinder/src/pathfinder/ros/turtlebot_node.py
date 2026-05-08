@@ -8,7 +8,8 @@ from std_msgs.msg import Empty
 from typing import TYPE_CHECKING
 
 from pathfinder.ros.follow_path_action_server import FollowPathActionServer
-from pathfinder.robot.motion_controller import MotionController, MotionParameters
+from pathfinder.robot.motion_engine import MotionEngine, MotionParameters
+from pathfinder.robot.motion_controller import MotionController
 from pathfinder.robot.path_follower import PathFollower
 from pathfinder.robot.robot_state import RobotState
 from pathfinder.robot.turtlebot import TurtleBot
@@ -41,18 +42,18 @@ class TurtleBotNode:
 
         self._state = RobotState(id=robot_id, origin=origin or Pose2D())
         state = self._state
-        motion_controller = MotionController(
+        engine = MotionEngine(
             cmd_vel_publisher=cmd_vel_publisher,
             pose_provider=state.get_pose,
             params=params,
         )
-        path_follower = PathFollower(motion_controller, rate_hz=motion_rate_hz)
+        motion_controller = MotionController(engine, rate_hz=motion_rate_hz)
+        path_follower = PathFollower(motion_controller)
         self._robot = TurtleBot(
             robot_id,
             state=state,
             motion_controller=motion_controller,
             path_follower=path_follower,
-            motion_rate_hz=motion_rate_hz,
         )
 
         rospy.Subscriber(self.topic_odom, Odometry, self._on_odom)

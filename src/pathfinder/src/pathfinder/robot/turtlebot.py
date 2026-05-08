@@ -1,7 +1,6 @@
 from __future__ import annotations
 import math
 
-import rospy
 from geometry_msgs.msg import Pose2D
 
 from pathfinder.robot.motion_controller import MotionController
@@ -19,19 +18,15 @@ class TurtleBot:
         state: RobotState,
         motion_controller: MotionController,
         path_follower: PathFollower,
-        motion_rate_hz: float = 5.0,
     ) -> None:
         self.id = robot_id
         self._state = state
         self._motion_controller = motion_controller
         self._path_follower = path_follower
-        self._rate_hz = motion_rate_hz
-        self._cancel = False
-        self._pause = False
-        
+
     @property
     def motion_controller(self) -> MotionController:
-        """The proportional controller for this robot's velocity commands."""
+        """The loop-owning motion controller for this robot."""
         return self._motion_controller
 
     @property
@@ -49,51 +44,29 @@ class TurtleBot:
 
     def turn_left(self, radian: float) -> bool:
         """Turn left by radian; True when heading reached, False if cancelled or shutdown."""
-        return self._turn_to(self.get_pose().theta + radian)
+        return self._motion_controller.turn_to(self.get_pose().theta + radian)
 
     def turn_right(self, radian: float) -> bool:
         """Turn right by radian; True when heading reached, False if cancelled or shutdown."""
-        return self._turn_to(self.get_pose().theta - radian)
+        return self._motion_controller.turn_to(self.get_pose().theta - radian)
 
     def move_forward(self, meter: float) -> bool:
         """Drive forward by meter along current heading; True when reached, False if cancelled."""
         pose = self.get_pose()
         target = Node(id=0, x=pose.x + meter * math.cos(pose.theta), y=pose.y + meter * math.sin(pose.theta))
-        return self._move_to(target)
+        return self._motion_controller.drive_to(target)
 
     def move_backward(self, meter: float) -> bool:
         """Drive backward by meter along current heading; True when reached, False if cancelled."""
         pose = self.get_pose()
         target = Node(id=0, x=pose.x - meter * math.cos(pose.theta), y=pose.y - meter * math.sin(pose.theta))
-        return self._move_to(target)
+        return self._motion_controller.drive_to(target)
 
     def set_pause(self, paused: bool) -> None:
         """Update the pause flag from the scan subscriber callback."""
-        self._pause = paused
+        self._motion_controller.set_pause(paused)
 
     def stop(self) -> None:
         """Cancel current movement and halt immediately."""
-        self._cancel = True
-        self._path_follower.cancel()
         self._motion_controller.stop()
-
-    def _move_to(self, target: Node) -> bool:
-        self._cancel = False
-        rate = rospy.Rate(self._rate_hz)
-        while not rospy.is_shutdown() and not self._cancel:
-            while self._pause and not rospy.is_shutdown() and not self._cancel:
-                self._motion_controller.stop()
-                rate.sleep()
-            if self._motion_controller.drive_towards(target):
-                return True
-            rate.sleep()
-        return False
-
-    def _turn_to(self, heading: float) -> bool:
-        self._cancel = False
-        rate = rospy.Rate(self._rate_hz)
-        while not rospy.is_shutdown() and not self._cancel:
-            if self._motion_controller.turn_towards(heading):
-                return True
-            rate.sleep()
-        return False
+        self._path_follower.cancel()

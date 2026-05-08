@@ -58,7 +58,8 @@ def _install_ros_stubs():
 # 'import rospy' binds to the stub rather than the real rospy.
 _install_ros_stubs()
 
-from pathfinder.robot.motion_controller import MotionController, MotionParameters
+from pathfinder.robot.motion_engine import MotionEngine, MotionParameters
+from pathfinder.robot.motion_controller import MotionController
 from pathfinder.robot.path_follower import PathFollower
 from pathfinder.world.node import Node
 
@@ -73,26 +74,52 @@ class FakePublisher:
     def __init__(self):
         self.published = []
 
-    def publish(self, msg):
-        self.published.append(msg)
+    def publish(self, message):
+        self.published.append(message)
 
 
 class FakeMotionController:
-    """Fake MotionController that records drive_towards calls and returns configurable results."""
+    """Fake MotionController that records drive_to calls and returns configurable results."""
 
     def __init__(self, return_value=True):
         self.calls = []
         self.return_value = return_value
         self.stopped = False
 
-    def drive_towards(self, target):
-        """Record a drive_towards call and return the configured result."""
+    def drive_to(self, target):
+        """Record a drive_to call and return the configured result."""
         self.calls.append(target)
         return self.return_value
 
     def stop(self):
         """Record a stop request."""
         self.stopped = True
+        self.return_value = False
+
+
+class FakeMotionEngine:
+    """Fake MotionEngine for MotionController loop tests."""
+
+    def __init__(self):
+        self.drive_calls = 0
+        self.stop_calls = 0
+        self.turn_calls = 0
+        self._drive_returns = True
+        self._turn_returns = True
+
+    def drive_towards(self, target):
+        """Record a drive_towards call and return the configured result."""
+        self.drive_calls += 1
+        return self._drive_returns
+
+    def turn_towards(self, heading):
+        """Record a turn_towards call and return the configured result."""
+        self.turn_calls += 1
+        return self._turn_returns
+
+    def stop(self):
+        """Record a stop request."""
+        self.stop_calls += 1
 
 
 def _reset_rospy_state():
@@ -109,59 +136,59 @@ class DriveTowardsTest(unittest.TestCase):
     def setUp(self):
         _reset_rospy_state()
 
-    def _controller_at(self, x=0.0, y=0.0, theta=0.0, **params_kwargs):
+    def _engine_at(self, x=0.0, y=0.0, theta=0.0, **params_kwargs):
         publisher = FakePublisher()
         pose = _odom_pose(x=x, y=y, yaw=theta)
-        controller = MotionController(
+        engine = MotionEngine(
             cmd_vel_publisher=publisher,
             pose_provider=lambda: pose,
             params=MotionParameters(**params_kwargs),
         )
-        return (controller, publisher)
+        return (engine, publisher)
 
     def test_arrival_within_tolerance_returns_true_and_publishes_zero(self):
-        controller, publisher = self._controller_at(x=0.0, y=0.0, arrival_tolerance=0.10)
+        engine, publisher = self._engine_at(x=0.0, y=0.0, arrival_tolerance=0.10)
 
-        arrived = controller.drive_towards(Node(id=1, x=0.05, y=0.0))
+        arrived = engine.drive_towards(Node(id=1, x=0.05, y=0.0))
 
         self.assertTrue(arrived)
         self.assertEqual(publisher.published[-1].linear.x, 0.0)
         self.assertEqual(publisher.published[-1].angular.z, 0.0)
 
     def test_heading_error_above_tolerance_blocks_forward_velocity(self):
-        controller, publisher = self._controller_at(x=0.0, y=0.0, theta=math.pi / 2.0, heading_tolerance=0.2)
+        engine, publisher = self._engine_at(x=0.0, y=0.0, theta=math.pi / 2.0, heading_tolerance=0.2)
 
-        arrived = controller.drive_towards(Node(id=1, x=1.0, y=0.0))
+        arrived = engine.drive_towards(Node(id=1, x=1.0, y=0.0))
 
         self.assertFalse(arrived)
         self.assertEqual(publisher.published[-1].linear.x, 0.0)
         self.assertLess(publisher.published[-1].angular.z, 0.0)
 
     def test_large_distance_clamps_linear_velocity(self):
-        controller, publisher = self._controller_at(linear_gain=2.0, linear_speed=0.3)
+        engine, publisher = self._engine_at(linear_gain=2.0, linear_speed=0.3)
 
-        arrived = controller.drive_towards(Node(id=1, x=10.0, y=0.0))
+        arrived = engine.drive_towards(Node(id=1, x=10.0, y=0.0))
 
         self.assertFalse(arrived)
         self.assertEqual(publisher.published[-1].linear.x, 0.3)
 
     def test_large_heading_error_clamps_angular_velocity(self):
-        controller, publisher = self._controller_at(angular_gain=10.0, angular_speed=1.5)
+        engine, publisher = self._engine_at(angular_gain=10.0, angular_speed=1.5)
 
-        arrived = controller.drive_towards(Node(id=1, x=0.0, y=1.0))
+        arrived = engine.drive_towards(Node(id=1, x=0.0, y=1.0))
 
         self.assertFalse(arrived)
         self.assertEqual(publisher.published[-1].angular.z, 1.5)
 
     def test_wrap_around_heading_uses_shortest_angular_direction(self):
-        controller, publisher = self._controller_at(
+        engine, publisher = self._engine_at(
             theta=math.radians(179.0),
             angular_gain=1.0,
             angular_speed=1.5,
             heading_tolerance=math.radians(1.0),
         )
 
-        arrived = controller.drive_towards(Node(id=1, x=-1.0, y=-0.01))
+        arrived = engine.drive_towards(Node(id=1, x=-1.0, y=-0.01))
 
         self.assertFalse(arrived)
         self.assertGreater(publisher.published[-1].angular.z, 0.0)
@@ -174,69 +201,155 @@ class TurnTowardsTest(unittest.TestCase):
     def setUp(self):
         _reset_rospy_state()
 
-    def _controller_at(self, theta=0.0, **params_kwargs):
+    def _engine_at(self, theta=0.0, **params_kwargs):
         publisher = FakePublisher()
         pose = _odom_pose(yaw=theta)
-        controller = MotionController(
+        engine = MotionEngine(
             cmd_vel_publisher=publisher,
             pose_provider=lambda: pose,
             params=MotionParameters(**params_kwargs),
         )
-        controller._publisher = publisher
-        return controller
+        engine._publisher = publisher
+        return engine
 
     def test_heading_within_tolerance_returns_true_and_publishes_zero(self):
-        controller = self._controller_at(theta=0.18, heading_tolerance=0.2)
+        engine = self._engine_at(theta=0.18, heading_tolerance=0.2)
 
-        arrived = controller.turn_towards(0.0)
+        arrived = engine.turn_towards(0.0)
 
         self.assertTrue(arrived)
-        self.assertEqual(controller._publisher.published[-1].linear.x, 0.0)
-        self.assertEqual(controller._publisher.published[-1].angular.z, 0.0)
+        self.assertEqual(engine._publisher.published[-1].linear.x, 0.0)
+        self.assertEqual(engine._publisher.published[-1].angular.z, 0.0)
 
     def test_counterclockwise_heading_error_publishes_positive_angular_velocity(self):
-        controller = self._controller_at(theta=0.0, angular_gain=1.0, angular_speed=1.5)
+        engine = self._engine_at(theta=0.0, angular_gain=1.0, angular_speed=1.5)
 
-        arrived = controller.turn_towards(1.0)
+        arrived = engine.turn_towards(1.0)
 
         self.assertFalse(arrived)
-        self.assertEqual(controller._publisher.published[-1].linear.x, 0.0)
-        self.assertGreater(controller._publisher.published[-1].angular.z, 0.0)
+        self.assertEqual(engine._publisher.published[-1].linear.x, 0.0)
+        self.assertGreater(engine._publisher.published[-1].angular.z, 0.0)
 
     def test_clockwise_heading_error_publishes_negative_angular_velocity(self):
-        controller = self._controller_at(theta=1.0, angular_gain=1.0, angular_speed=1.5)
+        engine = self._engine_at(theta=1.0, angular_gain=1.0, angular_speed=1.5)
 
-        arrived = controller.turn_towards(0.0)
+        arrived = engine.turn_towards(0.0)
 
         self.assertFalse(arrived)
-        self.assertEqual(controller._publisher.published[-1].linear.x, 0.0)
-        self.assertLess(controller._publisher.published[-1].angular.z, 0.0)
+        self.assertEqual(engine._publisher.published[-1].linear.x, 0.0)
+        self.assertLess(engine._publisher.published[-1].angular.z, 0.0)
 
     def test_large_heading_error_clamps_angular_velocity(self):
-        controller = self._controller_at(theta=0.0, angular_gain=10.0, angular_speed=1.5)
+        engine = self._engine_at(theta=0.0, angular_gain=10.0, angular_speed=1.5)
 
-        arrived = controller.turn_towards(math.pi / 2.0)
+        arrived = engine.turn_towards(math.pi / 2.0)
 
         self.assertFalse(arrived)
-        self.assertEqual(controller._publisher.published[-1].angular.z, 1.5)
+        self.assertEqual(engine._publisher.published[-1].angular.z, 1.5)
 
     def test_wrap_around_heading_uses_shortest_angular_direction(self):
-        controller = self._controller_at(
+        engine = self._engine_at(
             theta=math.radians(179.0),
             angular_gain=1.0,
             angular_speed=1.5,
             heading_tolerance=math.radians(1.0),
         )
 
-        arrived = controller.turn_towards(math.radians(-179.0))
+        arrived = engine.turn_towards(math.radians(-179.0))
 
         self.assertFalse(arrived)
-        self.assertGreater(controller._publisher.published[-1].angular.z, 0.0)
-        self.assertLess(controller._publisher.published[-1].angular.z, math.radians(3.0))
+        self.assertGreater(engine._publisher.published[-1].angular.z, 0.0)
+        self.assertLess(engine._publisher.published[-1].angular.z, math.radians(3.0))
+
+
+class MotionControllerTest(unittest.TestCase):
+    """Tests for MotionController's closed-loop drive_to/turn_to behavior."""
+
+    def setUp(self):
+        _reset_rospy_state()
+
+    def test_drive_to_returns_true_on_arrival(self):
+        engine = FakeMotionEngine()
+        controller = MotionController(engine)
+
+        result = controller.drive_to(Node(id=1, x=1.0, y=0.0))
+
+        self.assertTrue(result)
+        self.assertEqual(engine.drive_calls, 1)
+
+    def test_drive_to_loops_until_engine_reports_arrival(self):
+        sys.modules['rospy'].max_sleep_count = 1000
+        engine = FakeMotionEngine()
+        engine._drive_returns = False
+        tick = [0]
+
+        def unblock():
+            tick[0] += 1
+            if tick[0] >= 3:
+                engine._drive_returns = True
+
+        sys.modules['rospy'].sleep_callbacks.append(unblock)
+        controller = MotionController(engine)
+
+        result = controller.drive_to(Node(id=1, x=1.0, y=0.0))
+
+        self.assertTrue(result)
+        self.assertGreaterEqual(engine.drive_calls, 3)
+
+    def test_set_pause_causes_engine_stop_instead_of_drive_towards(self):
+        engine = FakeMotionEngine()
+        engine._drive_returns = False
+        controller = MotionController(engine)
+        controller.set_pause(True)
+
+        tick = [0]
+
+        def unblock():
+            tick[0] += 1
+            if tick[0] >= 2:
+                controller.set_pause(False)
+                engine._drive_returns = True
+
+        sys.modules['rospy'].sleep_callbacks.append(unblock)
+
+        result = controller.drive_to(Node(id=1, x=1.0, y=0.0))
+
+        self.assertTrue(result)
+        self.assertGreater(engine.stop_calls, 0)
+
+    def test_set_pause_does_not_affect_turn_to(self):
+        engine = FakeMotionEngine()
+        controller = MotionController(engine)
+        controller.set_pause(True)
+
+        result = controller.turn_to(0.0)
+
+        self.assertTrue(result)
+        self.assertEqual(engine.turn_calls, 1)
+
+    def test_stop_causes_drive_to_to_return_false(self):
+        engine = FakeMotionEngine()
+        engine._drive_returns = False
+        controller = MotionController(engine)
+
+        sys.modules['rospy'].sleep_callbacks.append(lambda: controller.stop())
+
+        result = controller.drive_to(Node(id=1, x=1.0, y=0.0))
+
+        self.assertFalse(result)
+
+    def test_cancel_resets_between_drive_to_calls(self):
+        engine = FakeMotionEngine()
+        controller = MotionController(engine)
+        controller.stop()
+
+        result = controller.drive_to(Node(id=1, x=1.0, y=0.0))
+
+        self.assertTrue(result)
 
 
 class PathFollowerTest(unittest.TestCase):
-    """Tests for PathFollower's closed-loop follow/cancel behavior."""
+    """Tests for PathFollower's waypoint sequencing behavior."""
 
     def setUp(self):
         _reset_rospy_state()
@@ -250,77 +363,33 @@ class PathFollowerTest(unittest.TestCase):
         self.assertTrue(result)
         self.assertEqual(len(controller.calls), 2)
 
-    def test_follow_ticks_until_waypoint_is_reached(self):
-        sys.modules['rospy'].max_sleep_count = 1000
-        tick_count = [0]
-
-        class CountingController:
-            def drive_towards(self, target):
-                tick_count[0] += 1
-                return tick_count[0] >= 3
-
-        follower = PathFollower(CountingController())
-        result = follower.follow([Node(id=1, x=1.0, y=0.0)])
-
-        self.assertTrue(result)
-        self.assertEqual(tick_count[0], 3)
-
-    def test_cancel_stops_follow_and_returns_false(self):
+    def test_follow_returns_false_when_drive_to_fails(self):
         follower = PathFollower(FakeMotionController(return_value=False))
-        sys.modules['rospy'].sleep_callbacks.append(lambda: follower.cancel())
 
         result = follower.follow([Node(id=1, x=1.0, y=0.0)])
 
         self.assertFalse(result)
 
+    def test_cancel_delegates_stop_to_motion_controller(self):
+        controller = FakeMotionController(return_value=True)
+        follower = PathFollower(controller)
+
+        follower.cancel()
+
+        self.assertTrue(controller.stopped)
+
     def test_current_index_reflects_active_waypoint(self):
         observed = []
-        tick_count = [0]
 
         class IndexRecorder:
-            def drive_towards(self, target):
+            def drive_to(self, target):
                 observed.append(follower.current_index)
-                tick_count[0] += 1
-                return tick_count[0] in (1, 2)
+                return True
 
         follower = PathFollower(IndexRecorder())
         follower.follow([Node(id=1, x=1.0, y=0.0), Node(id=2, x=2.0, y=0.0)])
 
-        self.assertEqual(observed[0], 0)
-        self.assertEqual(observed[-1], 1)
-
-
-    def test_follow_pauses_when_pause_check_returns_true(self):
-        """PathFollower calls stop and does not call drive_towards when pause_check is blocked."""
-        controller = FakeMotionController(return_value=False)
-        follower = PathFollower(controller)
-        blocked = [True]
-        follower.set_pause_check(lambda: blocked[0])
-
-        tick = [0]
-
-        def unblock():
-            tick[0] += 1
-            if tick[0] >= 2:
-                blocked[0] = False
-                controller.return_value = True
-
-        sys.modules['rospy'].sleep_callbacks.append(unblock)
-
-        result = follower.follow([Node(id=1, x=1.0, y=0.0)])
-
-        self.assertTrue(result)
-        self.assertTrue(controller.stopped)
-
-    def test_follow_proceeds_normally_when_pause_check_is_none(self):
-        """PathFollower follows waypoints normally when no pause_check is set."""
-        controller = FakeMotionController(return_value=True)
-        follower = PathFollower(controller)
-
-        result = follower.follow([Node(id=1, x=1.0, y=0.0)])
-
-        self.assertTrue(result)
-        self.assertEqual(len(controller.calls), 1)
+        self.assertEqual(observed, [0, 1])
 
 
 if __name__ == '__main__':
