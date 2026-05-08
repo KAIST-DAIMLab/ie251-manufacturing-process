@@ -1,0 +1,133 @@
+#!/usr/bin/env python3
+"""One-shot node: reads robots.yaml + graph.yaml and spawns each robot in Gazebo."""
+from __future__ import annotations
+import math
+import os
+import yaml
+
+import rospy
+import rospkg
+import xacro
+import roslaunch
+import roslaunch.scriptapi
+import roslaunch.core
+import roslaunch.rlutil
+from gazebo_msgs.srv import SpawnModel, SpawnModelRequest
+from geometry_msgs.msg import Pose, Point, Quaternion
+
+
+def _build_node_map(graph_path: str) -> dict[int, tuple[float, float]]:
+    """Return {node_id: (x, y)} built from graph.yaml."""
+    with open(graph_path, 'r') as graph_file:
+        data = yaml.safe_load(graph_file)
+    return {n['id']: (float(n['x']), float(n['y'])) for n in data['nodes']}
+
+
+def _render_urdf(model: str) -> str:
+    """Render the TurtleBot3 xacro for the given model to a URDF string."""
+    rospack = rospkg.RosPack()
+    xacro_path = os.path.join(
+        rospack.get_path('turtlebot3_description'),
+        'urdf',
+        f'turtlebot3_{model}.urdf.xacro',
+    )
+    document = xacro.process_file(xacro_path)
+    return document.toxml()
+
+
+def _quaternion_from_yaw(yaw: float) -> Quaternion:
+    """Compute quaternion for a pure yaw rotation around the z-axis."""
+    quaternion = Quaternion()
+    quaternion.x = 0.0
+    quaternion.y = 0.0
+    quaternion.z = math.sin(yaw / 2.0)
+    quaternion.w = math.cos(yaw / 2.0)
+    return quaternion
+
+
+def _validate_robot(robot_cfg: dict, node_map: dict[int, tuple[float, float]]) -> None:
+    """Validate required fields; log and raise on any missing or unknown value."""
+    robot_id = robot_cfg.get('id', '<unknown>')
+    if 'start_node' not in robot_cfg:
+        rospy.logerr(f"Robot '{robot_id}' is missing required field 'start_node'")
+        raise KeyError(f"missing 'start_node' for robot '{robot_id}'")
+    if 'yaw' not in robot_cfg:
+        rospy.logerr(f"Robot '{robot_id}' is missing required field 'yaw'")
+        raise KeyError(f"missing 'yaw' for robot '{robot_id}'")
+    start_node = robot_cfg['start_node']
+    if start_node not in node_map:
+        valid_ids = sorted(node_map.keys())
+        rospy.logerr(
+            f"Robot '{robot_id}' references start_node {start_node}, "
+            f"which is not in the graph. Valid node ids: {valid_ids}"
+        )
+        raise KeyError(f"start_node {start_node} not in graph for robot '{robot_id}'")
+
+
+def main():
+    rospy.init_node('simulation_spawner')
+
+    robots_config = rospy.get_param('~robots_config')
+    graph_config = rospy.get_param('~graph_config')
+    model = rospy.get_param('~model', 'waffle')
+
+    with open(robots_config, 'r') as robots_file:
+        robots = yaml.safe_load(robots_file)['robots']
+
+    node_map = _build_node_map(graph_config)
+    urdf_string = _render_urdf(model)
+
+    for robot_cfg in robots:
+        _validate_robot(robot_cfg, node_map)
+
+    uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
+    roslaunch.configure_logging(uuid)
+    launcher = roslaunch.scriptapi.ROSLaunch()
+    launcher.start()
+
+    rospy.wait_for_service('/gazebo/spawn_urdf_model')
+    spawn_service = rospy.ServiceProxy('/gazebo/spawn_urdf_model', SpawnModel)
+
+    for robot_cfg in robots:
+        robot_id = robot_cfg['id']
+        start_node = robot_cfg['start_node']
+        yaw = float(robot_cfg['yaw'])
+
+        x, y = node_map[start_node]
+        pose = Pose(
+            position=Point(x=x, y=y, z=0.0),
+            orientation=_quaternion_from_yaw(yaw),
+        )
+
+        rospy.set_param(f'/{robot_id}/sim/robot_description', urdf_string)
+        rospy.set_param(f'/{robot_id}/sim/robot_state_publisher/tf_prefix', robot_id)
+        rospy.set_param(f'/{robot_id}/sim/robot_state_publisher/publish_frequency', 50.0)
+
+        rsp_node = roslaunch.core.Node(
+            package='robot_state_publisher',
+            node_type='robot_state_publisher',
+            name='robot_state_publisher',
+            namespace=f'{robot_id}/sim',
+            output='log',
+        )
+        launcher.launch(rsp_node)
+
+        request = SpawnModelRequest()
+        request.model_name = robot_id
+        request.model_xml = urdf_string
+        request.robot_namespace = f'{robot_id}/sim'
+        request.initial_pose = pose
+        request.reference_frame = 'world'
+        response = spawn_service(request)
+        if not response.success:
+            rospy.logerr(f"Failed to spawn {robot_id}: {response.status_message}")
+            raise RuntimeError(f"Spawn failed for {robot_id}: {response.status_message}")
+
+        rospy.loginfo(f"Spawned {robot_id} at graph node {start_node} (x={x}, y={y}, yaw={yaw})")
+
+    rospy.loginfo(f"All {len(robots)} robots spawned.")
+    rospy.spin()
+
+
+if __name__ == '__main__':
+    main()
