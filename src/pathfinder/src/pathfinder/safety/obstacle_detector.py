@@ -12,7 +12,7 @@ class ObstacleDetector:
         detect_degree: float,
     ) -> None:
         self._stop_distance = stop_distance
-        self._cone_half_width_radian = math.radians(detect_degree) / 2.0
+        self._cone_half_degree = detect_degree / 2.0
         self._cone_slice: slice | None = None
 
     def detect(self, scan: LaserScan) -> bool:
@@ -24,7 +24,7 @@ class ObstacleDetector:
 
         if self._cone_slice is None:
             center = round(-scan.angle_min / scan.angle_increment)
-            half_span = math.floor(self._cone_half_width_radian / scan.angle_increment)
+            half_span = math.floor(self._cone_half_degree / math.degrees(scan.angle_increment))
             self._cone_slice = slice(
                 max(0, center - half_span),
                 min(len(ranges), center + half_span + 1),
