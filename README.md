@@ -39,50 +39,32 @@ xhost +local:docker
 
 ## 4.1. Simulation
 
-### 4.1.1. Start the container
-
+**Start the container**  
 ```bash
 cd /path/to/ie251-manufacturing-process
 sudo docker compose -f docker/docker-compose.yml up -d
 sudo docker exec -it noetic zsh
-```
 
-### 4.1.2. Build (first time only)
-
-```bash
+# Build (first time only)
 catkin_make
 source devel/setup.zsh
 ```
 
-### 4.1.3. Launch simulation and pathfinding
+**Launch simulation and pathfinding**
 
-**Terminal 1** — Gazebo + simulated robots:
+**Terminal 1** — Gazebo + simulated robots + pathfinding system:
 
 ```bash
 source devel/setup.zsh
 roslaunch pathfinding_system simulation.launch
 ```
 
-Gazebo opens. Two TurtleBot3 Waffles appear: one near the bottom-left, one near the top-right.
-
-**Terminal 2** — pathfinding system:
-
-```bash
-source devel/setup.zsh
-roslaunch pathfinding_system system.launch sim:=true
-```
-
 Wait until the executor action servers are up and both odometry topics (`/tb3_01/sim/odom`, `/tb3_05/sim/odom`) are publishing before sending goals.
 
-You can also launch Gazebo and the pathfinding system together:
 
-```bash
-roslaunch pathfinding_system simulation.launch start_system:=true
-```
+**Send a goal**
 
-### 4.1.4. Send a goal
-
-**Terminal 3:**
+**Terminal 2**
 
 ```bash
 source devel/setup.zsh
@@ -93,7 +75,7 @@ rosrun pathfinding_system user_client tb3_01 5
 
 ## 4.2. Real Robots
 
-### 4.2.1. Physical setup
+**Physical setup**
 
 Place the two TurtleBot3 Waffles on the 6 m × 3 m table at their start nodes:
 
@@ -104,7 +86,7 @@ Place the two TurtleBot3 Waffles on the 6 m × 3 m table at their start nodes:
 
 Connect both robots and the laptop to the same LAN (e.g. the lab router). Note the laptop's IP address — it will act as the ROS master.
 
-### 4.2.2. Configure the ROS master address
+**Configure the ROS master address**
 
 Edit `docker/docker-compose.yml` and set `ROS_HOSTNAME` and `ROS_MASTER_URI` to the laptop's LAN IP:
 
@@ -114,22 +96,19 @@ environment:
   - ROS_MASTER_URI=http://<laptop-ip>:11311
 ```
 
-### 4.2.3. Start the laptop container
+**Start the laptop container**
 
 ```bash
 cd /path/to/ie251-manufacturing-process
 sudo docker compose -f docker/docker-compose.yml up -d
 sudo docker exec -it noetic zsh
-```
 
-### 4.2.4. Build (first time only)
-
-```bash
+# Build (first time only)
 catkin_make
 source devel/setup.zsh
 ```
 
-### 4.2.5. Bring up each TurtleBot3
+**Bring up each TurtleBot3**
 
 SSH into each robot's Raspberry Pi and set it to use the laptop as the ROS master, then launch the bringup with the correct namespace.
 
@@ -153,13 +132,13 @@ roslaunch turtlebot3_bringup turtlebot3_robot.launch
 
 Each bringup publishes `/<namespace>/odom` and subscribes to `/<namespace>/cmd_vel`, which is what the executor expects.
 
-### 4.2.6. Launch the pathfinding system
+**Launch the pathfinding system**
 
 Back in the laptop container (**Terminal 1**):
 
 ```bash
 source devel/setup.zsh
-roslaunch pathfinding_system system.launch
+roslaunch pathfinding_system robots.launch
 ```
 
 Confirm the executors are ready by checking that odometry is arriving:
@@ -171,7 +150,7 @@ rostopic hz /tb3_05/odom
 
 Both should report ~30 Hz before you send any goals.
 
-### 4.2.7. Send a goal
+**Send a goal**
 
 **Terminal 2** (inside the same container):
 
@@ -181,15 +160,6 @@ rosrun pathfinding_system user_client tb3_01 5   # drives node 0 → 1 → 3 →
 ```
 
 The client prints feedback at each waypoint and exits with code 0 on success.
-
-### 4.2.8. Monitor state
-
-```bash
-rostopic echo /tb3_01/odom          # real-time pose and velocity
-rostopic echo /tb3_01/emergency_stop  # fires when collision is predicted
-```
-
-> **Note on odometry drift:** TurtleBot3 uses wheel odometry only. On a long run the pose will drift, causing the robot to miss waypoints. Re-position the robots at their start nodes and restart the executors if drift becomes visible.
 
 ---
 

@@ -1,7 +1,7 @@
 <launch>
   <arg name="model" default="waffle"/>
   <arg name="robots_config" default="$(find pathfinding_system)/config/robots.yaml"/>
-  <arg name="start_system" default="false"/>
+  <arg name="start_system" default="true"/>
 
   <!-- Gazebo with custom world -->
   <include file="$(find gazebo_ros)/launch/empty_world.launch">
@@ -39,7 +39,7 @@
           args="-urdf -model tb3_05 -x 5.0 -y 2.25 -z 0.0 -Y 3.14159 -param robot_description"/>
   </group>
 
-  <include if="$(arg start_system)" file="$(find pathfinding_system)/launch/system.launch">
+  <include if="$(arg start_system)" file="$(find pathfinding_system)/launch/robots.launch">
     <arg name="robots_config" value="$(arg robots_config)"/>
     <arg name="sim" value="true"/>
   </include>
