@@ -31,11 +31,11 @@ class TurtleBotNode:
         params: MotionParameters = MotionParameters(),
         motion_rate_hz: float = 5.0,
         origin: Pose2D | None = None,
-        obstacle_gate: ObstacleDetector | None = None,
+        obstacle_detector: ObstacleDetector | None = None,
     ) -> None:
         self._robot_id = robot_id
         self._namespace = (namespace or robot_id).strip('/')
-        self._obstacle_gate = obstacle_gate
+        self._obstacle_detector = obstacle_detector
 
         cmd_vel_publisher = rospy.Publisher(self.topic_cmd_vel, Twist, queue_size=1)
 
@@ -53,12 +53,12 @@ class TurtleBotNode:
             motion_controller=motion_controller,
             path_follower=path_follower,
             motion_rate_hz=motion_rate_hz,
-            obstacle_detector=obstacle_gate,
+            obstacle_detector=obstacle_detector,
         )
 
         rospy.Subscriber(self.topic_odom, Odometry, self._on_odom)
         rospy.Subscriber(self.topic_stop, Empty, self._on_stop)
-        if obstacle_gate is not None:
+        if obstacle_detector is not None:
             rospy.Subscriber(self.topic_scan, LaserScan, self._on_scan)
         self._user_command_server = RobotCommandActionServer(self._robot, self.topic_user_command)
         self._follow_path_server = FollowPathActionServer(self._robot, graph, self.topic_follow_path) if graph is not None else None
@@ -112,4 +112,4 @@ class TurtleBotNode:
         rospy.logwarn(f"{self._robot.id}: stop received.")
 
     def _on_scan(self, message: LaserScan) -> None:
-        self._obstacle_gate.update(message)
+        self._obstacle_detector.update(message)

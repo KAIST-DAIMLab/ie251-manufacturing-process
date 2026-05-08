@@ -53,7 +53,7 @@ def main():
             params=params,
             motion_rate_hz=motion_rate_hz,
             origin=origin,
-            obstacle_gate=gate,
+            obstacle_detector=gate,
         )
         node.start()
         nodes.append(node)
