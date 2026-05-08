@@ -39,7 +39,7 @@ class LaunchSplitTest(unittest.TestCase):
         self.assertEqual(executor_nodes, [])
         self.assertIsNotNone(executor_manager)
         config_arg = root.find("./arg[@name='robots_config']")
-        self.assertEqual(config_arg.get('default'), '$(find pathfinder)/config/robot.yaml')
+        self.assertEqual(config_arg.get('default'), '$(find pathfinder)/config/robots.yaml')
         sim_arg = root.find("./arg[@name='sim']")
         self.assertEqual(sim_arg.get('default'), 'false')
 
@@ -64,7 +64,7 @@ class LaunchSplitTest(unittest.TestCase):
             self.assertEqual(sim_param.get('value'), '$(arg sim)')
 
     def test_robot_config_is_auditable(self):
-        with open(os.path.join(ROOT, 'config', 'robot.yaml')) as f:
+        with open(os.path.join(ROOT, 'config', 'robots.yaml')) as f:
             config = f.read()
 
         self.assertIn('robot_ids:\n', config)
