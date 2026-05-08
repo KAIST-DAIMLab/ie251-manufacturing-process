@@ -39,7 +39,7 @@ def main():
         topic_namespace = f'{robot_id}/sim' if sim else robot_id
         gate = ObstacleDetector(
             stop_distance=obstacle_stop_distance,
-            detect_degree=20.0,
+            detect_degree=20,
         ) if obstacle_pause_enabled else None
         node = TurtleBotNode(
             robot_id,
