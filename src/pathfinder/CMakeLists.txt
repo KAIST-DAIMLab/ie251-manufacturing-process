@@ -43,8 +43,8 @@ catkin_package(
 install(PROGRAMS
   scripts/path_server
   scripts/robot
-  scripts/spawn_simulation_robots
-  scripts/spawn_simulation_markers
+  scripts/simulation_robots
+  scripts/simulation_markers
   scripts/client
   scripts/simulation
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
