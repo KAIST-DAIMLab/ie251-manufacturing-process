@@ -30,7 +30,7 @@ class TurtleBotNode:
         self._robot_id = robot_id
         self._namespace = (namespace or robot_id).strip('/')
 
-        cmd_vel_publisher = rospy.Publisher(f'/{self._namespace}/cmd_vel', Twist, queue_size=1)
+        cmd_vel_publisher = rospy.Publisher(self.topic_cmd_vel, Twist, queue_size=1)
         self._state = RobotState(id=robot_id, origin=origin or Pose2D())
         state = self._state
         motion_controller = MotionController(
@@ -49,8 +49,13 @@ class TurtleBotNode:
 
         rospy.Subscriber(self.topic_odom, Odometry, self._on_odom)
         rospy.Subscriber(self.topic_stop, Empty, self._on_stop)
-        self._user_command_server = RobotCommandActionServer(self._robot, robot_id)
-        self._follow_path_server = FollowPathActionServer(self._robot, graph, robot_id) if graph is not None else None
+        self._user_command_server = RobotCommandActionServer(self._robot, self.topic_user_command)
+        self._follow_path_server = FollowPathActionServer(self._robot, graph, self.topic_follow_path) if graph is not None else None
+
+    @property
+    def topic_cmd_vel(self) -> str:
+        """Topic name for velocity commands."""
+        return f'/{self._namespace}/cmd_vel'
 
     @property
     def topic_odom(self) -> str:
@@ -61,6 +66,16 @@ class TurtleBotNode:
     def topic_stop(self) -> str:
         """Topic name for stop requests."""
         return f'/{self._robot_id}/stop'
+
+    @property
+    def topic_user_command(self) -> str:
+        """Topic name for the user command action server."""
+        return f'/{self._namespace}/user_command'
+
+    @property
+    def topic_follow_path(self) -> str:
+        """Topic name for the follow path action server."""
+        return f'/{self._namespace}/follow_path'
 
     def start(self) -> None:
         """Start executor action servers."""
