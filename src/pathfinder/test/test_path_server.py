@@ -124,7 +124,6 @@ class PathServerTest(unittest.TestCase):
         server = PathServer(
             FakeGraph(),
             planner=None,
-            monitor=None,
             robot_namespaces=['tb3_0'],
         )
         goal_handle = FakeGoalHandle()

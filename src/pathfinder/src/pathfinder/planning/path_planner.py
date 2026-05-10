@@ -2,14 +2,16 @@ from __future__ import annotations
 import heapq
 from pathfinder.world.graph import Graph
 from pathfinder.world.node import Node
-from pathfinder.planning.path import Path
 
 
 class PathPlanner:
+    """A* path planner that returns an ordered list of waypoint Nodes."""
+
     def __init__(self, graph: Graph) -> None:
         self._graph = graph
 
-    def plan(self, start: Node, goal: Node) -> Path:
+    def plan(self, start: Node, goal: Node) -> list[Node]:
+        """Return the optimal node sequence from start to goal, inclusive."""
         g_costs: dict[int, float] = {start.id: 0.0}
         came_from: dict[int, int] = {}
         visited: set[int] = set()
@@ -25,7 +27,7 @@ class PathPlanner:
             if current.id == goal.id:
                 return self._reconstruct(came_from, goal)
 
-            for neighbor in sorted(self._graph.get_neighbors(current), key=lambda n: n.id):
+            for neighbor in self._graph.get_neighbors(current):
                 if neighbor.id in visited:
                     continue
                 new_g = g_costs[current.id] + self._graph.edge_cost(current, neighbor)
@@ -38,9 +40,9 @@ class PathPlanner:
 
         raise ValueError(f"no path from {start.id} to {goal.id}")
 
-    def _reconstruct(self, came_from: dict[int, int], goal: Node) -> Path:
+    def _reconstruct(self, came_from: dict[int, int], goal: Node) -> list[Node]:
         ids = [goal.id]
         while ids[-1] in came_from:
             ids.append(came_from[ids[-1]])
         ids.reverse()
-        return Path([self._graph.get_node(i) for i in ids])
+        return [self._graph.get_node(i) for i in ids]

@@ -12,11 +12,12 @@ from pathfinder.planning.path_planner import PathPlanner
 
 
 class PathServer:
+    """ROS action server: resolves start node, plans path, and dispatches to robot executor."""
+
     def __init__(
         self,
         graph: Graph,
         planner: PathPlanner,
-        monitor,
         robot_namespaces: list[str],
         robot_odom_topics: dict[str, str] | None = None,
         robot_action_namespaces: dict[str, str] | None = None,
@@ -24,7 +25,6 @@ class PathServer:
     ) -> None:
         self._graph = graph
         self._planner = planner
-        self._monitor = monitor
         self._namespaces = robot_namespaces
         self._robot_odom_topics = robot_odom_topics or {
             ns: f'/{ns}/odom' for ns in robot_namespaces
@@ -34,14 +34,14 @@ class PathServer:
         }
         self._first_state_timeout_sec = first_state_timeout_sec
         self._robot_states: dict[str, object] = {}
-        self._states_lock = threading.Lock()
-        self._state_available = threading.Condition(self._states_lock)
+        self._state_available = threading.Condition()
         self._follow_clients: dict[str, object] = {}
         # Per-robot lock so two simultaneous goals to the same robot are serialized.
         self._robot_locks: dict[str, threading.Lock] = {ns: threading.Lock() for ns in robot_namespaces}
         self._server = None
 
     def start(self) -> None:
+        """Register subscribers, action clients, and start the action server."""
         from pathfinder.msg import (  # type: ignore[import]
             MoveToNodeAction,
             FollowPathAction,
@@ -50,7 +50,7 @@ class PathServer:
             rospy.Subscriber(
                 self._robot_odom_topics[ns],
                 Odometry,
-                lambda msg, n=ns: self._on_odom(n, msg),
+                lambda message, n=ns: self._on_odom(n, message),
             )
             self._follow_clients[ns] = actionlib.SimpleActionClient(
                 f'/{self._robot_action_namespaces[ns]}/follow_path', FollowPathAction
@@ -67,10 +67,12 @@ class PathServer:
         self._server.start()
         rospy.loginfo("PathServer started.")
 
-    def _on_odom(self, ns: str, msg: Odometry) -> None:
+    def _on_odom(self, ns: str, message: Odometry) -> None:
         with self._state_available:
-            self._robot_states[ns] = RobotState.from_odometry(ns, msg)
-            self._state_available.notify_all()
+            is_first = ns not in self._robot_states
+            self._robot_states[ns] = RobotState.from_odometry(ns, message)
+            if is_first:
+                self._state_available.notify_all()
 
     def _on_cancel(self, goal_handle) -> None:
         rospy.loginfo("PathServer: cancel requested.")
@@ -101,7 +103,7 @@ class PathServer:
         if state_msg is None:
             self._abort(goal_handle, f"no state received from {ns}")
             return None
-        pose = state_msg.pose
+        pose = state_msg.get_pose()
         return min(
             self._graph.all_nodes(),
             key=lambda n: (n.x - pose.x) ** 2 + (n.y - pose.y) ** 2,
@@ -122,11 +124,11 @@ class PathServer:
     def _plan_node_ids(self, start: Node, target_id: int, goal_handle) -> list[int] | None:
         try:
             target = self._graph.get_node(target_id)
-            path = self._planner.plan(start, target)
+            waypoints = self._planner.plan(start, target)
         except (KeyError, ValueError) as e:
             self._abort(goal_handle, str(e))
             return None
-        return [n.id for n in path.remaining()]
+        return [n.id for n in waypoints]
 
     def _dispatch_to_executor(self, ns: str, node_ids: list[int], goal_handle) -> None:
         from pathfinder.msg import FollowPathGoal  # type: ignore[import]
@@ -137,10 +139,16 @@ class PathServer:
                 self._abort(goal_handle, f"executor {ns} not available")
                 return
 
-            latest_fb: list = [None]
+            latest_fb = None
+            last_published_index = -1
+
+            def _on_feedback(feedback):
+                nonlocal latest_fb
+                latest_fb = feedback
+
             fp_goal = FollowPathGoal()
             fp_goal.node_ids = node_ids
-            client.send_goal(fp_goal, feedback_cb=lambda fb: latest_fb.__setitem__(0, fb))
+            client.send_goal(fp_goal, feedback_cb=_on_feedback)
 
             while not client.wait_for_result(timeout=rospy.Duration(0.1)):
                 status = goal_handle.get_goal_status().status
@@ -148,8 +156,9 @@ class PathServer:
                     client.cancel_goal()
                     goal_handle.set_canceled()
                     return
-                if latest_fb[0] is not None:
-                    self._publish_feedback(goal_handle, node_ids, latest_fb[0])
+                if latest_fb is not None and latest_fb.current_index != last_published_index:
+                    self._publish_feedback(goal_handle, node_ids, latest_fb)
+                    last_published_index = latest_fb.current_index
 
             follow_result = client.get_result()
 
@@ -157,23 +166,24 @@ class PathServer:
 
     def _publish_feedback(self, goal_handle, node_ids: list[int], fb) -> None:
         from pathfinder.msg import MoveToNodeFeedback  # type: ignore[import]
-        mtn_fb = MoveToNodeFeedback()
+        feedback = MoveToNodeFeedback()
         idx = fb.current_index
-        mtn_fb.current_node_id = node_ids[idx - 1] if idx > 0 else -1
-        mtn_fb.nodes_remaining = len(node_ids) - idx
-        goal_handle.publish_feedback(mtn_fb)
+        feedback.current_node_id = node_ids[idx - 1] if idx > 0 else -1
+        feedback.nodes_remaining = len(node_ids) - idx
+        goal_handle.publish_feedback(feedback)
 
     def _finish(self, goal_handle, follow_result) -> None:
+        if follow_result and follow_result.success:
+            self._succeed(goal_handle, follow_result.message)
+        else:
+            self._abort(goal_handle, follow_result.message if follow_result else "no result")
+
+    def _succeed(self, goal_handle, message: str) -> None:
         from pathfinder.msg import MoveToNodeResult  # type: ignore[import]
         result = MoveToNodeResult()
-        if follow_result and follow_result.success:
-            result.success = True
-            result.message = follow_result.message
-            goal_handle.set_succeeded(result)
-        else:
-            result.success = False
-            result.message = follow_result.message if follow_result else "no result"
-            goal_handle.set_aborted(result)
+        result.success = True
+        result.message = message
+        goal_handle.set_succeeded(result)
 
     def _abort(self, goal_handle, message: str) -> None:
         from pathfinder.msg import MoveToNodeResult  # type: ignore[import]

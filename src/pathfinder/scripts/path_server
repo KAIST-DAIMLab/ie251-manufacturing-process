@@ -45,7 +45,6 @@ def main():
     server = PathServer(
         graph,
         planner,
-        monitor,
         robot_ids,
         robot_odom_topics=robot_odom_topics,
         robot_action_namespaces=robot_action_namespaces,
