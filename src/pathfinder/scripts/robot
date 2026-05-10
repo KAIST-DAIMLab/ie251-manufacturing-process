@@ -15,7 +15,7 @@ def main():
     rospy.init_node('robot_executors')
     graph_file = cast(str, rospy.get_param('~graph_file'))
     sim = cast(bool, rospy.get_param('~sim', False))
-    robots = [Robot.from_dict(r) for r in cast(list, rospy.get_param('~robots'))]
+    robots = [Robot.from_dict(r, sim=sim) for r in cast(list, rospy.get_param('~robots'))]
 
     graph = Graph.load_from_yaml(graph_file)
     nodes: List[TurtleBotNode] = []
@@ -29,12 +29,11 @@ def main():
             origin.y = start_node.y
             origin.theta = math.radians(robot.yaw)
 
-        namespace = f'{robot.id}/sim' if sim else robot.id
         params = MotionParameters(linear_speed=robot.motion.linear_speed, angular_speed=robot.motion.angular_speed)
         node = TurtleBotNode(
             robot.id,
             graph=graph,
-            namespace=namespace,
+            namespace=robot.namespace,
             params=params,
             motion_rate_hz=robot.motion.rate_hz,
             origin=origin,

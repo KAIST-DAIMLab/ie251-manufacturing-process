@@ -24,18 +24,21 @@ class Robot:
     """Configuration for a single robot loaded from robots.yaml."""
 
     id: str
+    namespace: str
     start_node: int
     yaw: float
     motion: MotionConfig
     obstacle: ObstacleConfig
 
     @classmethod
-    def from_dict(cls, data: dict) -> Robot:
-        """Parse a robots.yaml entry into a Robot instance."""
+    def from_dict(cls, data: dict, sim: bool = False) -> Robot:
+        """Parse a robots.yaml entry into a Robot instance, applying sim namespace if needed."""
+        robot_id = data['id']
         motion_data = data.get('motion', {})
         obstacle_data = data.get('obstacle', {})
         return cls(
-            id=data['id'],
+            id=robot_id,
+            namespace=f"{robot_id}/sim" if sim else robot_id,
             start_node=int(data['start_node']),
             yaw=float(data.get('yaw', 0.0)),
             motion=MotionConfig(

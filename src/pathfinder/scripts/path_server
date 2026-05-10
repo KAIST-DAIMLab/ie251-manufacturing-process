@@ -10,7 +10,7 @@ def main():
     rospy.init_node('path_server')
     graph_file = cast(str, rospy.get_param('~graph_file'))
     sim = cast(bool, rospy.get_param('~sim', False))
-    robots = [Robot.from_dict(r) for r in cast(list, rospy.get_param('~robots'))]
+    robots = [Robot.from_dict(r, sim=sim) for r in cast(list, rospy.get_param('~robots'))]
 
     PathServerNode(Graph.load_from_yaml(graph_file), robots, sim).start()
     rospy.spin()

@@ -9,7 +9,6 @@ from pathfinder.robot.robot_state import RobotState
 from pathfinder.ros.path_follow_action_client import PathFollowActionClient
 from pathfinder.ros.path_request_service import PathRequestService
 from pathfinder.ros.pose_tracker import PoseTracker
-from pathfinder.ros.robot_topics import RobotTopics
 from pathfinder.world.graph import Graph
 from pathfinder.world.robot import Robot
 
@@ -24,29 +23,25 @@ class PathServerNode:
         sim: bool,
     ) -> None:
         """Assemble all path-server components from the given configuration values."""
-        topics = RobotTopics(robots, sim)
         planner = AStarPlanner(graph)
         orchestrator = PathOrchestrator(graph, planner)
         tracker = PoseTracker()
-        clients = {
-            robot_id: PathFollowActionClient(topics.action_namespaces[robot_id])
-            for robot_id in topics.robot_ids
-        }
+        clients = {robot.id: PathFollowActionClient(robot.namespace) for robot in robots}
 
-        self._topics = topics
+        self._robots = robots
         self._tracker = tracker
         self._request_service = PathRequestService(orchestrator, tracker, clients)
 
     def start(self) -> None:
         """Register odom subscribers and start the path services."""
-        for robot_id, topic in self._topics.odom_topics.items():
+        for robot in self._robots:
             rospy.Subscriber(
-                topic,
+                f"/{robot.namespace}/odom",
                 Odometry,
-                lambda message, namespace=robot_id: self._on_odom(namespace, message),
+                lambda message, robot_id=robot.id: self._on_odom(robot_id, message),
             )
         self._request_service.start()
         rospy.loginfo("PathServerNode started.")
 
-    def _on_odom(self, namespace: str, message: Odometry) -> None:
-        self._tracker.update(namespace, RobotState.from_odometry(namespace, message).get_pose())
+    def _on_odom(self, robot_id: str, message: Odometry) -> None:
+        self._tracker.update(robot_id, RobotState.from_odometry(robot_id, message).get_pose())
