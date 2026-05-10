@@ -9,10 +9,11 @@ from pathfinder.robot.turtlebot import TurtleBot
 from pathfinder.world.graph import Graph
 
 
-class FollowPathActionServer:
-    """Handles the FollowPath action for a single robot."""
+class PathFollowActionServer:
+    """ActionServer for FollowPath: receives path goals from PathRequestActionServer and drives the robot."""
 
     def __init__(self, robot: TurtleBot, graph: Graph, topic: str) -> None:
+        """Store the robot facade, graph, and action topic."""
         self._robot = robot
         self._graph = graph
         self._topic = topic

@@ -78,7 +78,7 @@ def _install_ros_stubs():
 
 _install_ros_stubs()
 
-from pathfinder.ros.path_server_node import PathServerNode
+from pathfinder.ros.path_request_action_server import PathRequestActionServer
 from pathfinder.planning.path_orchestrator import PathOrchestrator, UnknownRobotError, NoPathError, NodeNotFoundError
 from pathfinder.ros.pose_tracker import PoseTracker
 
@@ -143,25 +143,27 @@ class FakeFollowPathClient:
         return self._result
 
 
-class PathServerNodeTest(unittest.TestCase):
-    def _make_node(self, robot_id='tb3_0', target_node_id=3):
+class PathRequestActionServerTest(unittest.TestCase):
+    def _make_server(self, robot_id='tb3_0'):
         tracker = PoseTracker(timeout_sec=1.0)
         tracker.update(robot_id, types.SimpleNamespace(x=0.0, y=0.0, theta=0.0))
 
         orchestrator = FakeOrchestrator(node_ids=[1, 2, 3])
         follow_result = types.SimpleNamespace(success=True, message='done')
         client = FakeFollowPathClient(result=follow_result)
+        robot_locks = {robot_id: threading.Lock()}
 
-        server = PathServerNode(
+        server = PathRequestActionServer(
             orchestrator=orchestrator,
             tracker=tracker,
             clients={robot_id: client},
-            robot_odom_topics={robot_id: f'/{robot_id}/odom'},
+            robot_locks=robot_locks,
+            topic='/path_server/move_to_node',
         )
         return server, orchestrator, client
 
     def test_execute_calls_tracker_orchestrator_and_client(self):
-        server, orchestrator, client = self._make_node()
+        server, orchestrator, client = self._make_server()
         goal_handle = FakeGoalHandle(robot_id='tb3_0', target_node_id=3)
 
         server._execute(goal_handle)
@@ -173,17 +175,20 @@ class PathServerNodeTest(unittest.TestCase):
         self.assertEqual(goal_handle.succeeded_message, 'done')
 
     def test_execute_aborts_when_tracker_returns_none(self):
+        robot_id = 'tb3_0'
         tracker = PoseTracker(timeout_sec=0.01)
         orchestrator = FakeOrchestrator()
         client = FakeFollowPathClient()
+        robot_locks = {robot_id: threading.Lock()}
 
-        server = PathServerNode(
+        server = PathRequestActionServer(
             orchestrator=orchestrator,
             tracker=tracker,
-            clients={'tb3_0': client},
-            robot_odom_topics={'tb3_0': '/tb3_0/odom'},
+            clients={robot_id: client},
+            robot_locks=robot_locks,
+            topic='/path_server/move_to_node',
         )
-        goal_handle = FakeGoalHandle(robot_id='tb3_0', target_node_id=3)
+        goal_handle = FakeGoalHandle(robot_id=robot_id, target_node_id=3)
 
         server._execute(goal_handle)
 
@@ -191,18 +196,21 @@ class PathServerNodeTest(unittest.TestCase):
         self.assertIsNone(client.dispatched_node_ids)
 
     def test_execute_aborts_on_unknown_robot_error(self):
+        robot_id = 'tb3_0'
         tracker = PoseTracker(timeout_sec=1.0)
-        tracker.update('tb3_0', types.SimpleNamespace(x=0.0, y=0.0, theta=0.0))
+        tracker.update(robot_id, types.SimpleNamespace(x=0.0, y=0.0, theta=0.0))
         orchestrator = FakeOrchestrator(raises=UnknownRobotError("unknown robot: tb3_0"))
         client = FakeFollowPathClient()
+        robot_locks = {robot_id: threading.Lock()}
 
-        server = PathServerNode(
+        server = PathRequestActionServer(
             orchestrator=orchestrator,
             tracker=tracker,
-            clients={'tb3_0': client},
-            robot_odom_topics={'tb3_0': '/tb3_0/odom'},
+            clients={robot_id: client},
+            robot_locks=robot_locks,
+            topic='/path_server/move_to_node',
         )
-        goal_handle = FakeGoalHandle(robot_id='tb3_0', target_node_id=3)
+        goal_handle = FakeGoalHandle(robot_id=robot_id, target_node_id=3)
 
         server._execute(goal_handle)
 
@@ -210,18 +218,21 @@ class PathServerNodeTest(unittest.TestCase):
         self.assertIsNone(client.dispatched_node_ids)
 
     def test_execute_aborts_on_no_path_error(self):
+        robot_id = 'tb3_0'
         tracker = PoseTracker(timeout_sec=1.0)
-        tracker.update('tb3_0', types.SimpleNamespace(x=0.0, y=0.0, theta=0.0))
+        tracker.update(robot_id, types.SimpleNamespace(x=0.0, y=0.0, theta=0.0))
         orchestrator = FakeOrchestrator(raises=NoPathError("no path exists"))
         client = FakeFollowPathClient()
+        robot_locks = {robot_id: threading.Lock()}
 
-        server = PathServerNode(
+        server = PathRequestActionServer(
             orchestrator=orchestrator,
             tracker=tracker,
-            clients={'tb3_0': client},
-            robot_odom_topics={'tb3_0': '/tb3_0/odom'},
+            clients={robot_id: client},
+            robot_locks=robot_locks,
+            topic='/path_server/move_to_node',
         )
-        goal_handle = FakeGoalHandle(robot_id='tb3_0', target_node_id=3)
+        goal_handle = FakeGoalHandle(robot_id=robot_id, target_node_id=3)
 
         server._execute(goal_handle)
 
@@ -229,18 +240,21 @@ class PathServerNodeTest(unittest.TestCase):
         self.assertIsNone(client.dispatched_node_ids)
 
     def test_execute_aborts_on_node_not_found_error(self):
+        robot_id = 'tb3_0'
         tracker = PoseTracker(timeout_sec=1.0)
-        tracker.update('tb3_0', types.SimpleNamespace(x=0.0, y=0.0, theta=0.0))
+        tracker.update(robot_id, types.SimpleNamespace(x=0.0, y=0.0, theta=0.0))
         orchestrator = FakeOrchestrator(raises=NodeNotFoundError("node 99 not found"))
         client = FakeFollowPathClient()
+        robot_locks = {robot_id: threading.Lock()}
 
-        server = PathServerNode(
+        server = PathRequestActionServer(
             orchestrator=orchestrator,
             tracker=tracker,
-            clients={'tb3_0': client},
-            robot_odom_topics={'tb3_0': '/tb3_0/odom'},
+            clients={robot_id: client},
+            robot_locks=robot_locks,
+            topic='/path_server/move_to_node',
         )
-        goal_handle = FakeGoalHandle(robot_id='tb3_0', target_node_id=99)
+        goal_handle = FakeGoalHandle(robot_id=robot_id, target_node_id=99)
 
         server._execute(goal_handle)
 
@@ -248,18 +262,21 @@ class PathServerNodeTest(unittest.TestCase):
         self.assertIsNone(client.dispatched_node_ids)
 
     def test_execute_aborts_when_client_returns_none(self):
+        robot_id = 'tb3_0'
         tracker = PoseTracker(timeout_sec=1.0)
-        tracker.update('tb3_0', types.SimpleNamespace(x=0.0, y=0.0, theta=0.0))
+        tracker.update(robot_id, types.SimpleNamespace(x=0.0, y=0.0, theta=0.0))
         orchestrator = FakeOrchestrator(node_ids=[1, 2])
         client = FakeFollowPathClient(result=None)
+        robot_locks = {robot_id: threading.Lock()}
 
-        server = PathServerNode(
+        server = PathRequestActionServer(
             orchestrator=orchestrator,
             tracker=tracker,
-            clients={'tb3_0': client},
-            robot_odom_topics={'tb3_0': '/tb3_0/odom'},
+            clients={robot_id: client},
+            robot_locks=robot_locks,
+            topic='/path_server/move_to_node',
         )
-        goal_handle = FakeGoalHandle(robot_id='tb3_0', target_node_id=2)
+        goal_handle = FakeGoalHandle(robot_id=robot_id, target_node_id=2)
 
         server._execute(goal_handle)
 

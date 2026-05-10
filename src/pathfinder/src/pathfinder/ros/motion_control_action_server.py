@@ -14,16 +14,17 @@ _COMMANDS = {
 }
 
 
-class RobotCommandActionServer:
-    """Handles primitive user motion commands for a single robot."""
+class MotionControlActionServer:
+    """ActionServer for RobotCommand: receives primitive motion goals from UserClient and executes them."""
 
     def __init__(self, robot: TurtleBot, topic: str) -> None:
+        """Store the robot facade and action topic."""
         self._robot = robot
         self._topic = topic
         self._server = None
 
     def start(self) -> None:
-        """Start the robot command action server."""
+        """Start the RobotCommand action server."""
         from pathfinder.msg import RobotCommandAction  # type: ignore[import]
 
         self._server = actionlib.SimpleActionServer(
