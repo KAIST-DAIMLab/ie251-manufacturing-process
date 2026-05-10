@@ -1,5 +1,4 @@
 from __future__ import annotations
-import threading
 
 import rospy
 
@@ -20,13 +19,11 @@ class PathRequestService:
         orchestrator: PathOrchestrator,
         tracker: PoseTracker,
         clients: dict[str, PathFollowActionClient],
-        robot_locks: dict[str, threading.Lock],
     ) -> None:
         """Store injected planning and dispatch components."""
         self._orchestrator = orchestrator
         self._tracker = tracker
         self._clients = clients
-        self._robot_locks = robot_locks
 
     def start(self) -> None:
         """Register the MoveToNode and CancelPath services."""
@@ -49,9 +46,8 @@ class PathRequestService:
         except (UnknownRobotError, NodeNotFoundError, NoPathError) as error:
             return MoveToNodeResponse(success=False, message=str(error))
 
-        with self._robot_locks[robot_id]:
-            self._clients[robot_id].cancel()
-            ok = self._clients[robot_id].send(node_ids)
+        self._clients[robot_id].cancel()
+        ok = self._clients[robot_id].send(node_ids)
 
         if not ok:
             return MoveToNodeResponse(success=False, message="follow server unreachable")
@@ -64,7 +60,6 @@ class PathRequestService:
         if robot_id not in self._clients:
             return CancelPathResponse(success=False, message=f"unknown robot: {robot_id}")
 
-        with self._robot_locks[robot_id]:
-            self._clients[robot_id].cancel()
+        self._clients[robot_id].cancel()
 
         return CancelPathResponse(success=True, message="canceled")

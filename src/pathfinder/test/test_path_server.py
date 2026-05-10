@@ -1,7 +1,6 @@
 from __future__ import annotations
 import os
 import sys
-import threading
 import types
 import unittest
 
@@ -133,12 +132,10 @@ class PathRequestServiceTest(unittest.TestCase):
         tracker.update(robot_id, types.SimpleNamespace(x=0.0, y=0.0, theta=0.0))
         orchestrator = FakeOrchestrator(node_ids=[1, 2, 3])
         client = FakePathFollowActionClient(send_returns=send_returns)
-        robot_locks = {robot_id: threading.Lock()}
         service = PathRequestService(
             orchestrator=orchestrator,
             tracker=tracker,
             clients={robot_id: client},
-            robot_locks=robot_locks,
         )
         return service, orchestrator, client
 
@@ -179,12 +176,10 @@ class PathRequestServiceTest(unittest.TestCase):
         tracker = PoseTracker(timeout_sec=0.01)
         orchestrator = FakeOrchestrator()
         client = FakePathFollowActionClient()
-        robot_locks = {robot_id: threading.Lock()}
         service = PathRequestService(
             orchestrator=orchestrator,
             tracker=tracker,
             clients={robot_id: client},
-            robot_locks=robot_locks,
         )
 
         response = service._handle_move(MoveToNodeRequest(robot_id=robot_id, target_node_id=3))
