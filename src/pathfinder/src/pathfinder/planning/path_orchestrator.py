@@ -1,0 +1,57 @@
+from __future__ import annotations
+from typing import TYPE_CHECKING, Iterable
+from pathfinder.world.graph import Graph
+from pathfinder.world.node import Node
+from pathfinder.planning.path_planner import PathPlanner
+
+if TYPE_CHECKING:
+    from geometry_msgs.msg import Pose2D
+
+
+class UnknownRobotError(Exception):
+    """Raised when robot_id is not in the set of known robots."""
+
+
+class NodeNotFoundError(Exception):
+    """Raised when target_node_id does not exist in the graph."""
+
+
+class NoPathError(Exception):
+    """Raised when A* cannot find a path between start and goal nodes."""
+
+
+class PathOrchestrator:
+    """Resolves start node from a pose, plans a route, returns waypoint ids."""
+
+    def __init__(
+        self,
+        graph: Graph,
+        planner: PathPlanner,
+        known_robots: Iterable[str],
+    ) -> None:
+        """Store graph, planner, and the set of known robot identifiers."""
+        self._graph = graph
+        self._planner = planner
+        self._known_robots = set(known_robots)
+
+    def plan(self, robot_id: str, current_pose: Pose2D, target_node_id: int) -> list[int]:
+        """Resolve nearest start node, plan A* route, return ordered node id list."""
+        if robot_id not in self._known_robots:
+            raise UnknownRobotError(f"unknown robot: {robot_id}")
+
+        start = min(
+            self._graph.all_nodes(),
+            key=lambda node: (node.x - current_pose.x) ** 2 + (node.y - current_pose.y) ** 2,
+        )
+
+        try:
+            target = self._graph.get_node(target_node_id)
+        except KeyError as error:
+            raise NodeNotFoundError(str(error)) from error
+
+        try:
+            waypoints = self._planner.plan(start, target)
+        except ValueError as error:
+            raise NoPathError(str(error)) from error
+
+        return [node.id for node in waypoints]
