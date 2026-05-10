@@ -39,6 +39,7 @@ class TurtleBotNode:
         ) if obstacle_enabled else None
 
         cmd_vel_publisher = rospy.Publisher(self.topic_cmd_vel, Twist, queue_size=1)
+        self._pose_publisher = rospy.Publisher(self.topic_pose, Pose2D, queue_size=1)
 
         self._state = RobotState(id=robot_id, origin=origin or Pose2D())
         state = self._state
@@ -61,6 +62,11 @@ class TurtleBotNode:
             rospy.Subscriber(self.topic_scan, LaserScan, self._on_scan)
         self._motion_control_server = MotionControlActionServer(self._robot, self.topic_user_command)
         self._path_follow_server = PathFollowActionServer(self._robot, graph, self.topic_follow_path) if graph is not None else None
+
+    @property
+    def topic_pose(self) -> str:
+        """Topic name for the world-frame pose publisher."""
+        return f'/{self._namespace}/pose'
 
     @property
     def topic_cmd_vel(self) -> str:
@@ -100,6 +106,7 @@ class TurtleBotNode:
         self._state.pose.y = odom_pose.position.y + self._state.origin.y
         self._state.pose.theta = yaw_from_quaternion(odom_pose.orientation) + self._state.origin.theta
         self._state.velocity = msg.twist.twist
+        self._pose_publisher.publish(self._state.get_pose())
 
     def _on_scan(self, message: LaserScan) -> None:
         detected = self._obstacle_detector.detect(message)
