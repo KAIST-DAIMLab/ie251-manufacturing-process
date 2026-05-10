@@ -12,8 +12,8 @@ services:
       - DISPLAY=${DISPLAY}
       - QT_X11_NO_MITSHM=1
       - XAUTHORITY=/tmp/.docker.xauth
-      - ROS_HOSTNAME=localhost
-      - ROS_MASTER_URI=http://localhost:11311
+      - ROS_HOSTNAME=${HOSTNAME}.local
+      - ROS_MASTER_URI=http://${HOSTNAME}.local:11311
     volumes:
       - noetic-home:/home/ubuntu
       - ..:/home/ubuntu/workspace
