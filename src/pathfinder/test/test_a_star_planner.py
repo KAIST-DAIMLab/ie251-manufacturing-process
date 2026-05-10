@@ -56,6 +56,24 @@ class AStarPlannerTest(unittest.TestCase):
         path = planner.plan(graph.get_node(0), graph.get_node(2))
         self.assertEqual([node.id for node in path], [0, 1, 2])
 
+    def test_disconnected_graph_raises_value_error(self):
+        graph = _build_graph(
+            [(0, 0.0, 0.0), (1, 1.0, 0.0), (2, 2.0, 0.0), (3, 5.0, 0.0), (4, 6.0, 0.0)],
+            [(0, 1), (1, 2), (3, 4)],
+        )
+        planner = AStarPlanner(graph)
+        with self.assertRaises(ValueError):
+            planner.plan(graph.get_node(0), graph.get_node(4))
+
+    def test_g_cost_relaxation_finds_minimum_cost_path(self):
+        graph = _build_graph(
+            [(0, 0.0, 0.0), (1, 10.0, 0.0), (2, 20.0, 0.0), (3, 10.0, 1.0)],
+            [(0, 1), (1, 2), (0, 3), (3, 2)],
+        )
+        planner = AStarPlanner(graph)
+        path = planner.plan(graph.get_node(0), graph.get_node(2))
+        self.assertEqual([node.id for node in path], [0, 1, 2])
+
 
 if __name__ == '__main__':
     unittest.main()

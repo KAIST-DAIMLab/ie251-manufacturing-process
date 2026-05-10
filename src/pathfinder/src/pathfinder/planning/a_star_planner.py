@@ -17,7 +17,7 @@ class AStarPlanner:
         came_from: dict[int, int] = {}
         visited: set[int] = set()
         counter = 0
-        open_heap: list = [(start.distance_to(goal), counter, start)]
+        open_heap: list = [(g_costs[start.id] + start.distance_to(goal), counter, start)]
 
         while open_heap:
             _f, _c, current = heapq.heappop(open_heap)
