@@ -14,7 +14,12 @@ def _install_ros_stubs():
     sys.modules['rospy'] = rospy
 
     actionlib = types.ModuleType('actionlib')
-    actionlib.SimpleActionClient = object
+
+    class _FakeSimpleActionClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+    actionlib.SimpleActionClient = _FakeSimpleActionClient
     sys.modules['actionlib'] = actionlib
 
     actionlib_msgs = types.ModuleType('actionlib_msgs')
@@ -125,16 +130,7 @@ class TestFollowPathClientDispatch(unittest.TestCase):
 
         received_feedback = []
 
-        def _deliver_then_done():
-            fb = FollowPathFeedback(current_index=1)
-            fake.deliver_feedback(fb)
-            return True
-
-        fake._poll_results = [_deliver_then_done()]
-
         client = _make_client_with_fake(fake)
-
-        real_wait_for_result = fake.wait_for_result
 
         poll_count = [0]
 
