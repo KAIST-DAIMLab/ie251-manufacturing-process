@@ -103,8 +103,8 @@ class FakeOrchestrator:
         self._raises = raises
         self.calls = []
 
-    def plan(self, robot_id, pose, target_node_id):
-        self.calls.append((robot_id, pose, target_node_id))
+    def plan(self, pose, target_node_id):
+        self.calls.append((pose, target_node_id))
         if self._raises is not None:
             raise self._raises
         return self._node_ids
@@ -146,8 +146,7 @@ class PathRequestServiceTest(unittest.TestCase):
         response = service._handle_move(request)
 
         self.assertTrue(response.success)
-        self.assertEqual(orchestrator.calls[0][0], 'tb3_0')
-        self.assertEqual(orchestrator.calls[0][2], 3)
+        self.assertEqual(orchestrator.calls[0][1], 3)
         self.assertEqual(client.sent_node_ids, [1, 2, 3])
 
     def test_handle_move_auto_preempts_before_send(self):

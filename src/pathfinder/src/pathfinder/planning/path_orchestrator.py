@@ -28,9 +28,8 @@ class PathOrchestrator:
         self._graph = graph
         self._planner = planner
 
-    def plan(self, robot_id: str, current_pose: Pose2D, target_node_id: int) -> list[int]:
+    def plan(self, current_pose: Pose2D, target_node_id: int) -> list[int]:
         """Resolve nearest start node, plan A* route, return ordered node id list."""
-
         start = self._nearest_node(current_pose)
 
         try:

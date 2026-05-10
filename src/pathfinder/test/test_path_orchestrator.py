@@ -51,7 +51,7 @@ class TestPathOrchestratorHappyPath(unittest.TestCase):
         orchestrator = PathOrchestrator(graph, FixedPathPlanner(expected_nodes))
 
         pose = types.SimpleNamespace(x=0.5, y=0.0)
-        result = orchestrator.plan('tb3_0', pose, target_node_id=3)
+        result = orchestrator.plan(pose, target_node_id=3)
 
         self.assertEqual(result, [1, 2, 3])
 
@@ -66,7 +66,7 @@ class TestPathOrchestratorHappyPath(unittest.TestCase):
 
         orchestrator = PathOrchestrator(graph, CapturingPlanner())
         pose = types.SimpleNamespace(x=5.8, y=0.0)
-        orchestrator.plan('tb3_0', pose, target_node_id=1)
+        orchestrator.plan(pose, target_node_id=1)
 
         self.assertEqual(received_starts[0].id, 3)
 
@@ -78,7 +78,7 @@ class TestPathOrchestratorErrors(unittest.TestCase):
 
         pose = types.SimpleNamespace(x=0.0, y=0.0)
         with self.assertRaises(NodeNotFoundError):
-            orchestrator.plan('tb3_0', pose, target_node_id=999)
+            orchestrator.plan(pose, target_node_id=999)
 
     def test_no_path_raises_no_path_error(self):
         graph = _make_graph()
@@ -86,7 +86,7 @@ class TestPathOrchestratorErrors(unittest.TestCase):
 
         pose = types.SimpleNamespace(x=0.0, y=0.0)
         with self.assertRaises(NoPathError):
-            orchestrator.plan('tb3_0', pose, target_node_id=3)
+            orchestrator.plan(pose, target_node_id=3)
 
 
 if __name__ == '__main__':
