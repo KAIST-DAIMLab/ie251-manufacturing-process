@@ -3,6 +3,7 @@ from typing import Any
 
 import actionlib
 
+from pathfinder.msg import RobotCommandAction, RobotCommandResult  # type: ignore[import]
 from pathfinder.robot.turtlebot import TurtleBot
 
 
@@ -25,8 +26,6 @@ class MotionControlActionServer:
 
     def start(self) -> None:
         """Start the RobotCommand action server."""
-        from pathfinder.msg import RobotCommandAction  # type: ignore[import]
-
         self._server = actionlib.SimpleActionServer(
             self._topic,
             RobotCommandAction,
@@ -36,8 +35,6 @@ class MotionControlActionServer:
         self._server.start()
 
     def _on_user_command(self, goal: Any) -> None:
-        from pathfinder.msg import RobotCommandResult  # type: ignore[import]
-
         command = goal.command
         if command not in _COMMANDS:
             self._server.set_aborted(

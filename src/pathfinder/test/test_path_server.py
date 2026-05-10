@@ -60,6 +60,9 @@ def _install_ros_stubs():
 
     pathfinder_msg = types.ModuleType('pathfinder.msg')
 
+    class MoveToNodeAction:
+        pass
+
     class MoveToNodeResult:
         def __init__(self):
             self.success = False
@@ -70,9 +73,27 @@ def _install_ros_stubs():
             self.current_node_id = -1
             self.nodes_remaining = 0
 
+    class FollowPathAction:
+        pass
+
+    class FollowPathFeedback:
+        pass
+
+    class FollowPathGoal:
+        def __init__(self):
+            self.node_ids = []
+
+    class FollowPathResult:
+        pass
+
     pathfinder_msg.RobotState = object
+    pathfinder_msg.MoveToNodeAction = MoveToNodeAction
     pathfinder_msg.MoveToNodeResult = MoveToNodeResult
     pathfinder_msg.MoveToNodeFeedback = MoveToNodeFeedback
+    pathfinder_msg.FollowPathAction = FollowPathAction
+    pathfinder_msg.FollowPathFeedback = FollowPathFeedback
+    pathfinder_msg.FollowPathGoal = FollowPathGoal
+    pathfinder_msg.FollowPathResult = FollowPathResult
     sys.modules['pathfinder.msg'] = pathfinder_msg
 
 

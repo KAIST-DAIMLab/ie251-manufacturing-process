@@ -5,6 +5,7 @@ import rospy
 import actionlib
 from actionlib_msgs.msg import GoalStatus
 
+from pathfinder.msg import MoveToNodeAction, MoveToNodeFeedback, MoveToNodeResult  # type: ignore[import]
 from pathfinder.planning.path_orchestrator import PathOrchestrator, UnknownRobotError, NodeNotFoundError, NoPathError
 from pathfinder.ros.path_follow_action_client import PathFollowActionClient
 from pathfinder.ros.pose_tracker import PoseTracker
@@ -31,8 +32,6 @@ class PathRequestActionServer:
 
     def start(self) -> None:
         """Start the MoveToNode action server."""
-        from pathfinder.msg import MoveToNodeAction  # type: ignore[import]
-
         self._server = actionlib.ActionServer(
             self._topic,
             MoveToNodeAction,
@@ -93,7 +92,6 @@ class PathRequestActionServer:
         self._finish(goal_handle, result)
 
     def _publish_feedback(self, goal_handle, node_ids: list[int], feedback) -> None:
-        from pathfinder.msg import MoveToNodeFeedback  # type: ignore[import]
         move_feedback = MoveToNodeFeedback()
         index = feedback.current_index
         move_feedback.current_node_id = node_ids[index - 1] if index > 0 else -1
@@ -107,14 +105,12 @@ class PathRequestActionServer:
             self._abort(goal_handle, follow_result.message if follow_result else "no result")
 
     def _succeed(self, goal_handle, message: str) -> None:
-        from pathfinder.msg import MoveToNodeResult  # type: ignore[import]
         result = MoveToNodeResult()
         result.success = True
         result.message = message
         goal_handle.set_succeeded(result)
 
     def _abort(self, goal_handle, message: str) -> None:
-        from pathfinder.msg import MoveToNodeResult  # type: ignore[import]
         result = MoveToNodeResult()
         result.success = False
         result.message = message

@@ -1,10 +1,10 @@
 from __future__ import annotations
+from typing import Callable
+
 import rospy
 import actionlib
-from typing import Callable, TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from pathfinder.msg import FollowPathFeedback, FollowPathResult
+from pathfinder.msg import FollowPathAction, FollowPathFeedback, FollowPathGoal, FollowPathResult  # type: ignore[import]
 
 
 class PathFollowActionClient:
@@ -12,7 +12,6 @@ class PathFollowActionClient:
 
     def __init__(self, action_namespace: str) -> None:
         """Create a SimpleActionClient for the given action namespace."""
-        from pathfinder.msg import FollowPathAction  # type: ignore[import]
         self._client = actionlib.SimpleActionClient(
             f'/{action_namespace}/follow_path', FollowPathAction
         )
@@ -24,8 +23,6 @@ class PathFollowActionClient:
         is_canceled: Callable[[], bool],
     ) -> FollowPathResult | None:
         """Send a FollowPath goal and block until done, canceled, or server unavailable."""
-        from pathfinder.msg import FollowPathGoal  # type: ignore[import]
-
         if not self._client.wait_for_server(timeout=rospy.Duration(5.0)):
             return None
 
