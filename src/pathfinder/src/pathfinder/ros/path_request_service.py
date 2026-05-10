@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import rospy
 
-from pathfinder.planning.path_orchestrator import PathOrchestrator, UnknownRobotError, NodeNotFoundError, NoPathError
+from pathfinder.planning.path_orchestrator import PathOrchestrator, NodeNotFoundError, NoPathError
 from pathfinder.ros.path_follow_action_client import PathFollowActionClient
 from pathfinder.ros.pose_tracker import PoseTracker
 from pathfinder.srv import MoveToNode, MoveToNodeRequest, MoveToNodeResponse, CancelPath, CancelPathRequest, CancelPathResponse  # type: ignore[import]
@@ -43,7 +43,7 @@ class PathRequestService:
 
         try:
             node_ids = self._orchestrator.plan(robot_id, pose, request.target_node_id)
-        except (UnknownRobotError, NodeNotFoundError, NoPathError) as error:
+        except (NodeNotFoundError, NoPathError) as error:
             return MoveToNodeResponse(success=False, message=str(error))
 
         self._clients[robot_id].cancel()

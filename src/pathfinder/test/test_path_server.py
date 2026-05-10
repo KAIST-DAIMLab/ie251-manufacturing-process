@@ -90,7 +90,7 @@ def _install_ros_stubs():
 _install_ros_stubs()
 
 from pathfinder.ros.path_request_service import PathRequestService
-from pathfinder.planning.path_orchestrator import PathOrchestrator, UnknownRobotError, NoPathError, NodeNotFoundError
+from pathfinder.planning.path_orchestrator import PathOrchestrator, NoPathError, NodeNotFoundError
 from pathfinder.ros.pose_tracker import PoseTracker
 from pathfinder.srv import MoveToNodeRequest, MoveToNodeResponse, CancelPathRequest, CancelPathResponse
 
@@ -186,16 +186,6 @@ class PathRequestServiceTest(unittest.TestCase):
 
         self.assertFalse(response.success)
         self.assertIn('no pose', response.message)
-        self.assertIsNone(client.sent_node_ids)
-
-    def test_handle_move_aborts_on_unknown_robot_error(self):
-        service, orchestrator, client = self._make_service()
-        orchestrator._raises = UnknownRobotError("unknown robot: tb3_0")
-
-        response = service._handle_move(MoveToNodeRequest(robot_id='tb3_0', target_node_id=3))
-
-        self.assertFalse(response.success)
-        self.assertIn('unknown robot', response.message)
         self.assertIsNone(client.sent_node_ids)
 
     def test_handle_move_aborts_on_no_path_error(self):

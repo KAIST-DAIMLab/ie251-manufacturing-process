@@ -26,7 +26,7 @@ class PathServerNode:
         """Assemble all path-server components from the given configuration values."""
         topics = RobotTopics(robots, sim)
         planner = AStarPlanner(graph)
-        orchestrator = PathOrchestrator(graph, planner, known_robots=robots)
+        orchestrator = PathOrchestrator(graph, planner)
         tracker = PoseTracker()
         clients = {
             robot_id: PathFollowActionClient(topics.action_namespaces[robot_id])
