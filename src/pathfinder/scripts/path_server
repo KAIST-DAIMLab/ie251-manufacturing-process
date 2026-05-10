@@ -2,7 +2,7 @@
 from typing import List, cast
 import rospy
 from pathfinder.world.graph import Graph
-from pathfinder.planning.path_planner import PathPlanner
+from pathfinder.planning.a_star_planner import AStarPlanner
 from pathfinder.planning.path_server import PathServer
 from pathfinder.safety.linear_predictor import LinearPredictor
 from pathfinder.safety.collision_monitor import CollisionMonitor
@@ -32,7 +32,7 @@ def main():
     }
 
     graph = Graph.load_from_yaml(graph_file)
-    planner = PathPlanner(graph)
+    planner = AStarPlanner(graph)
     predictor = LinearPredictor(safety_radius, time_step)
     monitor = CollisionMonitor(
         predictor,
