@@ -7,14 +7,10 @@ from pathfinder.ros.path_server_node import PathServerNode
 def main():
     rospy.init_node('path_server')
     graph_file = cast(str, rospy.get_param('~graph_file'))
-    horizon = cast(float, rospy.get_param('~horizon', 2.0))
-    check_rate_hz = cast(float, rospy.get_param('~check_rate_hz', 10.0))
-    safety_radius = cast(float, rospy.get_param('~safety_radius', 0.35))
-    time_step = cast(float, rospy.get_param('~time_step', 0.1))
     sim = cast(bool, rospy.get_param('~sim', False))
     robots = cast(list, rospy.get_param('~robots'))
-    
-    PathServerNode(graph_file, robots, sim, horizon, check_rate_hz, safety_radius, time_step).start()
+
+    PathServerNode(graph_file, robots, sim).start()
     rospy.spin()
 
 

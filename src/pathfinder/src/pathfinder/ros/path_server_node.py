@@ -1,4 +1,5 @@
 from __future__ import annotations
+from typing import cast
 
 import rospy
 from nav_msgs.msg import Odometry
@@ -22,12 +23,12 @@ class PathServerNode:
         graph_file: str,
         robots: list[dict],
         sim: bool,
-        horizon: float,
-        check_rate_hz: float,
-        safety_radius: float,
-        time_step: float,
     ) -> None:
         """Assemble all path-server components from the given configuration values."""
+        horizon = cast(float, rospy.get_param('~horizon', 2.0))
+        check_rate_hz = cast(float, rospy.get_param('~check_rate_hz', 10.0))
+        safety_radius = cast(float, rospy.get_param('~safety_radius', 0.35))
+        time_step = cast(float, rospy.get_param('~time_step', 0.1))
         robot_ids = [r['id'] for r in robots]
         robot_odom_topics = {
             robot_id: f"/{robot_id}/sim/odom" if sim else f"/{robot_id}/odom"
