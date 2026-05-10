@@ -113,7 +113,8 @@ class FakeOrchestrator:
 class FakePathFollowActionClient:
     """Records send and cancel calls."""
 
-    def __init__(self, send_returns=True):
+    def __init__(self, robot_id='tb3_0', send_returns=True):
+        self.robot_id = robot_id
         self._send_returns = send_returns
         self.sent_node_ids = None
         self.cancel_called = False
@@ -131,11 +132,11 @@ class PathRequestServiceTest(unittest.TestCase):
         tracker = PoseTracker(timeout_sec=1.0)
         tracker.update(robot_id, types.SimpleNamespace(x=0.0, y=0.0, theta=0.0))
         orchestrator = FakeOrchestrator(node_ids=[1, 2, 3])
-        client = FakePathFollowActionClient(send_returns=send_returns)
+        client = FakePathFollowActionClient(robot_id=robot_id, send_returns=send_returns)
         service = PathRequestService(
             orchestrator=orchestrator,
             tracker=tracker,
-            clients={robot_id: client},
+            clients=[client],
         )
         return service, orchestrator, client
 
@@ -178,7 +179,7 @@ class PathRequestServiceTest(unittest.TestCase):
         service = PathRequestService(
             orchestrator=orchestrator,
             tracker=tracker,
-            clients={robot_id: client},
+            clients=[client],
         )
 
         response = service._handle_move(MoveToNodeRequest(robot_id=robot_id, target_node_id=3))

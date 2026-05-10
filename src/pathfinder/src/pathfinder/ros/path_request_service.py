@@ -18,12 +18,12 @@ class PathRequestService:
         self,
         orchestrator: PathOrchestrator,
         tracker: PoseTracker,
-        clients: dict[str, PathFollowActionClient],
+        clients: list[PathFollowActionClient],
     ) -> None:
         """Store injected planning and dispatch components."""
         self._orchestrator = orchestrator
         self._tracker = tracker
-        self._clients = clients
+        self._clients = {client.robot_id: client for client in clients}
 
     def start(self) -> None:
         """Register the MoveToNode and CancelPath services."""

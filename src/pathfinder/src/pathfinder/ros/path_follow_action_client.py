@@ -9,8 +9,9 @@ from pathfinder.msg import FollowPathAction, FollowPathGoal  # type: ignore[impo
 class PathFollowActionClient:
     """Wraps an actionlib client to send and cancel FollowPath goals asynchronously."""
 
-    def __init__(self, action_namespace: str) -> None:
-        """Create a SimpleActionClient for the given action namespace."""
+    def __init__(self, robot_id: str, action_namespace: str) -> None:
+        """Create a SimpleActionClient for the given robot and action namespace."""
+        self.robot_id = robot_id
         self._client = actionlib.SimpleActionClient(
             f'/{action_namespace}/follow_path', FollowPathAction
         )

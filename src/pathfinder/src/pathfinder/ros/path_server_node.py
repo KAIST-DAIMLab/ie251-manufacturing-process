@@ -26,7 +26,7 @@ class PathServerNode:
         planner = AStarPlanner(graph)
         orchestrator = PathOrchestrator(graph, planner)
         tracker = PoseTracker()
-        clients = {robot.id: PathFollowActionClient(robot.namespace) for robot in robots}
+        clients = [PathFollowActionClient(robot.id, robot.namespace) for robot in robots]
 
         self._robots = robots
         self._tracker = tracker
