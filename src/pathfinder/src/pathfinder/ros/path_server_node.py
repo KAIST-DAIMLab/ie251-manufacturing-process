@@ -1,5 +1,4 @@
 from __future__ import annotations
-from typing import cast
 
 import rospy
 from nav_msgs.msg import Odometry
@@ -16,19 +15,20 @@ from pathfinder.world.graph import Graph
 
 
 class PathServerNode:
-    """ROS node: reads params and wires path planning, action clients, safety monitor, and services."""
+    """ROS node: builds path planning, action clients, safety monitor, and services from config values."""
 
-    def __init__(self) -> None:
-        """Read ROS params and assemble all path-server components."""
-        graph_file = cast(str, rospy.get_param('~graph_file'))
-        horizon = cast(float, rospy.get_param('~horizon', 2.0))
-        check_rate_hz = cast(float, rospy.get_param('~check_rate_hz', 10.0))
-        safety_radius = cast(float, rospy.get_param('~safety_radius', 0.35))
-        time_step = cast(float, rospy.get_param('~time_step', 0.1))
-        sim = cast(bool, rospy.get_param('~sim', False))
-        robots = cast(list, rospy.get_param('~robots'))
+    def __init__(
+        self,
+        graph_file: str,
+        robots: list[dict],
+        sim: bool,
+        horizon: float,
+        check_rate_hz: float,
+        safety_radius: float,
+        time_step: float,
+    ) -> None:
+        """Assemble all path-server components from the given configuration values."""
         robot_ids = [r['id'] for r in robots]
-
         robot_odom_topics = {
             robot_id: f"/{robot_id}/sim/odom" if sim else f"/{robot_id}/odom"
             for robot_id in robot_ids
