@@ -9,7 +9,8 @@ class MotionConfig:
 
     linear_speed: float = 0.22
     angular_speed: float = 1.5
-    rate_hz: float = 5.0
+    move_rate_hz: float = 5.0
+    arrival_tolerance: float = 0.10
 
 
 @dataclass(frozen=True)
@@ -18,6 +19,7 @@ class ObstacleConfig:
 
     enabled: bool = True
     stop_distance: float = 0.25
+    detect_degree: int = 20
 
 
 @dataclass()
@@ -50,10 +52,12 @@ class Robot:
             motion=MotionConfig(
                 linear_speed=float(motion_data.get('linear_speed', 0.22)),
                 angular_speed=float(motion_data.get('angular_speed', 1.5)),
-                rate_hz=float(motion_data.get('rate_hz', 5.0)),
+                move_rate_hz=float(motion_data.get('move_rate_hz', 5.0)),
+                arrival_tolerance=float(motion_data.get('arrival_tolerance', 0.10)),
             ),
             obstacle=ObstacleConfig(
                 enabled=bool(obstacle_data.get('enabled', True)),
                 stop_distance=float(obstacle_data.get('stop_distance', 0.25)),
+                detect_degree=int(obstacle_data.get('detect_degree', 20)),
             ),
         )

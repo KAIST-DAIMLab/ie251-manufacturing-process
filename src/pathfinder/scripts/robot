@@ -29,16 +29,21 @@ def main():
             origin.y = start_node.y
             origin.theta = math.radians(robot.yaw)
 
-        params = MotionParameters(linear_speed=robot.motion.linear_speed, angular_speed=robot.motion.angular_speed)
+        params = MotionParameters(
+            linear_speed=robot.motion.linear_speed,
+            angular_speed=robot.motion.angular_speed,
+            arrival_tolerance=robot.motion.arrival_tolerance,
+        )
         node = TurtleBotNode(
             robot.id,
             graph=graph,
             namespace=robot.namespace,
             params=params,
-            motion_rate_hz=robot.motion.rate_hz,
+            motion_rate_hz=robot.motion.move_rate_hz,
             origin=origin,
             obstacle_enabled=robot.obstacle.enabled,
             obstacle_stop_distance=robot.obstacle.stop_distance,
+            obstacle_detect_degree=robot.obstacle.detect_degree,
         )
         node.start()
         nodes.append(node)

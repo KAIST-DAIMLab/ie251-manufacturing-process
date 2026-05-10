@@ -30,12 +30,13 @@ class TurtleBotNode:
         origin: Pose2D | None = None,
         obstacle_enabled: bool = True,
         obstacle_stop_distance: float = 0.5,
+        obstacle_detect_degree: int = 20,
     ) -> None:
         self._robot_id = robot_id
         self._namespace = (namespace or robot_id).strip('/')
         self._obstacle_detector = ObstacleDetector(
             stop_distance=obstacle_stop_distance,
-            detect_degree=20,
+            detect_degree=obstacle_detect_degree,
         ) if obstacle_enabled else None
 
         cmd_vel_publisher = rospy.Publisher(self.topic_cmd_vel, Twist, queue_size=1)
