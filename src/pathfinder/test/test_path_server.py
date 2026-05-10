@@ -91,7 +91,6 @@ _install_ros_stubs()
 
 from pathfinder.ros.path_request_service import PathRequestService
 from pathfinder.planning.path_orchestrator import PathOrchestrator, NoPathError, NodeNotFoundError
-from pathfinder.ros.pose_tracker import PoseTracker
 from pathfinder.srv import MoveToNodeRequest, MoveToNodeResponse, CancelPathRequest, CancelPathResponse
 
 
@@ -127,15 +126,17 @@ class FakePathFollowActionClient:
         self.cancel_called = True
 
 
+_DEFAULT_POSE = types.SimpleNamespace(x=0.0, y=0.0, theta=0.0)
+
+
 class PathRequestServiceTest(unittest.TestCase):
-    def _make_service(self, robot_id='tb3_0', send_returns=True):
-        tracker = PoseTracker(timeout_sec=1.0)
-        tracker.update(robot_id, types.SimpleNamespace(x=0.0, y=0.0, theta=0.0))
+    def _make_service(self, robot_id='tb3_0', send_returns=True, pose=_DEFAULT_POSE):
+        robot = types.SimpleNamespace(id=robot_id, pose=pose)
         orchestrator = FakeOrchestrator(node_ids=[1, 2, 3])
         client = FakePathFollowActionClient(robot_id=robot_id, send_returns=send_returns)
         service = PathRequestService(
             orchestrator=orchestrator,
-            tracker=tracker,
+            robots=[robot],
             clients=[client],
         )
         return service, orchestrator, client
@@ -171,18 +172,10 @@ class PathRequestServiceTest(unittest.TestCase):
 
         self.assertEqual(call_order, ['cancel', 'send'])
 
-    def test_handle_move_aborts_when_tracker_returns_none(self):
-        robot_id = 'tb3_0'
-        tracker = PoseTracker(timeout_sec=0.01)
-        orchestrator = FakeOrchestrator()
-        client = FakePathFollowActionClient()
-        service = PathRequestService(
-            orchestrator=orchestrator,
-            tracker=tracker,
-            clients=[client],
-        )
+    def test_handle_move_aborts_when_robot_has_no_pose(self):
+        service, _, client = self._make_service(pose=None)
 
-        response = service._handle_move(MoveToNodeRequest(robot_id=robot_id, target_node_id=3))
+        response = service._handle_move(MoveToNodeRequest(robot_id='tb3_0', target_node_id=3))
 
         self.assertFalse(response.success)
         self.assertIn('no pose', response.message)

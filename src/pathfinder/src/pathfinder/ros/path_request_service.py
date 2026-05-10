@@ -4,8 +4,8 @@ import rospy
 
 from pathfinder.planning.path_orchestrator import PathOrchestrator, NodeNotFoundError, NoPathError
 from pathfinder.ros.path_follow_action_client import PathFollowActionClient
-from pathfinder.ros.pose_tracker import PoseTracker
 from pathfinder.srv import MoveToNode, MoveToNodeRequest, MoveToNodeResponse, CancelPath, CancelPathRequest, CancelPathResponse  # type: ignore[import]
+from pathfinder.world.robot import Robot
 
 
 class PathRequestService:
@@ -17,12 +17,12 @@ class PathRequestService:
     def __init__(
         self,
         orchestrator: PathOrchestrator,
-        tracker: PoseTracker,
+        robots: list[Robot],
         clients: list[PathFollowActionClient],
     ) -> None:
         """Store injected planning and dispatch components."""
         self._orchestrator = orchestrator
-        self._tracker = tracker
+        self._robots = {robot.id: robot for robot in robots}
         self._clients = {client.robot_id: client for client in clients}
 
     def start(self) -> None:
@@ -37,12 +37,12 @@ class PathRequestService:
         if robot_id not in self._clients:
             return MoveToNodeResponse(success=False, message=f"unknown robot: {robot_id}")
 
-        pose = self._tracker.wait_for(robot_id)
-        if pose is None:
+        robot = self._robots[robot_id]
+        if robot.pose is None:
             return MoveToNodeResponse(success=False, message=f"no pose for {robot_id}")
 
         try:
-            node_ids = self._orchestrator.plan(pose, request.target_node_id)
+            node_ids = self._orchestrator.plan(robot.pose, request.target_node_id)
         except (NodeNotFoundError, NoPathError) as error:
             return MoveToNodeResponse(success=False, message=str(error))
 

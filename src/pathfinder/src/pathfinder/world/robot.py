@@ -1,5 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass
+from geometry_msgs.msg import Pose2D
 
 
 @dataclass(frozen=True)
@@ -19,9 +20,9 @@ class ObstacleConfig:
     stop_distance: float = 0.25
 
 
-@dataclass(frozen=True)
+@dataclass()
 class Robot:
-    """Configuration for a single robot loaded from robots.yaml."""
+    """One robot's config (from robots.yaml) plus its latest world-frame pose."""
 
     id: str
     namespace: str
@@ -29,6 +30,11 @@ class Robot:
     yaw: float
     motion: MotionConfig
     obstacle: ObstacleConfig
+    pose: Pose2D | None = None
+
+    def set_pose(self, pose: Pose2D) -> None:
+        """Record the latest world-frame pose."""
+        self.pose = pose
 
     @classmethod
     def from_dict(cls, data: dict, sim: bool = False) -> Robot:
