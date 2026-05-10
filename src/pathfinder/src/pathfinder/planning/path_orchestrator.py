@@ -39,19 +39,20 @@ class PathOrchestrator:
         if robot_id not in self._known_robots:
             raise UnknownRobotError(f"unknown robot: {robot_id}")
 
-        start = min(
-            self._graph.all_nodes(),
-            key=lambda node: (node.x - current_pose.x) ** 2 + (node.y - current_pose.y) ** 2,
-        )
+        start = self._nearest_node(current_pose)
 
         try:
             target = self._graph.get_node(target_node_id)
+            waypoints = self._planner.plan(start, target)
         except KeyError as error:
             raise NodeNotFoundError(f"node {target_node_id} not found") from error
-
-        try:
-            waypoints = self._planner.plan(start, target)
         except ValueError as error:
             raise NoPathError(str(error)) from error
-
+            
         return [node.id for node in waypoints]
+
+    def _nearest_node(self, pose: Pose2D) -> Node:
+        return min(
+            self._graph.all_nodes(),
+            key=lambda node: (node.x - pose.x) ** 2 + (node.y - pose.y) ** 2,
+        )
