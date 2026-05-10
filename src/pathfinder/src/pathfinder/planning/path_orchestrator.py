@@ -47,7 +47,7 @@ class PathOrchestrator:
         try:
             target = self._graph.get_node(target_node_id)
         except KeyError as error:
-            raise NodeNotFoundError(str(error)) from error
+            raise NodeNotFoundError(f"node {target_node_id} not found") from error
 
         try:
             waypoints = self._planner.plan(start, target)
