@@ -79,7 +79,7 @@ def _install_ros_stubs():
 _install_ros_stubs()
 
 from pathfinder.ros.path_server_node import PathServerNode
-from pathfinder.planning.path_orchestrator import PathOrchestrator, UnknownRobotError, NoPathError
+from pathfinder.planning.path_orchestrator import PathOrchestrator, UnknownRobotError, NoPathError, NodeNotFoundError
 from pathfinder.ros.pose_tracker import PoseTracker
 
 
@@ -226,6 +226,25 @@ class PathServerNodeTest(unittest.TestCase):
         server._execute(goal_handle)
 
         self.assertIn('no path exists', goal_handle.aborted_message)
+        self.assertIsNone(client.dispatched_node_ids)
+
+    def test_execute_aborts_on_node_not_found_error(self):
+        tracker = PoseTracker(timeout_sec=1.0)
+        tracker.update('tb3_0', types.SimpleNamespace(x=0.0, y=0.0, theta=0.0))
+        orchestrator = FakeOrchestrator(raises=NodeNotFoundError("node 99 not found"))
+        client = FakeFollowPathClient()
+
+        server = PathServerNode(
+            orchestrator=orchestrator,
+            tracker=tracker,
+            clients={'tb3_0': client},
+            robot_odom_topics={'tb3_0': '/tb3_0/odom'},
+        )
+        goal_handle = FakeGoalHandle(robot_id='tb3_0', target_node_id=99)
+
+        server._execute(goal_handle)
+
+        self.assertIsNotNone(goal_handle.aborted_message)
         self.assertIsNone(client.dispatched_node_ids)
 
     def test_execute_aborts_when_client_returns_none(self):
