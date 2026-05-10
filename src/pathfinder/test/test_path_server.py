@@ -11,10 +11,9 @@ sys.path.insert(0, ROOT)
 
 def _install_ros_stubs():
     rospy = types.ModuleType('rospy')
-    rospy.Duration = lambda seconds: seconds
-    rospy.Time = types.SimpleNamespace(now=lambda: 0)
-    rospy.is_shutdown = lambda: False
     rospy.loginfo = lambda message: None
+    rospy.logwarn = lambda message: None
+    rospy.Service = object
     sys.modules['rospy'] = rospy
 
     geometry_msgs = types.ModuleType('geometry_msgs')
@@ -26,13 +25,7 @@ def _install_ros_stubs():
             self.y = 0.0
             self.theta = 0.0
 
-    class Twist:
-        def __init__(self):
-            self.linear = types.SimpleNamespace(x=0.0, y=0.0, z=0.0)
-            self.angular = types.SimpleNamespace(x=0.0, y=0.0, z=0.0)
-
     geometry_msgs_msg.Pose2D = Pose2D
-    geometry_msgs_msg.Twist = Twist
     sys.modules['geometry_msgs'] = geometry_msgs
     sys.modules['geometry_msgs.msg'] = geometry_msgs_msg
 
@@ -43,98 +36,64 @@ def _install_ros_stubs():
     sys.modules['nav_msgs.msg'] = nav_msgs_msg
 
     actionlib = types.ModuleType('actionlib')
-    actionlib.ActionServer = object
     actionlib.SimpleActionClient = object
     sys.modules['actionlib'] = actionlib
 
-    actionlib_msgs = types.ModuleType('actionlib_msgs')
-    actionlib_msgs_msg = types.ModuleType('actionlib_msgs.msg')
-    actionlib_msgs_msg.GoalStatus = types.SimpleNamespace(
-        PENDING=0,
-        ACTIVE=1,
-        PREEMPTING=6,
-        RECALLING=7,
-    )
-    sys.modules['actionlib_msgs'] = actionlib_msgs
-    sys.modules['actionlib_msgs.msg'] = actionlib_msgs_msg
-
     pathfinder_msg = types.ModuleType('pathfinder.msg')
 
-    class MoveToNodeAction:
-        pass
-
-    class MoveToNodeResult:
-        def __init__(self):
-            self.success = False
-            self.message = ''
-
-    class MoveToNodeFeedback:
-        def __init__(self):
-            self.current_node_id = -1
-            self.nodes_remaining = 0
-
     class FollowPathAction:
-        pass
-
-    class FollowPathFeedback:
         pass
 
     class FollowPathGoal:
         def __init__(self):
             self.node_ids = []
 
-    class FollowPathResult:
+    pathfinder_msg.FollowPathAction = FollowPathAction
+    pathfinder_msg.FollowPathGoal = FollowPathGoal
+    sys.modules['pathfinder.msg'] = pathfinder_msg
+
+    pathfinder_srv = types.ModuleType('pathfinder.srv')
+
+    class MoveToNode:
         pass
 
-    pathfinder_msg.RobotState = object
-    pathfinder_msg.MoveToNodeAction = MoveToNodeAction
-    pathfinder_msg.MoveToNodeResult = MoveToNodeResult
-    pathfinder_msg.MoveToNodeFeedback = MoveToNodeFeedback
-    pathfinder_msg.FollowPathAction = FollowPathAction
-    pathfinder_msg.FollowPathFeedback = FollowPathFeedback
-    pathfinder_msg.FollowPathGoal = FollowPathGoal
-    pathfinder_msg.FollowPathResult = FollowPathResult
-    sys.modules['pathfinder.msg'] = pathfinder_msg
+    class MoveToNodeRequest:
+        def __init__(self, robot_id='', target_node_id=0):
+            self.robot_id = robot_id
+            self.target_node_id = target_node_id
+
+    class MoveToNodeResponse:
+        def __init__(self, success=False, message=''):
+            self.success = success
+            self.message = message
+
+    class CancelPath:
+        pass
+
+    class CancelPathRequest:
+        def __init__(self, robot_id=''):
+            self.robot_id = robot_id
+
+    class CancelPathResponse:
+        def __init__(self, success=False, message=''):
+            self.success = success
+            self.message = message
+
+    pathfinder_srv.MoveToNode = MoveToNode
+    pathfinder_srv.MoveToNodeRequest = MoveToNodeRequest
+    pathfinder_srv.MoveToNodeResponse = MoveToNodeResponse
+    pathfinder_srv.CancelPath = CancelPath
+    pathfinder_srv.CancelPathRequest = CancelPathRequest
+    pathfinder_srv.CancelPathResponse = CancelPathResponse
+    sys.modules['pathfinder.srv'] = pathfinder_srv
 
 
 _install_ros_stubs()
 
-from pathfinder.ros.path_request_action_server import PathRequestActionServer
+from pathfinder.ros.path_request_service import PathRequestService
 from pathfinder.planning.path_orchestrator import PathOrchestrator, UnknownRobotError, NoPathError, NodeNotFoundError
 from pathfinder.ros.pose_tracker import PoseTracker
-
-
-class FakeGoalHandle:
-    """Minimal stand-in for a ROS goal handle."""
-
-    def __init__(self, robot_id: str, target_node_id: int, status: int = 1):
-        self._robot_id = robot_id
-        self._target_node_id = target_node_id
-        self._status = status
-        self.aborted_message = None
-        self.succeeded_message = None
-        self.canceled = False
-
-    def get_goal(self):
-        return types.SimpleNamespace(
-            robot_id=self._robot_id,
-            target_node_id=self._target_node_id,
-        )
-
-    def get_goal_status(self):
-        return types.SimpleNamespace(status=self._status)
-
-    def set_aborted(self, result):
-        self.aborted_message = result.message
-
-    def set_succeeded(self, result):
-        self.succeeded_message = result.message
-
-    def set_canceled(self):
-        self.canceled = True
-
-    def publish_feedback(self, feedback):
-        pass
+from pathfinder.srv import MoveToNodeRequest, MoveToNodeResponse, CancelPathRequest, CancelPathResponse
 
 
 class FakeOrchestrator:
@@ -153,155 +112,151 @@ class FakeOrchestrator:
 
 
 class FakePathFollowActionClient:
-    """Returns a fixed result or None."""
+    """Records send and cancel calls."""
 
-    def __init__(self, result=None):
-        self._result = result
-        self.dispatched_node_ids = None
+    def __init__(self, send_returns=True):
+        self._send_returns = send_returns
+        self.sent_node_ids = None
+        self.cancel_called = False
 
-    def dispatch(self, node_ids, on_feedback, is_canceled):
-        self.dispatched_node_ids = node_ids
-        return self._result
+    def send(self, node_ids):
+        self.sent_node_ids = node_ids
+        return self._send_returns
+
+    def cancel(self):
+        self.cancel_called = True
 
 
-class PathRequestActionServerTest(unittest.TestCase):
-    def _make_server(self, robot_id='tb3_0'):
+class PathRequestServiceTest(unittest.TestCase):
+    def _make_service(self, robot_id='tb3_0', send_returns=True):
         tracker = PoseTracker(timeout_sec=1.0)
         tracker.update(robot_id, types.SimpleNamespace(x=0.0, y=0.0, theta=0.0))
-
         orchestrator = FakeOrchestrator(node_ids=[1, 2, 3])
-        follow_result = types.SimpleNamespace(success=True, message='done')
-        client = FakePathFollowActionClient(result=follow_result)
+        client = FakePathFollowActionClient(send_returns=send_returns)
         robot_locks = {robot_id: threading.Lock()}
-
-        server = PathRequestActionServer(
+        service = PathRequestService(
             orchestrator=orchestrator,
             tracker=tracker,
             clients={robot_id: client},
             robot_locks=robot_locks,
-            topic='/path_server/move_to_node',
+            move_service_name='/path_server/move_to_node',
+            cancel_service_name='/path_server/cancel_path',
         )
-        return server, orchestrator, client
+        return service, orchestrator, client
 
-    def test_execute_calls_tracker_orchestrator_and_client(self):
-        server, orchestrator, client = self._make_server()
-        goal_handle = FakeGoalHandle(robot_id='tb3_0', target_node_id=3)
+    def test_handle_move_calls_orchestrator_and_client(self):
+        service, orchestrator, client = self._make_service()
+        request = MoveToNodeRequest(robot_id='tb3_0', target_node_id=3)
 
-        server._execute(goal_handle)
+        response = service._handle_move(request)
 
-        self.assertEqual(len(orchestrator.calls), 1)
+        self.assertTrue(response.success)
         self.assertEqual(orchestrator.calls[0][0], 'tb3_0')
         self.assertEqual(orchestrator.calls[0][2], 3)
-        self.assertEqual(client.dispatched_node_ids, [1, 2, 3])
-        self.assertEqual(goal_handle.succeeded_message, 'done')
+        self.assertEqual(client.sent_node_ids, [1, 2, 3])
 
-    def test_execute_aborts_when_tracker_returns_none(self):
+    def test_handle_move_auto_preempts_before_send(self):
+        service, _, client = self._make_service()
+        call_order = []
+        original_cancel = client.cancel
+        original_send = client.send
+
+        def tracking_cancel():
+            call_order.append('cancel')
+            original_cancel()
+
+        def tracking_send(node_ids):
+            call_order.append('send')
+            return original_send(node_ids)
+
+        client.cancel = tracking_cancel
+        client.send = tracking_send
+
+        service._handle_move(MoveToNodeRequest(robot_id='tb3_0', target_node_id=3))
+
+        self.assertEqual(call_order, ['cancel', 'send'])
+
+    def test_handle_move_aborts_when_tracker_returns_none(self):
         robot_id = 'tb3_0'
         tracker = PoseTracker(timeout_sec=0.01)
         orchestrator = FakeOrchestrator()
         client = FakePathFollowActionClient()
         robot_locks = {robot_id: threading.Lock()}
-
-        server = PathRequestActionServer(
+        service = PathRequestService(
             orchestrator=orchestrator,
             tracker=tracker,
             clients={robot_id: client},
             robot_locks=robot_locks,
-            topic='/path_server/move_to_node',
+            move_service_name='/path_server/move_to_node',
+            cancel_service_name='/path_server/cancel_path',
         )
-        goal_handle = FakeGoalHandle(robot_id=robot_id, target_node_id=3)
 
-        server._execute(goal_handle)
+        response = service._handle_move(MoveToNodeRequest(robot_id=robot_id, target_node_id=3))
 
-        self.assertIn('no state received from tb3_0', goal_handle.aborted_message)
-        self.assertIsNone(client.dispatched_node_ids)
+        self.assertFalse(response.success)
+        self.assertIn('no pose', response.message)
+        self.assertIsNone(client.sent_node_ids)
 
-    def test_execute_aborts_on_unknown_robot_error(self):
-        robot_id = 'tb3_0'
-        tracker = PoseTracker(timeout_sec=1.0)
-        tracker.update(robot_id, types.SimpleNamespace(x=0.0, y=0.0, theta=0.0))
-        orchestrator = FakeOrchestrator(raises=UnknownRobotError("unknown robot: tb3_0"))
-        client = FakePathFollowActionClient()
-        robot_locks = {robot_id: threading.Lock()}
+    def test_handle_move_aborts_on_unknown_robot_error(self):
+        service, orchestrator, client = self._make_service()
+        orchestrator._raises = UnknownRobotError("unknown robot: tb3_0")
 
-        server = PathRequestActionServer(
-            orchestrator=orchestrator,
-            tracker=tracker,
-            clients={robot_id: client},
-            robot_locks=robot_locks,
-            topic='/path_server/move_to_node',
-        )
-        goal_handle = FakeGoalHandle(robot_id=robot_id, target_node_id=3)
+        response = service._handle_move(MoveToNodeRequest(robot_id='tb3_0', target_node_id=3))
 
-        server._execute(goal_handle)
+        self.assertFalse(response.success)
+        self.assertIn('unknown robot', response.message)
+        self.assertIsNone(client.sent_node_ids)
 
-        self.assertIn('unknown robot', goal_handle.aborted_message)
-        self.assertIsNone(client.dispatched_node_ids)
+    def test_handle_move_aborts_on_no_path_error(self):
+        service, orchestrator, client = self._make_service()
+        orchestrator._raises = NoPathError("no path exists")
 
-    def test_execute_aborts_on_no_path_error(self):
-        robot_id = 'tb3_0'
-        tracker = PoseTracker(timeout_sec=1.0)
-        tracker.update(robot_id, types.SimpleNamespace(x=0.0, y=0.0, theta=0.0))
-        orchestrator = FakeOrchestrator(raises=NoPathError("no path exists"))
-        client = FakePathFollowActionClient()
-        robot_locks = {robot_id: threading.Lock()}
+        response = service._handle_move(MoveToNodeRequest(robot_id='tb3_0', target_node_id=3))
 
-        server = PathRequestActionServer(
-            orchestrator=orchestrator,
-            tracker=tracker,
-            clients={robot_id: client},
-            robot_locks=robot_locks,
-            topic='/path_server/move_to_node',
-        )
-        goal_handle = FakeGoalHandle(robot_id=robot_id, target_node_id=3)
+        self.assertFalse(response.success)
+        self.assertIn('no path exists', response.message)
+        self.assertIsNone(client.sent_node_ids)
 
-        server._execute(goal_handle)
+    def test_handle_move_aborts_on_node_not_found_error(self):
+        service, orchestrator, client = self._make_service()
+        orchestrator._raises = NodeNotFoundError("node 99 not found")
 
-        self.assertIn('no path exists', goal_handle.aborted_message)
-        self.assertIsNone(client.dispatched_node_ids)
+        response = service._handle_move(MoveToNodeRequest(robot_id='tb3_0', target_node_id=99))
 
-    def test_execute_aborts_on_node_not_found_error(self):
-        robot_id = 'tb3_0'
-        tracker = PoseTracker(timeout_sec=1.0)
-        tracker.update(robot_id, types.SimpleNamespace(x=0.0, y=0.0, theta=0.0))
-        orchestrator = FakeOrchestrator(raises=NodeNotFoundError("node 99 not found"))
-        client = FakePathFollowActionClient()
-        robot_locks = {robot_id: threading.Lock()}
+        self.assertFalse(response.success)
+        self.assertIsNone(client.sent_node_ids)
 
-        server = PathRequestActionServer(
-            orchestrator=orchestrator,
-            tracker=tracker,
-            clients={robot_id: client},
-            robot_locks=robot_locks,
-            topic='/path_server/move_to_node',
-        )
-        goal_handle = FakeGoalHandle(robot_id=robot_id, target_node_id=99)
+    def test_handle_move_rejects_unknown_robot_id(self):
+        service, _, _ = self._make_service()
 
-        server._execute(goal_handle)
+        response = service._handle_move(MoveToNodeRequest(robot_id='unknown_bot', target_node_id=3))
 
-        self.assertIsNotNone(goal_handle.aborted_message)
-        self.assertIsNone(client.dispatched_node_ids)
+        self.assertFalse(response.success)
+        self.assertIn('unknown robot', response.message)
 
-    def test_execute_aborts_when_client_returns_none(self):
-        robot_id = 'tb3_0'
-        tracker = PoseTracker(timeout_sec=1.0)
-        tracker.update(robot_id, types.SimpleNamespace(x=0.0, y=0.0, theta=0.0))
-        orchestrator = FakeOrchestrator(node_ids=[1, 2])
-        client = FakePathFollowActionClient(result=None)
-        robot_locks = {robot_id: threading.Lock()}
+    def test_handle_move_fails_when_send_returns_false(self):
+        service, _, client = self._make_service(send_returns=False)
 
-        server = PathRequestActionServer(
-            orchestrator=orchestrator,
-            tracker=tracker,
-            clients={robot_id: client},
-            robot_locks=robot_locks,
-            topic='/path_server/move_to_node',
-        )
-        goal_handle = FakeGoalHandle(robot_id=robot_id, target_node_id=2)
+        response = service._handle_move(MoveToNodeRequest(robot_id='tb3_0', target_node_id=3))
 
-        server._execute(goal_handle)
+        self.assertFalse(response.success)
+        self.assertIn('unreachable', response.message)
 
-        self.assertIsNotNone(goal_handle.aborted_message)
+    def test_handle_cancel_calls_client_cancel(self):
+        service, _, client = self._make_service()
+
+        response = service._handle_cancel(CancelPathRequest(robot_id='tb3_0'))
+
+        self.assertTrue(response.success)
+        self.assertTrue(client.cancel_called)
+
+    def test_handle_cancel_rejects_unknown_robot(self):
+        service, _, _ = self._make_service()
+
+        response = service._handle_cancel(CancelPathRequest(robot_id='ghost_bot'))
+
+        self.assertFalse(response.success)
+        self.assertIn('unknown robot', response.message)
 
 
 if __name__ == '__main__':

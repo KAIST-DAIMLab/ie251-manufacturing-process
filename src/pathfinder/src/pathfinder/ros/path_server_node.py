@@ -7,12 +7,12 @@ from nav_msgs.msg import Odometry
 from pathfinder.planning.path_orchestrator import PathOrchestrator
 from pathfinder.robot.robot_state import RobotState
 from pathfinder.ros.path_follow_action_client import PathFollowActionClient
-from pathfinder.ros.path_request_action_server import PathRequestActionServer
+from pathfinder.ros.path_request_service import PathRequestService
 from pathfinder.ros.pose_tracker import PoseTracker
 
 
 class PathServerNode:
-    """ROS adapter: wires odom subscribers and PathRequestActionServer for multi-robot path coordination."""
+    """ROS adapter: wires odom subscribers and PathRequestService for multi-robot path coordination."""
 
     def __init__(
         self,
@@ -21,16 +21,18 @@ class PathServerNode:
         clients: dict[str, PathFollowActionClient],
         robot_odom_topics: dict[str, str],
     ) -> None:
-        """Create per-robot locks and assemble the PathRequestActionServer."""
+        """Create per-robot locks and assemble the PathRequestService."""
         self._tracker = tracker
         self._robot_odom_topics = robot_odom_topics
         robot_locks = {robot_id: threading.Lock() for robot_id in clients}
-        self._request_server = PathRequestActionServer(
-            orchestrator, tracker, clients, robot_locks, topic='/path_server/move_to_node'
+        self._request_server = PathRequestService(
+            orchestrator, tracker, clients, robot_locks,
+            move_service_name='/path_server/move_to_node',
+            cancel_service_name='/path_server/cancel_path',
         )
 
     def start(self) -> None:
-        """Register odom subscribers and start the PathRequestActionServer."""
+        """Register odom subscribers and start the PathRequestService."""
         for robot_id, topic in self._robot_odom_topics.items():
             rospy.Subscriber(
                 topic,

@@ -14,9 +14,14 @@ find_package(catkin REQUIRED COMPONENTS
 
 add_action_files(
   FILES
-  MoveToNode.action
   FollowPath.action
   RobotCommand.action
+)
+
+add_service_files(
+  FILES
+  MoveToNode.srv
+  CancelPath.srv
 )
 
 catkin_python_setup()
@@ -55,6 +60,8 @@ if(CATKIN_ENABLE_TESTING)
   catkin_add_nosetests(test/test_collision_monitor.py)
   catkin_add_nosetests(test/test_motion.py)
   catkin_add_nosetests(test/test_path_server.py)
+  catkin_add_nosetests(test/test_path_orchestrator.py)
+  catkin_add_nosetests(test/test_path_follow_action_client.py)
   catkin_add_nosetests(test/test_physics_utils.py)
   catkin_add_nosetests(test/test_turtlebot.py)
   catkin_add_nosetests(test/test_client.py)

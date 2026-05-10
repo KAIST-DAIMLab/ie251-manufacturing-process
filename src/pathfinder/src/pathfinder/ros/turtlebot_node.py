@@ -4,7 +4,6 @@ import rospy
 from geometry_msgs.msg import Pose2D, Twist
 from nav_msgs.msg import Odometry
 from sensor_msgs.msg import LaserScan
-from std_msgs.msg import Empty
 
 from pathfinder.ros.path_follow_action_server import PathFollowActionServer
 from pathfinder.robot.motion_engine import MotionEngine, MotionParameters
@@ -58,7 +57,6 @@ class TurtleBotNode:
         )
 
         rospy.Subscriber(self.topic_odom, Odometry, self._on_odom)
-        rospy.Subscriber(self.topic_stop, Empty, self._on_stop)
         if self._obstacle_detector is not None:
             rospy.Subscriber(self.topic_scan, LaserScan, self._on_scan)
         self._motion_control_server = MotionControlActionServer(self._robot, self.topic_user_command)
@@ -73,11 +71,6 @@ class TurtleBotNode:
     def topic_odom(self) -> str:
         """Topic name for the odometry subscriber."""
         return f'/{self._namespace}/odom'
-
-    @property
-    def topic_stop(self) -> str:
-        """Topic name for stop requests."""
-        return f'/{self._namespace}/stop'
 
     @property
     def topic_scan(self) -> str:
@@ -107,10 +100,6 @@ class TurtleBotNode:
         self._state.pose.y = odom_pose.position.y + self._state.origin.y
         self._state.pose.theta = yaw_from_quaternion(odom_pose.orientation) + self._state.origin.theta
         self._state.velocity = msg.twist.twist
-
-    def _on_stop(self, _: Empty) -> None:
-        self._robot.stop()
-        rospy.logwarn(f"{self._robot.id}: stop received.")
 
     def _on_scan(self, message: LaserScan) -> None:
         detected = self._obstacle_detector.detect(message)
