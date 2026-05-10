@@ -4,10 +4,6 @@
 
   <node name="path_server" pkg="pathfinder" type="path_server" output="screen">
     <param name="graph_file" value="$(find pathfinder)/config/graph.yaml"/>
-    <param name="horizon" value="2.0"/>
-    <param name="check_rate_hz" value="10.0"/>
-    <param name="safety_radius" value="0.35"/>
-    <param name="time_step" value="0.1"/>
     <param name="sim" value="$(arg sim)"/>
     <rosparam file="$(arg robots_config)" command="load"/>
   </node>

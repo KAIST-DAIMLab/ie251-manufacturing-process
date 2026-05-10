@@ -4,15 +4,14 @@ import rospy
 from geometry_msgs.msg import Pose2D, Twist
 from nav_msgs.msg import Odometry
 from sensor_msgs.msg import LaserScan
-from std_msgs.msg import Empty
 
-from pathfinder.ros.follow_path_action_server import FollowPathActionServer
+from pathfinder.ros.path_follow_action_server import PathFollowActionServer
 from pathfinder.robot.motion_engine import MotionEngine, MotionParameters
 from pathfinder.robot.motion_controller import MotionController
 from pathfinder.robot.path_follower import PathFollower
 from pathfinder.robot.robot_state import RobotState
 from pathfinder.robot.turtlebot import TurtleBot
-from pathfinder.ros.robot_command_action_server import RobotCommandActionServer
+from pathfinder.ros.motion_control_action_server import MotionControlActionServer
 from pathfinder.safety.obstacle_detector import ObstacleDetector
 from pathfinder.utils.physics import yaw_from_quaternion
 from pathfinder.world.graph import Graph
@@ -40,6 +39,7 @@ class TurtleBotNode:
         ) if obstacle_enabled else None
 
         cmd_vel_publisher = rospy.Publisher(self.topic_cmd_vel, Twist, queue_size=1)
+        self._pose_publisher = rospy.Publisher(self.topic_pose, Pose2D, queue_size=1)
 
         self._state = RobotState(id=robot_id, origin=origin or Pose2D())
         state = self._state
@@ -58,11 +58,15 @@ class TurtleBotNode:
         )
 
         rospy.Subscriber(self.topic_odom, Odometry, self._on_odom)
-        rospy.Subscriber(self.topic_stop, Empty, self._on_stop)
         if self._obstacle_detector is not None:
             rospy.Subscriber(self.topic_scan, LaserScan, self._on_scan)
-        self._user_command_server = RobotCommandActionServer(self._robot, self.topic_user_command)
-        self._follow_path_server = FollowPathActionServer(self._robot, graph, self.topic_follow_path) if graph is not None else None
+        self._motion_control_server = MotionControlActionServer(self._robot, self.topic_user_command)
+        self._path_follow_server = PathFollowActionServer(self._robot, graph, self.topic_follow_path) if graph is not None else None
+
+    @property
+    def topic_pose(self) -> str:
+        """Topic name for the world-frame pose publisher."""
+        return f'/{self._namespace}/pose'
 
     @property
     def topic_cmd_vel(self) -> str:
@@ -73,11 +77,6 @@ class TurtleBotNode:
     def topic_odom(self) -> str:
         """Topic name for the odometry subscriber."""
         return f'/{self._namespace}/odom'
-
-    @property
-    def topic_stop(self) -> str:
-        """Topic name for stop requests."""
-        return f'/{self._namespace}/stop'
 
     @property
     def topic_scan(self) -> str:
@@ -96,9 +95,9 @@ class TurtleBotNode:
 
     def start(self) -> None:
         """Start executor action servers."""
-        self._user_command_server.start()
-        if self._follow_path_server is not None:
-            self._follow_path_server.start()
+        self._motion_control_server.start()
+        if self._path_follow_server is not None:
+            self._path_follow_server.start()
         rospy.loginfo(f"TurtleBotNode for {self._robot.id} started.")
 
     def _on_odom(self, msg: Odometry) -> None:
@@ -107,10 +106,7 @@ class TurtleBotNode:
         self._state.pose.y = odom_pose.position.y + self._state.origin.y
         self._state.pose.theta = yaw_from_quaternion(odom_pose.orientation) + self._state.origin.theta
         self._state.velocity = msg.twist.twist
-
-    def _on_stop(self, _: Empty) -> None:
-        self._robot.stop()
-        rospy.logwarn(f"{self._robot.id}: stop received.")
+        self._pose_publisher.publish(self._state.get_pose())
 
     def _on_scan(self, message: LaserScan) -> None:
         detected = self._obstacle_detector.detect(message)

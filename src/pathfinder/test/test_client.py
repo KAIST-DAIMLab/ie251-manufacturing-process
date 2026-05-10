@@ -1,3 +1,4 @@
+from __future__ import annotations
 import math
 import os
 import sys
@@ -11,22 +12,21 @@ sys.path.insert(0, ROOT)
 
 def _install_ros_stubs():
     rospy = types.ModuleType('rospy')
-    rospy.publishers = []
-    rospy.sleep = lambda seconds: None
+    rospy.service_proxies = []
     rospy.loginfo = lambda msg: None
+    rospy.wait_for_service = lambda name: None
 
-    class Publisher:
-        def __init__(self, topic, msg_type, queue_size=10):
-            self.topic = topic
-            self.msg_type = msg_type
-            self.queue_size = queue_size
-            self.published = []
-            rospy.publishers.append(self)
+    class ServiceProxy:
+        def __init__(self, name, service_type):
+            self.name = name
+            self.calls = []
+            rospy.service_proxies.append(self)
 
-        def publish(self, msg):
-            self.published.append(msg)
+        def __call__(self, *args):
+            self.calls.append(args)
+            return types.SimpleNamespace(success=True, message='ok')
 
-    rospy.Publisher = Publisher
+    rospy.ServiceProxy = ServiceProxy
     sys.modules['rospy'] = rospy
 
     actionlib = types.ModuleType('actionlib')
@@ -35,7 +35,6 @@ def _install_ros_stubs():
     class SimpleActionClient:
         def __init__(self, name, action_type):
             self.name = name
-            self.action_type = action_type
             self.goal = None
             self.result = types.SimpleNamespace(success=True, message='ok')
             actionlib.clients.append(self)
@@ -55,21 +54,7 @@ def _install_ros_stubs():
     actionlib.SimpleActionClient = SimpleActionClient
     sys.modules['actionlib'] = actionlib
 
-    std_msgs = types.ModuleType('std_msgs')
-    std_msgs_msg = types.ModuleType('std_msgs.msg')
-    std_msgs_msg.Empty = object
-    sys.modules['std_msgs'] = std_msgs
-    sys.modules['std_msgs.msg'] = std_msgs_msg
-
     pathfinder_msg = types.ModuleType('pathfinder.msg')
-
-    class MoveToNodeAction:
-        pass
-
-    class MoveToNodeGoal:
-        def __init__(self):
-            self.robot_id = ''
-            self.target_node_id = 0
 
     class RobotCommandAction:
         pass
@@ -79,51 +64,59 @@ def _install_ros_stubs():
             self.command = ''
             self.value = 0.0
 
-    pathfinder_msg.MoveToNodeAction = MoveToNodeAction
-    pathfinder_msg.MoveToNodeGoal = MoveToNodeGoal
     pathfinder_msg.RobotCommandAction = RobotCommandAction
     pathfinder_msg.RobotCommandGoal = RobotCommandGoal
     sys.modules['pathfinder.msg'] = pathfinder_msg
 
+    pathfinder_srv = types.ModuleType('pathfinder.srv')
+
+    class MoveToNode:
+        pass
+
+    class CancelPath:
+        pass
+
+    pathfinder_srv.MoveToNode = MoveToNode
+    pathfinder_srv.CancelPath = CancelPath
+    sys.modules['pathfinder.srv'] = pathfinder_srv
+
 
 _install_ros_stubs()
 
+import rospy
+import actionlib
 from pathfinder.client.client import Client
 
 
 class ClientTest(unittest.TestCase):
     def setUp(self):
-        import actionlib
-        import rospy
+        rospy.service_proxies[:] = []
         actionlib.clients[:] = []
-        rospy.publishers[:] = []
 
-    def test_send_goal_still_targets_path_server(self):
+    def test_send_goal_calls_move_service_with_correct_args(self):
         client = Client()
 
         ok = client.send_goal('tb3_0', 5)
 
-        import actionlib
+        move_proxy = next(p for p in rospy.service_proxies if p.name == '/path_server/move_to_node')
         self.assertTrue(ok)
-        self.assertEqual(actionlib.clients[0].name, '/path_server/move_to_node')
-        self.assertEqual(actionlib.clients[0].goal.robot_id, 'tb3_0')
-        self.assertEqual(actionlib.clients[0].goal.target_node_id, 5)
+        self.assertEqual(len(move_proxy.calls), 1)
+        self.assertEqual(move_proxy.calls[0], ('tb3_0', 5))
 
-    def test_cancel_still_publishes_stop_topic(self):
+    def test_cancel_calls_cancel_service_with_robot_id(self):
         client = Client()
 
         client.cancel('tb3_0')
 
-        import rospy
-        self.assertEqual(rospy.publishers[0].topic, '/tb3_0/stop')
-        self.assertEqual(len(rospy.publishers[0].published), 1)
+        cancel_proxy = next(p for p in rospy.service_proxies if p.name == '/path_server/cancel_path')
+        self.assertEqual(len(cancel_proxy.calls), 1)
+        self.assertEqual(cancel_proxy.calls[0], ('tb3_0',))
 
     def test_turn_commands_convert_degrees_to_radians(self):
         client = Client()
 
         ok = client.send_command('tb3_0', 'turn_left', 90.0)
 
-        import actionlib
         self.assertTrue(ok)
         self.assertEqual(actionlib.clients[-1].name, '/tb3_0/user_command')
         self.assertEqual(actionlib.clients[-1].goal.command, 'turn_left')
@@ -134,7 +127,6 @@ class ClientTest(unittest.TestCase):
 
         ok = client.send_command('tb3_0', 'move_backward', 0.5)
 
-        import actionlib
         self.assertTrue(ok)
         self.assertEqual(actionlib.clients[-1].name, '/tb3_0/user_command')
         self.assertEqual(actionlib.clients[-1].goal.command, 'move_backward')

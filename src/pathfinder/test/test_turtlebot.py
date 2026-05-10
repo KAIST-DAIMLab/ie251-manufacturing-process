@@ -138,15 +138,6 @@ class TurtleBotTest(unittest.TestCase):
         self.assertEqual(state.status, RobotMode.IDLE)
         self.assertFalse(hasattr(state, 'stamp'))
 
-    def test_robot_state_can_be_created_from_odometry(self):
-        state = RobotState.from_odometry('tb3_0', _odom_msg(x=1.5, y=2.5, yaw=0.75, linear_x=0.4))
-
-        self.assertEqual(state.id, 'tb3_0')
-        self.assertEqual(state.pose.x, 1.5)
-        self.assertEqual(state.pose.y, 2.5)
-        self.assertAlmostEqual(state.pose.theta, 0.75)
-        self.assertEqual(state.velocity.linear.x, 0.4)
-
     def test_turtlebot_exposes_motion_controller(self):
         robot = _build_turtlebot()
 
