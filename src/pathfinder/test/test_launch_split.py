@@ -34,7 +34,7 @@ class LaunchSplitTest(unittest.TestCase):
             node for node in root.findall('node')
             if node.get('type') == 'robot_executor_node'
         ]
-        executor_manager = root.find("./node[@type='robot_executors_node']")
+        executor_manager = root.find("./node[@type='robot']")
 
         self.assertEqual(executor_nodes, [])
         self.assertIsNotNone(executor_manager)
@@ -55,7 +55,7 @@ class LaunchSplitTest(unittest.TestCase):
     def test_system_launch_loads_robot_config_for_runtime_nodes(self):
         root = _launch_tree('system.launch')
 
-        for node_type in ('path_server_node', 'robot_executors_node'):
+        for node_type in ('path_server', 'robot'):
             node = root.find(f"./node[@type='{node_type}']")
             robots_config = node.find("./rosparam[@file='$(arg robots_config)']")
             sim_param = node.find("./param[@name='sim']")

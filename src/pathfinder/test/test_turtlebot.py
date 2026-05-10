@@ -56,6 +56,7 @@ def _install_ros_stubs():
 
 _install_ros_stubs()
 
+from pathfinder.robot.motion_engine import MotionEngine
 from pathfinder.robot.motion_controller import MotionController
 from pathfinder.robot.path_follower import PathFollower
 from pathfinder.robot.robot_mode import RobotMode
@@ -98,10 +99,11 @@ def _odom_msg(x=1.0, y=2.0, yaw=0.5, linear_x=0.1, stamp='stamp'):
 def _build_turtlebot(robot_id='tb3_0', state=None):
     state = state or RobotState(id=robot_id)
     publisher = FakePublisher()
-    motion_controller = MotionController(
+    engine = MotionEngine(
         cmd_vel_publisher=publisher,
         pose_provider=state.get_pose,
     )
+    motion_controller = MotionController(engine)
     path_follower = PathFollower(motion_controller)
     return TurtleBot(
         robot_id,

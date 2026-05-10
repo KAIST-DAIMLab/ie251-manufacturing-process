@@ -1,89 +1,51 @@
 from __future__ import annotations
-import math
-from dataclasses import dataclass
-from typing import Callable, Protocol
 
-from geometry_msgs.msg import Pose2D, Twist
+import rospy
 
+from pathfinder.robot.motion_engine import MotionEngine
 from pathfinder.world.node import Node
 
 
-@dataclass(frozen=True)
-class MotionParameters:
-    """Tunable parameters shared by motion control methods."""
-    linear_speed: float = 0.22
-    angular_speed: float = 1.5
-    linear_gain: float = 0.5
-    angular_gain: float = 1.5
-    arrival_tolerance: float = 0.10
-    heading_tolerance: float = 0.1
-
-
-class CmdVelPublisher(Protocol):
-    """Structural type for any object that can publish a Twist message."""
-    def publish(self, twist: Twist) -> None: ...
-
-
 class MotionController:
-    """Single-tick proportional controller for waypoint and heading commands."""
+    """Control loop that drives MotionEngine until arrival, cancel, or shutdown."""
 
-    def __init__(
-        self,
-        cmd_vel_publisher: CmdVelPublisher,
-        pose_provider: Callable[[], Pose2D],
-        params: MotionParameters = MotionParameters(),
-    ) -> None:
-        self._cmd_vel_publisher = cmd_vel_publisher
-        self._pose_provider = pose_provider
-        self._params = params
+    def __init__(self, engine: MotionEngine, rate_hz: float = 5.0) -> None:
+        self._engine = engine
+        self._rate_hz = rate_hz
+        self._cancel = False
+        self._pause = False
 
-    def drive_towards(self, target: Node) -> bool:
-        """Publish one proportional cmd_vel toward target; True when within arrival tolerance."""
-        if self._get_distance(target) <= self._params.arrival_tolerance:
-            self._publish(0.0, 0.0)
-            return True
-
-        distance = self._get_distance(target)
-        angle = self._get_angle(target)
-        speed_angular = _clamp(self._params.angular_gain * angle, self._params.angular_speed)
-        speed_linear = min(self._params.linear_gain * distance, self._params.linear_speed) if abs(angle) <= self._params.heading_tolerance else 0.0
-
-        self._publish(speed_linear, speed_angular)
+    def drive_to(self, target: Node) -> bool:
+        """Loop engine.drive_towards until arrival or cancel; honors pause."""
+        self._cancel = False
+        rate = rospy.Rate(self._rate_hz)
+        while not rospy.is_shutdown() and not self._cancel:
+            while self._pause:
+                self._engine.stop()
+                rate.sleep()
+                
+            if self._engine.drive_towards(target):
+                return True
+            rate.sleep()
+            
         return False
 
-    def turn_towards(self, rad: float) -> bool:
-        """Publish one proportional angular cmd_vel toward absolute heading rad."""
-        angle = _wrap_to_pi(rad - self._pose_provider().theta)
-        if abs(angle) <= self._params.heading_tolerance:
-            self._publish(0.0, 0.0)
-            return True
-
-        speed_angular = _clamp(self._params.angular_gain * angle, self._params.angular_speed)
-        self._publish(0.0, speed_angular)
+    def turn_to(self, heading: float) -> bool:
+        """Loop engine.turn_towards until aligned or cancel; does not honor pause."""
+        self._cancel = False
+        rate = rospy.Rate(self._rate_hz)
+        while not rospy.is_shutdown() and not self._cancel:
+            if self._engine.turn_towards(heading):
+                return True
+            rate.sleep()
         return False
 
     def stop(self) -> None:
-        """Publish a zero Twist to halt the robot."""
-        self._publish(0.0, 0.0)
+        """Cancel any in-flight drive_to or turn_to and halt the engine."""
+        self._cancel = True
+        self._pause = False
+        self._engine.stop()
 
-    def _get_distance(self, target: Node) -> float:
-        pose = self._pose_provider()
-        return math.hypot(target.x - pose.x, target.y - pose.y)
-
-    def _get_angle(self, target: Node) -> float:
-        pose = self._pose_provider()
-        return _wrap_to_pi(math.atan2(target.y - pose.y, target.x - pose.x) - pose.theta)
-
-    def _publish(self, linear_x: float, angular_z: float) -> None:
-        twist = Twist()
-        twist.linear.x = linear_x
-        twist.angular.z = angular_z
-        self._cmd_vel_publisher.publish(twist)
-
-
-def _wrap_to_pi(radian: float) -> float:
-    return math.atan2(math.sin(radian), math.cos(radian))
-
-
-def _clamp(value: float, limit: float) -> float:
-    return max(-limit, min(limit, value))
+    def set_pause(self, paused: bool) -> None:
+        """Pause or resume drive_to; has no effect on turn_to."""
+        self._pause = paused

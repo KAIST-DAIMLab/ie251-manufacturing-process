@@ -6,6 +6,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   geometry_msgs
   nav_msgs
+  sensor_msgs
   actionlib
   actionlib_msgs
   message_generation
@@ -33,18 +34,19 @@ catkin_package(
     std_msgs
     geometry_msgs
     nav_msgs
+    sensor_msgs
     actionlib
     actionlib_msgs
     message_runtime
 )
 
 install(PROGRAMS
-  scripts/path_server_node
-  scripts/robot_executors_node
-  scripts/spawn_simulation_robots
-  scripts/spawn_simulation_markers
+  scripts/path_server
+  scripts/robot
+  scripts/simulation_robots
+  scripts/simulation_markers
   scripts/client
-  scripts/run_simulation
+  scripts/simulation
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
@@ -56,4 +58,5 @@ if(CATKIN_ENABLE_TESTING)
   catkin_add_nosetests(test/test_physics_utils.py)
   catkin_add_nosetests(test/test_turtlebot.py)
   catkin_add_nosetests(test/test_client.py)
+  catkin_add_nosetests(test/test_obstacle_detector.py)
 endif()
