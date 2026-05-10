@@ -10,12 +10,17 @@ sys.path.insert(0, ROOT)
 from pathfinder.world.node import Node
 from pathfinder.world.edge import Edge
 from pathfinder.world.graph import Graph
+from pathfinder.world.robot import Robot, MotionConfig, ObstacleConfig
 from pathfinder.planning.path_orchestrator import (
     PathOrchestrator,
     UnknownRobotError,
     NodeNotFoundError,
     NoPathError,
 )
+
+
+def _make_robot(robot_id: str = 'tb3_0') -> Robot:
+    return Robot(id=robot_id, start_node=1, yaw=0.0, motion=MotionConfig(), obstacle=ObstacleConfig())
 
 
 def _make_graph() -> Graph:
@@ -50,7 +55,7 @@ class TestPathOrchestratorHappyPath(unittest.TestCase):
         graph = _make_graph()
         expected_nodes = [graph.get_node(1), graph.get_node(2), graph.get_node(3)]
         planner = FixedPathPlanner(expected_nodes)
-        orchestrator = PathOrchestrator(graph, planner, known_robots=['tb3_0'])
+        orchestrator = PathOrchestrator(graph, planner, known_robots=[_make_robot()])
 
         pose = types.SimpleNamespace(x=0.5, y=0.0)
         result = orchestrator.plan('tb3_0', pose, target_node_id=3)
@@ -66,7 +71,7 @@ class TestPathOrchestratorHappyPath(unittest.TestCase):
                 received_starts.append(start)
                 return [start, goal]
 
-        orchestrator = PathOrchestrator(graph, CapturingPlanner(), known_robots=['tb3_0'])
+        orchestrator = PathOrchestrator(graph, CapturingPlanner(), known_robots=[_make_robot()])
         pose = types.SimpleNamespace(x=5.8, y=0.0)
         orchestrator.plan('tb3_0', pose, target_node_id=1)
 
@@ -76,7 +81,7 @@ class TestPathOrchestratorHappyPath(unittest.TestCase):
 class TestPathOrchestratorErrors(unittest.TestCase):
     def test_unknown_robot_raises_unknown_robot_error(self):
         graph = _make_graph()
-        orchestrator = PathOrchestrator(graph, FixedPathPlanner([]), known_robots=['tb3_0'])
+        orchestrator = PathOrchestrator(graph, FixedPathPlanner([]), known_robots=[_make_robot()])
 
         pose = types.SimpleNamespace(x=0.0, y=0.0)
         with self.assertRaises(UnknownRobotError):
@@ -84,7 +89,7 @@ class TestPathOrchestratorErrors(unittest.TestCase):
 
     def test_missing_target_node_raises_node_not_found_error(self):
         graph = _make_graph()
-        orchestrator = PathOrchestrator(graph, FixedPathPlanner([]), known_robots=['tb3_0'])
+        orchestrator = PathOrchestrator(graph, FixedPathPlanner([]), known_robots=[_make_robot()])
 
         pose = types.SimpleNamespace(x=0.0, y=0.0)
         with self.assertRaises(NodeNotFoundError):
@@ -92,7 +97,7 @@ class TestPathOrchestratorErrors(unittest.TestCase):
 
     def test_no_path_raises_no_path_error(self):
         graph = _make_graph()
-        orchestrator = PathOrchestrator(graph, FailingPlanner(), known_robots=['tb3_0'])
+        orchestrator = PathOrchestrator(graph, FailingPlanner(), known_robots=[_make_robot()])
 
         pose = types.SimpleNamespace(x=0.0, y=0.0)
         with self.assertRaises(NoPathError):
