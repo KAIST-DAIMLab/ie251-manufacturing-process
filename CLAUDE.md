@@ -89,6 +89,17 @@ Two files in [config/](src/pathfinder/config/):
 
 The launch files currently inline these as `<param>` tags rather than loading `params.yaml`. If you change a default, update both [launch/simulation.launch](src/pathfinder/launch/simulation.launch) and [launch/robots.launch](src/pathfinder/launch/robots.launch).
 
+## Code quality rules (binding)
+
+These exist because past output drifted from them and required dozens of follow-up refactor commits. Treat them as pre-commit constraints, not aspirations.
+
+- **Framework at the edges.** Anything importing `rospy` belongs only in [src/pathfinder/src/pathfinder/ros/](src/pathfinder/src/pathfinder/ros/) and acts as a thin adapter (subscribers, publishers, action servers, lifecycle). Domain logic must run with `rospy` removed and be unit-testable without a roscore. If a new class needs `rospy` AND has logic worth testing, split it.
+- **One responsibility per class.** Pick from {I/O adapter, domain logic, state container, coordinator, lifecycle owner}. If a class spans two of these, split it before the first commit, not after a god-class refactor request.
+- **Dependency injection over construction-inside-class.** Classes accept their collaborators (planner, graph, controller, publisher) as constructor arguments. Wiring happens in `*Node` adapters or `scripts/`.
+- **Every numeric tunable lives in `robots.yaml` or `params.yaml`** and is threaded YAML → dataclass (`MotionConfig`/`ObstacleConfig` in [world/robot.py](src/pathfinder/src/pathfinder/world/robot.py)) → script (`scripts/robot`) → node constructor in the same change. Hardcoded literals in constructors are bugs unless they are mathematical constants.
+- **No speculative abstractions.** Don't add a class, lock, dict, parameter, or layer until the *current* code requires it. Removing a wrong abstraction costs more than adding it when the need actually appears.
+- **No placeholder code.** If a class has no real implementation, no callers, or duplicates existing functionality, it doesn't ship. Diagrams describe what *exists*, not what was once planned.
+
 ## Conventions
 
 - Robot namespaces are `tb3_0` and `tb3_1` everywhere (topics, action names, params). The README's collision-avoidance example only fires when both clients run within ~1 s of each other.
