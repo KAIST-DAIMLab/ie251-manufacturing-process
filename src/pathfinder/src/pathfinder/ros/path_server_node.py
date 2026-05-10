@@ -19,7 +19,6 @@ class PathServerNode:
         self,
         graph: Graph,
         robots: list[Robot],
-        sim: bool,
     ) -> None:
         """Assemble all path-server components from the given configuration values."""
         planner = AStarPlanner(graph)
