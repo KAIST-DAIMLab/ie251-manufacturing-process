@@ -1,5 +1,6 @@
 from __future__ import annotations
 import math
+import rospy
 from sensor_msgs.msg import LaserScan
 
 
@@ -25,10 +26,15 @@ class ObstacleDetector:
         front = round(-scan.angle_min / scan.angle_increment) % n
         detect_ranges = [ranges[(front + i) % n] for i in range(-self._half_degree, self._half_degree + 1)]
 
+        count = 0
         for distance in detect_ranges:
             if math.isnan(distance) or math.isinf(distance):
                 continue
+            if distance <= 0:
+                continue
             if distance < self._stop_distance:
+                count += 1
+            if count > 4:
                 return True
 
         return False

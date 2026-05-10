@@ -8,7 +8,7 @@ robots:
       rate_hz: 5.0
     obstacle:
       enabled: true
-      stop_distance: 0.5
+      stop_distance: 0.4
   - id: tb3_05
     start_node: 4
     yaw: 0.0
@@ -18,4 +18,4 @@ robots:
       rate_hz: 5.0
     obstacle:
       enabled: true
-      stop_distance: 0.5
+      stop_distance: 0.4
