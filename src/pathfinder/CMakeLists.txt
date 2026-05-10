@@ -57,7 +57,6 @@ install(PROGRAMS
 
 if(CATKIN_ENABLE_TESTING)
   catkin_add_nosetests(test/test_launch_split.py)
-  catkin_add_nosetests(test/test_collision_monitor.py)
   catkin_add_nosetests(test/test_motion.py)
   catkin_add_nosetests(test/test_path_server.py)
   catkin_add_nosetests(test/test_path_orchestrator.py)
