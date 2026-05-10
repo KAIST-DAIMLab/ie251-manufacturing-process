@@ -3,7 +3,7 @@ from typing import cast
 import rospy
 from pathfinder.ros.path_server_node import PathServerNode
 from pathfinder.world.graph import Graph
-from pathfinder.world.robot_config import Robot
+from pathfinder.world.robot import Robot
 
 
 def main():

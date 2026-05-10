@@ -10,7 +10,7 @@ from pathfinder.ros.path_follow_action_client import PathFollowActionClient
 from pathfinder.ros.path_request_service import PathRequestService
 from pathfinder.ros.pose_tracker import PoseTracker
 from pathfinder.world.graph import Graph
-from pathfinder.world.robot_config import Robot
+from pathfinder.world.robot import Robot
 
 
 class PathServerNode:

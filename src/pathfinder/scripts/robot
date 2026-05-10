@@ -7,7 +7,7 @@ import rospy
 from pathfinder.robot.motion_engine import MotionParameters
 from pathfinder.ros.turtlebot_node import TurtleBotNode
 from pathfinder.world.graph import Graph
-from pathfinder.world.robot_config import Robot
+from pathfinder.world.robot import Robot
 from geometry_msgs.msg import Pose2D
 
 
