@@ -6,7 +6,7 @@ import rospy
 from pathfinder.planning.path_orchestrator import PathOrchestrator, UnknownRobotError, NodeNotFoundError, NoPathError
 from pathfinder.ros.path_follow_action_client import PathFollowActionClient
 from pathfinder.ros.pose_tracker import PoseTracker
-from pathfinder.srv import MoveToNode, MoveToNodeResponse, CancelPath, CancelPathResponse  # type: ignore[import]
+from pathfinder.srv import MoveToNode, MoveToNodeRequest, MoveToNodeResponse, CancelPath, CancelPathRequest, CancelPathResponse  # type: ignore[import]
 
 
 class PathRequestService:
@@ -35,7 +35,7 @@ class PathRequestService:
         rospy.Service(self._cancel_service_name, CancelPath, self._handle_cancel)
         rospy.loginfo("PathRequestService started.")
 
-    def _handle_move(self, request) -> MoveToNodeResponse:
+    def _handle_move(self, request: MoveToNodeRequest) -> MoveToNodeResponse:
         """Plan a path and dispatch it to the robot's FollowPath action server."""
         robot_id = request.robot_id
         if robot_id not in self._clients:
@@ -59,7 +59,7 @@ class PathRequestService:
 
         return MoveToNodeResponse(success=True, message=f"dispatched {len(node_ids)} waypoints")
 
-    def _handle_cancel(self, request) -> CancelPathResponse:
+    def _handle_cancel(self, request: CancelPathRequest) -> CancelPathResponse:
         """Cancel any in-flight FollowPath goal for the given robot."""
         robot_id = request.robot_id
         if robot_id not in self._clients:

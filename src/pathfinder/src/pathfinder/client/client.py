@@ -18,6 +18,8 @@ _TURN_COMMANDS = {'turn_left', 'turn_right'}
 
 
 class Client:
+    """User-facing client: sends MoveToNode service calls and user commands to robots."""
+
     def __init__(self) -> None:
         self._move_proxy = rospy.ServiceProxy('/path_server/move_to_node', MoveToNode)
         self._cancel_proxy = rospy.ServiceProxy('/path_server/cancel_path', CancelPath)
