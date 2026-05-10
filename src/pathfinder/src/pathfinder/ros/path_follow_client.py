@@ -7,7 +7,7 @@ if TYPE_CHECKING:
     from pathfinder.msg import FollowPathFeedback, FollowPathResult
 
 
-class FollowPathClient:
+class PathFollowClient:
     """Wraps an actionlib client; runs a synchronous dispatch with feedback and cancel callbacks."""
 
     def __init__(self, action_namespace: str) -> None:

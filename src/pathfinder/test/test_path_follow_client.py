@@ -55,7 +55,7 @@ def _install_ros_stubs():
 
 _install_ros_stubs()
 
-from pathfinder.ros.follow_path_client import FollowPathClient  # noqa: E402
+from pathfinder.ros.path_follow_client import PathFollowClient  # noqa: E402
 
 
 class FakeActionClient:
@@ -93,13 +93,13 @@ class FakeActionClient:
 
 
 def _make_client_with_fake(fake_action_client):
-    """Return a FollowPathClient whose internal actionlib client is replaced by the fake."""
-    client = FollowPathClient.__new__(FollowPathClient)
+    """Return a PathFollowClient whose internal actionlib client is replaced by the fake."""
+    client = PathFollowClient.__new__(PathFollowClient)
     client._client = fake_action_client
     return client
 
 
-class TestFollowPathClientDispatch(unittest.TestCase):
+class TestPathFollowClientDispatch(unittest.TestCase):
     def test_returns_result_when_server_available_and_goal_succeeds(self):
         fake = FakeActionClient()
         from pathfinder.msg import FollowPathResult

@@ -131,7 +131,7 @@ class FakeOrchestrator:
         return self._node_ids
 
 
-class FakeFollowPathClient:
+class FakePathFollowClient:
     """Returns a fixed result or None."""
 
     def __init__(self, result=None):
@@ -150,7 +150,7 @@ class PathRequestActionServerTest(unittest.TestCase):
 
         orchestrator = FakeOrchestrator(node_ids=[1, 2, 3])
         follow_result = types.SimpleNamespace(success=True, message='done')
-        client = FakeFollowPathClient(result=follow_result)
+        client = FakePathFollowClient(result=follow_result)
         robot_locks = {robot_id: threading.Lock()}
 
         server = PathRequestActionServer(
@@ -178,7 +178,7 @@ class PathRequestActionServerTest(unittest.TestCase):
         robot_id = 'tb3_0'
         tracker = PoseTracker(timeout_sec=0.01)
         orchestrator = FakeOrchestrator()
-        client = FakeFollowPathClient()
+        client = FakePathFollowClient()
         robot_locks = {robot_id: threading.Lock()}
 
         server = PathRequestActionServer(
@@ -200,7 +200,7 @@ class PathRequestActionServerTest(unittest.TestCase):
         tracker = PoseTracker(timeout_sec=1.0)
         tracker.update(robot_id, types.SimpleNamespace(x=0.0, y=0.0, theta=0.0))
         orchestrator = FakeOrchestrator(raises=UnknownRobotError("unknown robot: tb3_0"))
-        client = FakeFollowPathClient()
+        client = FakePathFollowClient()
         robot_locks = {robot_id: threading.Lock()}
 
         server = PathRequestActionServer(
@@ -222,7 +222,7 @@ class PathRequestActionServerTest(unittest.TestCase):
         tracker = PoseTracker(timeout_sec=1.0)
         tracker.update(robot_id, types.SimpleNamespace(x=0.0, y=0.0, theta=0.0))
         orchestrator = FakeOrchestrator(raises=NoPathError("no path exists"))
-        client = FakeFollowPathClient()
+        client = FakePathFollowClient()
         robot_locks = {robot_id: threading.Lock()}
 
         server = PathRequestActionServer(
@@ -244,7 +244,7 @@ class PathRequestActionServerTest(unittest.TestCase):
         tracker = PoseTracker(timeout_sec=1.0)
         tracker.update(robot_id, types.SimpleNamespace(x=0.0, y=0.0, theta=0.0))
         orchestrator = FakeOrchestrator(raises=NodeNotFoundError("node 99 not found"))
-        client = FakeFollowPathClient()
+        client = FakePathFollowClient()
         robot_locks = {robot_id: threading.Lock()}
 
         server = PathRequestActionServer(
@@ -266,7 +266,7 @@ class PathRequestActionServerTest(unittest.TestCase):
         tracker = PoseTracker(timeout_sec=1.0)
         tracker.update(robot_id, types.SimpleNamespace(x=0.0, y=0.0, theta=0.0))
         orchestrator = FakeOrchestrator(node_ids=[1, 2])
-        client = FakeFollowPathClient(result=None)
+        client = FakePathFollowClient(result=None)
         robot_locks = {robot_id: threading.Lock()}
 
         server = PathRequestActionServer(

@@ -6,7 +6,7 @@ import actionlib
 from actionlib_msgs.msg import GoalStatus
 
 from pathfinder.planning.path_orchestrator import PathOrchestrator, UnknownRobotError, NodeNotFoundError, NoPathError
-from pathfinder.ros.follow_path_client import FollowPathClient
+from pathfinder.ros.path_follow_client import PathFollowClient
 from pathfinder.ros.pose_tracker import PoseTracker
 
 
@@ -17,7 +17,7 @@ class PathRequestActionServer:
         self,
         orchestrator: PathOrchestrator,
         tracker: PoseTracker,
-        clients: dict[str, FollowPathClient],
+        clients: dict[str, PathFollowClient],
         robot_locks: dict[str, threading.Lock],
         topic: str,
     ) -> None:

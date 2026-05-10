@@ -6,7 +6,7 @@ from nav_msgs.msg import Odometry
 
 from pathfinder.planning.path_orchestrator import PathOrchestrator
 from pathfinder.robot.robot_state import RobotState
-from pathfinder.ros.follow_path_client import FollowPathClient
+from pathfinder.ros.path_follow_client import PathFollowClient
 from pathfinder.ros.path_request_action_server import PathRequestActionServer
 from pathfinder.ros.pose_tracker import PoseTracker
 
@@ -18,7 +18,7 @@ class PathServerNode:
         self,
         orchestrator: PathOrchestrator,
         tracker: PoseTracker,
-        clients: dict[str, FollowPathClient],
+        clients: dict[str, PathFollowClient],
         robot_odom_topics: dict[str, str],
     ) -> None:
         """Create per-robot locks and assemble the PathRequestActionServer."""
