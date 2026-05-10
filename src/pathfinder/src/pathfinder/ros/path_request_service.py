@@ -12,27 +12,26 @@ from pathfinder.srv import MoveToNode, MoveToNodeRequest, MoveToNodeResponse, Ca
 class PathRequestService:
     """Service handler for MoveToNode and CancelPath: plans routes and dispatches to PathFollowActionServer."""
 
+    MOVE_SERVICE_NAME = '/path_server/move_to_node'
+    CANCEL_SERVICE_NAME = '/path_server/cancel_path'
+
     def __init__(
         self,
         orchestrator: PathOrchestrator,
         tracker: PoseTracker,
         clients: dict[str, PathFollowActionClient],
         robot_locks: dict[str, threading.Lock],
-        move_service_name: str,
-        cancel_service_name: str,
     ) -> None:
         """Store injected planning and dispatch components."""
         self._orchestrator = orchestrator
         self._tracker = tracker
         self._clients = clients
         self._robot_locks = robot_locks
-        self._move_service_name = move_service_name
-        self._cancel_service_name = cancel_service_name
 
     def start(self) -> None:
         """Register the MoveToNode and CancelPath services."""
-        rospy.Service(self._move_service_name, MoveToNode, self._handle_move)
-        rospy.Service(self._cancel_service_name, CancelPath, self._handle_cancel)
+        rospy.Service(self.MOVE_SERVICE_NAME, MoveToNode, self._handle_move)
+        rospy.Service(self.CANCEL_SERVICE_NAME, CancelPath, self._handle_cancel)
         rospy.loginfo("PathRequestService started.")
 
     def _handle_move(self, request: MoveToNodeRequest) -> MoveToNodeResponse:

@@ -139,8 +139,6 @@ class PathRequestServiceTest(unittest.TestCase):
             tracker=tracker,
             clients={robot_id: client},
             robot_locks=robot_locks,
-            move_service_name='/path_server/move_to_node',
-            cancel_service_name='/path_server/cancel_path',
         )
         return service, orchestrator, client
 
@@ -187,8 +185,6 @@ class PathRequestServiceTest(unittest.TestCase):
             tracker=tracker,
             clients={robot_id: client},
             robot_locks=robot_locks,
-            move_service_name='/path_server/move_to_node',
-            cancel_service_name='/path_server/cancel_path',
         )
 
         response = service._handle_move(MoveToNodeRequest(robot_id=robot_id, target_node_id=3))

@@ -25,11 +25,7 @@ class PathServerNode:
         self._tracker = tracker
         self._robot_odom_topics = robot_odom_topics
         robot_locks = {robot_id: threading.Lock() for robot_id in clients}
-        self._request_server = PathRequestService(
-            orchestrator, tracker, clients, robot_locks,
-            move_service_name='/path_server/move_to_node',
-            cancel_service_name='/path_server/cancel_path',
-        )
+        self._request_server = PathRequestService(orchestrator, tracker, clients, robot_locks)
 
     def start(self) -> None:
         """Register odom subscribers and start the PathRequestService."""
