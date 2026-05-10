@@ -1,11 +1,9 @@
+from __future__ import annotations
 import os
 import sys
 import threading
-import time
 import types
 import unittest
-import math
-
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src'))
 sys.path.insert(0, ROOT)
@@ -16,6 +14,7 @@ def _install_ros_stubs():
     rospy.Duration = lambda seconds: seconds
     rospy.Time = types.SimpleNamespace(now=lambda: 0)
     rospy.is_shutdown = lambda: False
+    rospy.loginfo = lambda message: None
     sys.modules['rospy'] = rospy
 
     geometry_msgs = types.ModuleType('geometry_msgs')
@@ -66,81 +65,186 @@ def _install_ros_stubs():
             self.success = False
             self.message = ''
 
+    class MoveToNodeFeedback:
+        def __init__(self):
+            self.current_node_id = -1
+            self.nodes_remaining = 0
+
     pathfinder_msg.RobotState = object
     pathfinder_msg.MoveToNodeResult = MoveToNodeResult
+    pathfinder_msg.MoveToNodeFeedback = MoveToNodeFeedback
     sys.modules['pathfinder.msg'] = pathfinder_msg
 
 
 _install_ros_stubs()
 
-from pathfinder.planning.path_server import PathServer
-from pathfinder.world.node import Node
-
-
-class FakeGraph:
-    def __init__(self):
-        self._nodes = [
-            Node(id=0, x=0.0, y=0.0),
-            Node(id=1, x=10.0, y=0.0),
-        ]
-
-    def all_nodes(self):
-        return self._nodes
+from pathfinder.ros.path_server_node import PathServerNode
+from pathfinder.planning.path_orchestrator import PathOrchestrator, UnknownRobotError, NoPathError
+from pathfinder.ros.pose_tracker import PoseTracker
 
 
 class FakeGoalHandle:
-    def __init__(self):
+    """Minimal stand-in for a ROS goal handle."""
+
+    def __init__(self, robot_id: str, target_node_id: int, status: int = 1):
+        self._robot_id = robot_id
+        self._target_node_id = target_node_id
+        self._status = status
         self.aborted_message = None
+        self.succeeded_message = None
+        self.canceled = False
+
+    def get_goal(self):
+        return types.SimpleNamespace(
+            robot_id=self._robot_id,
+            target_node_id=self._target_node_id,
+        )
+
+    def get_goal_status(self):
+        return types.SimpleNamespace(status=self._status)
 
     def set_aborted(self, result):
         self.aborted_message = result.message
 
+    def set_succeeded(self, result):
+        self.succeeded_message = result.message
 
-def _odom_msg(x=1.0, y=2.0, yaw=0.5, linear_x=0.1):
-    half = yaw / 2.0
-    return types.SimpleNamespace(
-        pose=types.SimpleNamespace(
-            pose=types.SimpleNamespace(
-                position=types.SimpleNamespace(x=x, y=y),
-                orientation=types.SimpleNamespace(
-                    x=0.0,
-                    y=0.0,
-                    z=math.sin(half),
-                    w=math.cos(half),
-                ),
-            )
-        ),
-        twist=types.SimpleNamespace(
-            twist=types.SimpleNamespace(
-                linear=types.SimpleNamespace(x=linear_x),
-                angular=types.SimpleNamespace(z=0.0),
-            )
-        ),
-    )
+    def set_canceled(self):
+        self.canceled = True
+
+    def publish_feedback(self, feedback):
+        pass
 
 
-class PathServerTest(unittest.TestCase):
-    def test_waits_briefly_for_first_odom_before_resolving_start_node(self):
-        server = PathServer(
-            FakeGraph(),
-            planner=None,
-            robot_namespaces=['tb3_0'],
+class FakeOrchestrator:
+    """Returns a fixed node_ids list or raises a given exception."""
+
+    def __init__(self, node_ids=None, raises=None):
+        self._node_ids = node_ids or [1, 2, 3]
+        self._raises = raises
+        self.calls = []
+
+    def plan(self, robot_id, pose, target_node_id):
+        self.calls.append((robot_id, pose, target_node_id))
+        if self._raises is not None:
+            raise self._raises
+        return self._node_ids
+
+
+class FakeFollowPathClient:
+    """Returns a fixed result or None."""
+
+    def __init__(self, result=None):
+        self._result = result
+        self.dispatched_node_ids = None
+
+    def dispatch(self, node_ids, on_feedback, is_canceled):
+        self.dispatched_node_ids = node_ids
+        return self._result
+
+
+class PathServerNodeTest(unittest.TestCase):
+    def _make_node(self, robot_id='tb3_0', target_node_id=3):
+        tracker = PoseTracker(timeout_sec=1.0)
+        tracker.update(robot_id, types.SimpleNamespace(x=0.0, y=0.0, theta=0.0))
+
+        orchestrator = FakeOrchestrator(node_ids=[1, 2, 3])
+        follow_result = types.SimpleNamespace(success=True, message='done')
+        client = FakeFollowPathClient(result=follow_result)
+
+        server = PathServerNode(
+            orchestrator=orchestrator,
+            tracker=tracker,
+            clients={robot_id: client},
+            robot_odom_topics={robot_id: f'/{robot_id}/odom'},
         )
-        goal_handle = FakeGoalHandle()
+        return server, orchestrator, client
 
-        def publish_odom():
-            time.sleep(0.05)
-            server._on_odom('tb3_0', _odom_msg(x=9.5, y=0.0))
+    def test_execute_calls_tracker_orchestrator_and_client(self):
+        server, orchestrator, client = self._make_node()
+        goal_handle = FakeGoalHandle(robot_id='tb3_0', target_node_id=3)
 
-        thread = threading.Thread(target=publish_odom)
-        thread.start()
+        server._execute(goal_handle)
 
-        node = server._resolve_start_node('tb3_0', goal_handle)
-        thread.join()
+        self.assertEqual(len(orchestrator.calls), 1)
+        self.assertEqual(orchestrator.calls[0][0], 'tb3_0')
+        self.assertEqual(orchestrator.calls[0][2], 3)
+        self.assertEqual(client.dispatched_node_ids, [1, 2, 3])
+        self.assertEqual(goal_handle.succeeded_message, 'done')
 
-        self.assertIsNotNone(node)
-        self.assertEqual(node.id, 1)
-        self.assertIsNone(goal_handle.aborted_message)
+    def test_execute_aborts_when_tracker_returns_none(self):
+        tracker = PoseTracker(timeout_sec=0.01)
+        orchestrator = FakeOrchestrator()
+        client = FakeFollowPathClient()
+
+        server = PathServerNode(
+            orchestrator=orchestrator,
+            tracker=tracker,
+            clients={'tb3_0': client},
+            robot_odom_topics={'tb3_0': '/tb3_0/odom'},
+        )
+        goal_handle = FakeGoalHandle(robot_id='tb3_0', target_node_id=3)
+
+        server._execute(goal_handle)
+
+        self.assertIn('no state received from tb3_0', goal_handle.aborted_message)
+        self.assertIsNone(client.dispatched_node_ids)
+
+    def test_execute_aborts_on_unknown_robot_error(self):
+        tracker = PoseTracker(timeout_sec=1.0)
+        tracker.update('tb3_0', types.SimpleNamespace(x=0.0, y=0.0, theta=0.0))
+        orchestrator = FakeOrchestrator(raises=UnknownRobotError("unknown robot: tb3_0"))
+        client = FakeFollowPathClient()
+
+        server = PathServerNode(
+            orchestrator=orchestrator,
+            tracker=tracker,
+            clients={'tb3_0': client},
+            robot_odom_topics={'tb3_0': '/tb3_0/odom'},
+        )
+        goal_handle = FakeGoalHandle(robot_id='tb3_0', target_node_id=3)
+
+        server._execute(goal_handle)
+
+        self.assertIn('unknown robot', goal_handle.aborted_message)
+        self.assertIsNone(client.dispatched_node_ids)
+
+    def test_execute_aborts_on_no_path_error(self):
+        tracker = PoseTracker(timeout_sec=1.0)
+        tracker.update('tb3_0', types.SimpleNamespace(x=0.0, y=0.0, theta=0.0))
+        orchestrator = FakeOrchestrator(raises=NoPathError("no path exists"))
+        client = FakeFollowPathClient()
+
+        server = PathServerNode(
+            orchestrator=orchestrator,
+            tracker=tracker,
+            clients={'tb3_0': client},
+            robot_odom_topics={'tb3_0': '/tb3_0/odom'},
+        )
+        goal_handle = FakeGoalHandle(robot_id='tb3_0', target_node_id=3)
+
+        server._execute(goal_handle)
+
+        self.assertIn('no path exists', goal_handle.aborted_message)
+        self.assertIsNone(client.dispatched_node_ids)
+
+    def test_execute_aborts_when_client_returns_none(self):
+        tracker = PoseTracker(timeout_sec=1.0)
+        tracker.update('tb3_0', types.SimpleNamespace(x=0.0, y=0.0, theta=0.0))
+        orchestrator = FakeOrchestrator(node_ids=[1, 2])
+        client = FakeFollowPathClient(result=None)
+
+        server = PathServerNode(
+            orchestrator=orchestrator,
+            tracker=tracker,
+            clients={'tb3_0': client},
+            robot_odom_topics={'tb3_0': '/tb3_0/odom'},
+        )
+        goal_handle = FakeGoalHandle(robot_id='tb3_0', target_node_id=2)
+
+        server._execute(goal_handle)
+
+        self.assertIsNotNone(goal_handle.aborted_message)
 
 
 if __name__ == '__main__':

@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
-from typing import List, cast
+from typing import cast
 import rospy
 from pathfinder.world.graph import Graph
 from pathfinder.planning.a_star_planner import AStarPlanner
-from pathfinder.planning.path_server import PathServer
+from pathfinder.planning.path_orchestrator import PathOrchestrator
+from pathfinder.ros.pose_tracker import PoseTracker
+from pathfinder.ros.follow_path_client import FollowPathClient
+from pathfinder.ros.path_server_node import PathServerNode
 from pathfinder.safety.linear_predictor import LinearPredictor
 from pathfinder.safety.collision_monitor import CollisionMonitor
 
@@ -19,20 +22,26 @@ def main():
     robots = cast(list, rospy.get_param('~robots'))
     robot_ids = [r['id'] for r in robots]
     robot_odom_topics = {
-        rid: f"/{rid}/sim/odom" if sim else f"/{rid}/odom"
-        for rid in robot_ids
+        robot_id: f"/{robot_id}/sim/odom" if sim else f"/{robot_id}/odom"
+        for robot_id in robot_ids
     }
     robot_stop_topics = {
-        rid: f"/{rid}/sim/stop" if sim else f"/{rid}/stop"
-        for rid in robot_ids
+        robot_id: f"/{robot_id}/sim/stop" if sim else f"/{robot_id}/stop"
+        for robot_id in robot_ids
     }
     robot_action_namespaces = {
-        rid: f"{rid}/sim" if sim else rid
-        for rid in robot_ids
+        robot_id: f"{robot_id}/sim" if sim else robot_id
+        for robot_id in robot_ids
     }
 
     graph = Graph.load_from_yaml(graph_file)
     planner = AStarPlanner(graph)
+    orchestrator = PathOrchestrator(graph, planner, known_robots=robot_ids)
+    tracker = PoseTracker()
+    clients = {
+        robot_id: FollowPathClient(robot_action_namespaces[robot_id])
+        for robot_id in robot_ids
+    }
     predictor = LinearPredictor(safety_radius, time_step)
     monitor = CollisionMonitor(
         predictor,
@@ -42,12 +51,11 @@ def main():
         robot_odom_topics=robot_odom_topics,
         robot_stop_topics=robot_stop_topics,
     )
-    server = PathServer(
-        graph,
-        planner,
-        robot_ids,
+    server = PathServerNode(
+        orchestrator,
+        tracker,
+        clients,
         robot_odom_topics=robot_odom_topics,
-        robot_action_namespaces=robot_action_namespaces,
     )
     monitor.start()
     server.start()
