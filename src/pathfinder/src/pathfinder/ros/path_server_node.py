@@ -17,7 +17,7 @@ class PathServerNode:
 
     def __init__(
         self,
-        graph_file: str,
+        graph: Graph,
         robots: list[dict],
         sim: bool,
     ) -> None:
@@ -32,7 +32,6 @@ class PathServerNode:
             for robot_id in robot_ids
         }
 
-        graph = Graph.load_from_yaml(graph_file)
         planner = AStarPlanner(graph)
         orchestrator = PathOrchestrator(graph, planner, known_robots=robot_ids)
         tracker = PoseTracker()

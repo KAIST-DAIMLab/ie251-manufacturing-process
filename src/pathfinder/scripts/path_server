@@ -2,6 +2,7 @@
 from typing import cast
 import rospy
 from pathfinder.ros.path_server_node import PathServerNode
+from pathfinder.world.graph import Graph
 
 
 def main():
@@ -10,7 +11,8 @@ def main():
     sim = cast(bool, rospy.get_param('~sim', False))
     robots = cast(list, rospy.get_param('~robots'))
 
-    PathServerNode(graph_file, robots, sim).start()
+    graph = Graph.load_from_yaml(graph_file)
+    PathServerNode(graph, robots, sim).start()
     rospy.spin()
 
 
