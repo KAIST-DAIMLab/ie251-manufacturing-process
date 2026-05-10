@@ -10,6 +10,7 @@ from pathfinder.ros.path_follow_action_client import PathFollowActionClient
 from pathfinder.ros.path_request_service import PathRequestService
 from pathfinder.ros.pose_tracker import PoseTracker
 from pathfinder.world.graph import Graph
+from pathfinder.world.robot_config import Robot
 
 
 class PathServerNode:
@@ -18,11 +19,11 @@ class PathServerNode:
     def __init__(
         self,
         graph: Graph,
-        robots: list[dict],
+        robots: list[Robot],
         sim: bool,
     ) -> None:
         """Assemble all path-server components from the given configuration values."""
-        robot_ids = [r['id'] for r in robots]
+        robot_ids = [robot.id for robot in robots]
         robot_odom_topics = {
             robot_id: f"/{robot_id}/sim/odom" if sim else f"/{robot_id}/odom"
             for robot_id in robot_ids

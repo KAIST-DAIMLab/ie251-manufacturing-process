@@ -7,6 +7,7 @@ import rospy
 from pathfinder.robot.motion_engine import MotionParameters
 from pathfinder.ros.turtlebot_node import TurtleBotNode
 from pathfinder.world.graph import Graph
+from pathfinder.world.robot_config import Robot
 from geometry_msgs.msg import Pose2D
 
 
@@ -14,40 +15,31 @@ def main():
     rospy.init_node('robot_executors')
     graph_file = cast(str, rospy.get_param('~graph_file'))
     sim = cast(bool, rospy.get_param('~sim', False))
-    robots = cast(list, rospy.get_param('~robots'))
+    robots = [Robot.from_dict(r) for r in cast(list, rospy.get_param('~robots'))]
 
     graph = Graph.load_from_yaml(graph_file)
     nodes: List[TurtleBotNode] = []
 
-    for robot_cfg in robots:
-        robot_id = robot_cfg['id']
-        motion_cfg = robot_cfg.get('motion', {})
-        obstacle_cfg = robot_cfg.get('obstacle', {})
-        linear_speed = float(motion_cfg.get('linear_speed', 0.22))
-        angular_speed = float(motion_cfg.get('angular_speed', 1.5))
-        motion_rate_hz = float(motion_cfg.get('rate_hz', 5.0))
-        obstacle_pause_enabled = bool(obstacle_cfg.get('enabled', True))
-        obstacle_stop_distance = float(obstacle_cfg.get('stop_distance', 0.25))
-
+    for robot in robots:
         origin = None
         if not sim:
-            start_node = graph.get_node(robot_cfg['start_node'])
+            start_node = graph.get_node(robot.start_node)
             origin = Pose2D()
             origin.x = start_node.x
             origin.y = start_node.y
-            origin.theta = math.radians(float(robot_cfg['yaw']))
+            origin.theta = math.radians(robot.yaw)
 
-        topic_namespace = f'{robot_id}/sim' if sim else robot_id
-        params = MotionParameters(linear_speed=linear_speed, angular_speed=angular_speed)
+        namespace = f'{robot.id}/sim' if sim else robot.id
+        params = MotionParameters(linear_speed=robot.motion.linear_speed, angular_speed=robot.motion.angular_speed)
         node = TurtleBotNode(
-            robot_id,
+            robot.id,
             graph=graph,
-            namespace=topic_namespace,
+            namespace=namespace,
             params=params,
-            motion_rate_hz=motion_rate_hz,
+            motion_rate_hz=robot.motion.rate_hz,
             origin=origin,
-            obstacle_enabled=obstacle_pause_enabled,
-            obstacle_stop_distance=obstacle_stop_distance,
+            obstacle_enabled=robot.obstacle.enabled,
+            obstacle_stop_distance=robot.obstacle.stop_distance,
         )
         node.start()
         nodes.append(node)
