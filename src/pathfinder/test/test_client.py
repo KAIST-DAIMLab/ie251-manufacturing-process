@@ -98,7 +98,7 @@ class ClientTest(unittest.TestCase):
 
         ok = client.send_goal('tb3_0', 5)
 
-        move_proxy = next(p for p in rospy.service_proxies if p.name == '/path_server/move_to_node')
+        move_proxy = next(p for p in rospy.service_proxies if p.name == '/fleet/move_to_node')
         self.assertTrue(ok)
         self.assertEqual(len(move_proxy.calls), 1)
         self.assertEqual(move_proxy.calls[0], ('tb3_0', 5))
@@ -108,7 +108,7 @@ class ClientTest(unittest.TestCase):
 
         client.cancel('tb3_0')
 
-        cancel_proxy = next(p for p in rospy.service_proxies if p.name == '/path_server/cancel_path')
+        cancel_proxy = next(p for p in rospy.service_proxies if p.name == '/fleet/cancel_path')
         self.assertEqual(len(cancel_proxy.calls), 1)
         self.assertEqual(cancel_proxy.calls[0], ('tb3_0',))
 

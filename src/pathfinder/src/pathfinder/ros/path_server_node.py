@@ -6,7 +6,7 @@ from geometry_msgs.msg import Pose2D
 from pathfinder.planning.a_star_planner import AStarPlanner
 from pathfinder.planning.path_orchestrator import PathOrchestrator
 from pathfinder.ros.path_follow_action_client import PathFollowActionClient
-from pathfinder.ros.path_request_service import PathRequestService
+from pathfinder.ros.fleet_service import FleetService
 from pathfinder.world.graph import Graph
 from pathfinder.world.robot import Robot
 
@@ -25,7 +25,7 @@ class PathServerNode:
         clients = [PathFollowActionClient(robot.id, robot.namespace) for robot in robots]
 
         self._robots = robots
-        self._request_service = PathRequestService(orchestrator, robots, clients)
+        self._request_service = FleetService(orchestrator, robots, clients)
 
     def start(self) -> None:
         """Register pose subscribers and start the path services."""

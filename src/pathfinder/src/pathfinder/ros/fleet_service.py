@@ -8,11 +8,11 @@ from pathfinder.srv import MoveToNode, MoveToNodeRequest, MoveToNodeResponse, Ca
 from pathfinder.world.robot import Robot
 
 
-class PathRequestService:
+class FleetService:
     """Service handler for MoveToNode and CancelPath: plans routes and dispatches to PathFollowActionServer."""
 
-    MOVE_SERVICE_NAME = '/path_server/move_to_node'
-    CANCEL_SERVICE_NAME = '/path_server/cancel_path'
+    MOVE_SERVICE_NAME = '/fleet/move_to_node'
+    CANCEL_SERVICE_NAME = '/fleet/cancel_path'
 
     def __init__(
         self,
@@ -29,7 +29,7 @@ class PathRequestService:
         """Register the MoveToNode and CancelPath services."""
         rospy.Service(self.MOVE_SERVICE_NAME, MoveToNode, self._handle_move)
         rospy.Service(self.CANCEL_SERVICE_NAME, CancelPath, self._handle_cancel)
-        rospy.loginfo("PathRequestService started.")
+        rospy.loginfo("FleetService started.")
 
     def _handle_move(self, request: MoveToNodeRequest) -> MoveToNodeResponse:
         """Plan a path and dispatch it to the robot's FollowPath action server."""

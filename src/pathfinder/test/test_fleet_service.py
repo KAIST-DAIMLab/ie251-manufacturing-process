@@ -89,7 +89,7 @@ def _install_ros_stubs():
 
 _install_ros_stubs()
 
-from pathfinder.ros.path_request_service import PathRequestService
+from pathfinder.ros.fleet_service import FleetService
 from pathfinder.planning.path_orchestrator import PathOrchestrator, NoPathError, NodeNotFoundError
 from pathfinder.srv import MoveToNodeRequest, MoveToNodeResponse, CancelPathRequest, CancelPathResponse
 
@@ -129,12 +129,12 @@ class FakePathFollowActionClient:
 _DEFAULT_POSE = types.SimpleNamespace(x=0.0, y=0.0, theta=0.0)
 
 
-class PathRequestServiceTest(unittest.TestCase):
+class FleetServiceTest(unittest.TestCase):
     def _make_service(self, robot_id='tb3_0', send_returns=True, pose=_DEFAULT_POSE):
         robot = types.SimpleNamespace(id=robot_id, pose=pose)
         orchestrator = FakeOrchestrator(node_ids=[1, 2, 3])
         client = FakePathFollowActionClient(robot_id=robot_id, send_returns=send_returns)
-        service = PathRequestService(
+        service = FleetService(
             orchestrator=orchestrator,
             robots=[robot],
             clients=[client],
