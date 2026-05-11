@@ -119,7 +119,7 @@ Connect both robots and the laptop to the same LAN (e.g. the lab router). Note t
 
 **Configure the ROS master address**
 
-`docker-compose.yml` imports `docker/.env` into the container. The quick-start command below writes `ROS_HOSTNAME=$(hostname).local` and `ROS_MASTER_URI=http://$(hostname).local:11311` for the laptop; no manual edits are needed as long as `avahi-daemon` is running. Leave `ROS_IP` empty when using `ROS_HOSTNAME`.
+`docker-compose.yml` imports `docker/.env` into the container. The quick-start command below writes `ROS_HOSTNAME=$(hostname).local`; `ROS_MASTER_URI` is derived from `ROS_HOSTNAME` in `.env`. No manual edits are needed as long as `avahi-daemon` is running. Leave `ROS_IP` empty when using `ROS_HOSTNAME`.
 
 **Start the laptop container**
 
