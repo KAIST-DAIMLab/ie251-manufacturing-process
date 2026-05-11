@@ -25,7 +25,7 @@ class PathServerNode:
         clients = [PathFollowActionClient(robot.id, robot.namespace) for robot in robots]
 
         self._robots = robots
-        self._request_service = FleetService(orchestrator, robots, clients)
+        self._request_service = FleetService(graph, orchestrator, robots, clients)
 
     def start(self) -> None:
         """Register pose subscribers and start the path services."""

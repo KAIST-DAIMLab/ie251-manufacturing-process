@@ -78,12 +78,38 @@ def _install_ros_stubs():
             self.success = success
             self.message = message
 
+    class GetGraph:
+        pass
+
+    class GetGraphRequest:
+        pass
+
+    class GetGraphResponse:
+        def __init__(self, graph_json=''):
+            self.graph_json = graph_json
+
+    class GetRobots:
+        pass
+
+    class GetRobotsRequest:
+        pass
+
+    class GetRobotsResponse:
+        def __init__(self, robots_json=''):
+            self.robots_json = robots_json
+
     pathfinder_srv.MoveToNode = MoveToNode
     pathfinder_srv.MoveToNodeRequest = MoveToNodeRequest
     pathfinder_srv.MoveToNodeResponse = MoveToNodeResponse
     pathfinder_srv.CancelPath = CancelPath
     pathfinder_srv.CancelPathRequest = CancelPathRequest
     pathfinder_srv.CancelPathResponse = CancelPathResponse
+    pathfinder_srv.GetGraph = GetGraph
+    pathfinder_srv.GetGraphRequest = GetGraphRequest
+    pathfinder_srv.GetGraphResponse = GetGraphResponse
+    pathfinder_srv.GetRobots = GetRobots
+    pathfinder_srv.GetRobotsRequest = GetRobotsRequest
+    pathfinder_srv.GetRobotsResponse = GetRobotsResponse
     sys.modules['pathfinder.srv'] = pathfinder_srv
 
 
@@ -92,6 +118,9 @@ _install_ros_stubs()
 from pathfinder.ros.fleet_service import FleetService
 from pathfinder.planning.path_orchestrator import PathOrchestrator, NoPathError, NodeNotFoundError
 from pathfinder.srv import MoveToNodeRequest, MoveToNodeResponse, CancelPathRequest, CancelPathResponse
+from pathfinder.world.graph import Graph
+from pathfinder.world.node import Node
+from pathfinder.world.edge import Edge
 
 
 class FakeOrchestrator:
@@ -128,13 +157,19 @@ class FakePathFollowActionClient:
 
 _DEFAULT_POSE = types.SimpleNamespace(x=0.0, y=0.0, theta=0.0)
 
+_FAKE_GRAPH = Graph(
+    nodes=[Node(id=1, x=0.0, y=0.0), Node(id=2, x=1.0, y=0.0)],
+    edges=[Edge(Node(id=1, x=0.0, y=0.0), Node(id=2, x=1.0, y=0.0))],
+)
+
 
 class FleetServiceTest(unittest.TestCase):
     def _make_service(self, robot_id='tb3_0', send_returns=True, pose=_DEFAULT_POSE):
-        robot = types.SimpleNamespace(id=robot_id, pose=pose)
+        robot = types.SimpleNamespace(id=robot_id, namespace=robot_id, pose=pose)
         orchestrator = FakeOrchestrator(node_ids=[1, 2, 3])
         client = FakePathFollowActionClient(robot_id=robot_id, send_returns=send_returns)
         service = FleetService(
+            graph=_FAKE_GRAPH,
             orchestrator=orchestrator,
             robots=[robot],
             clients=[client],
@@ -231,6 +266,36 @@ class FleetServiceTest(unittest.TestCase):
 
         self.assertFalse(response.success)
         self.assertIn('unknown robot', response.message)
+
+    def test_handle_get_graph_returns_valid_json_with_nodes_and_edges(self):
+        import json
+        service, _, _ = self._make_service()
+
+        response = service._handle_get_graph(None)
+
+        payload = json.loads(response.graph_json)
+        self.assertIn('nodes', payload)
+        self.assertIn('edges', payload)
+        self.assertEqual(len(payload['nodes']), 2)
+        self.assertEqual(len(payload['edges']), 1)
+        node_ids = {node['id'] for node in payload['nodes']}
+        self.assertEqual(node_ids, {1, 2})
+        edge = payload['edges'][0]
+        self.assertIn('from', edge)
+        self.assertIn('to', edge)
+
+    def test_handle_get_robots_returns_valid_json_with_robot_id_and_namespace(self):
+        import json
+        service, _, _ = self._make_service(robot_id='tb3_0')
+
+        response = service._handle_get_robots(None)
+
+        payload = json.loads(response.robots_json)
+        self.assertIn('robots', payload)
+        self.assertEqual(len(payload['robots']), 1)
+        robot = payload['robots'][0]
+        self.assertEqual(robot['id'], 'tb3_0')
+        self.assertEqual(robot['namespace'], 'tb3_0')
 
 
 if __name__ == '__main__':

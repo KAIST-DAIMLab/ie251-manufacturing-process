@@ -22,6 +22,8 @@ add_service_files(
   FILES
   MoveToNode.srv
   CancelPath.srv
+  GetGraph.srv
+  GetRobots.srv
 )
 
 catkin_python_setup()
