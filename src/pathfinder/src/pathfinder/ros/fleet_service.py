@@ -81,8 +81,27 @@ class FleetService:
         return GetGraphResponse(graph_json=json.dumps(payload))
 
     def _handle_get_robots(self, request: GetRobotsRequest) -> GetRobotsResponse:
-        """Return robot ids and namespaces as a JSON string."""
+        """Return robot ids, namespaces, and per-robot config as a JSON string."""
         payload = {
-            "robots": [{"id": robot.id, "namespace": robot.namespace} for robot in self._robots.values()],
+            "robots": [
+                {
+                    "id": robot.id,
+                    "namespace": robot.namespace,
+                    "start_node": robot.start_node,
+                    "yaw": robot.yaw,
+                    "motion": {
+                        "linear_speed": robot.motion.linear_speed,
+                        "angular_speed": robot.motion.angular_speed,
+                        "move_rate_hz": robot.motion.move_rate_hz,
+                        "arrival_tolerance": robot.motion.arrival_tolerance,
+                    },
+                    "obstacle": {
+                        "enabled": robot.obstacle.enabled,
+                        "stop_distance": robot.obstacle.stop_distance,
+                        "detect_degree": robot.obstacle.detect_degree,
+                    },
+                }
+                for robot in self._robots.values()
+            ],
         }
         return GetRobotsResponse(robots_json=json.dumps(payload))

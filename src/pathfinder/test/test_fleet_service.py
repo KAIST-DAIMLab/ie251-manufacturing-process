@@ -165,7 +165,9 @@ _FAKE_GRAPH = Graph(
 
 class FleetServiceTest(unittest.TestCase):
     def _make_service(self, robot_id='tb3_0', send_returns=True, pose=_DEFAULT_POSE):
-        robot = types.SimpleNamespace(id=robot_id, namespace=robot_id, pose=pose)
+        motion = types.SimpleNamespace(linear_speed=0.22, angular_speed=1.5, move_rate_hz=5.0, arrival_tolerance=0.05)
+        obstacle = types.SimpleNamespace(enabled=True, stop_distance=0.4, detect_degree=20)
+        robot = types.SimpleNamespace(id=robot_id, namespace=robot_id, pose=pose, start_node=1, yaw=0.0, motion=motion, obstacle=obstacle)
         orchestrator = FakeOrchestrator(node_ids=[1, 2, 3])
         client = FakePathFollowActionClient(robot_id=robot_id, send_returns=send_returns)
         service = FleetService(
@@ -296,6 +298,15 @@ class FleetServiceTest(unittest.TestCase):
         robot = payload['robots'][0]
         self.assertEqual(robot['id'], 'tb3_0')
         self.assertEqual(robot['namespace'], 'tb3_0')
+        self.assertEqual(robot['start_node'], 1)
+        self.assertEqual(robot['yaw'], 0.0)
+        self.assertIn('motion', robot)
+        self.assertEqual(robot['motion']['linear_speed'], 0.22)
+        self.assertEqual(robot['motion']['arrival_tolerance'], 0.05)
+        self.assertIn('obstacle', robot)
+        self.assertTrue(robot['obstacle']['enabled'])
+        self.assertEqual(robot['obstacle']['stop_distance'], 0.4)
+        self.assertEqual(robot['obstacle']['detect_degree'], 20)
 
 
 if __name__ == '__main__':

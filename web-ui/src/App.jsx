@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import GraphCanvas from './components/GraphCanvas.jsx'
+import RobotPanel from './components/RobotPanel.jsx'
 import { fetchGraph } from './ros/fetchGraph.js'
 import { fetchRobots } from './ros/fetchRobots.js'
 import { subscribePose } from './ros/subscribePose.js'
@@ -11,6 +12,7 @@ export default function App() {
   const [poses, setPoses] = useState({})
   const [selectedRobotId, setSelectedRobotId] = useState(null)
   const [banner, setBanner] = useState(null)
+  const [dragState, setDragState] = useState(null)
 
   useEffect(() => {
     Promise.all([fetchGraph(), fetchRobots()])
@@ -40,22 +42,23 @@ export default function App() {
     return () => clearTimeout(timer)
   }, [banner])
 
-  const handleSelectRobot = useCallback((robotId) => {
-    setSelectedRobotId((previous) => (previous === robotId ? null : robotId))
+  const handleRobotMouseDown = useCallback((robotId, pointerSvg) => {
+    setSelectedRobotId(robotId)
+    setDragState({ robotId, pointerSvg, hoverNodeId: null })
   }, [])
 
-  const handleSelectNode = useCallback(
-    (nodeId) => {
-      if (!selectedRobotId) return
-      moveToNode(selectedRobotId, nodeId)
-        .then((response) => {
-          setBanner(`${selectedRobotId}: ${response.message}`)
-          setSelectedRobotId(null)
-        })
-        .catch((error) => setBanner(`Error: ${error}`))
-    },
-    [selectedRobotId],
-  )
+  const handleDrop = useCallback((robotId, nodeId) => {
+    setDragState(null)
+    moveToNode(robotId, nodeId)
+      .then((response) => setBanner(`${robotId}: ${response.message}`))
+      .catch((error) => setBanner(`Error: ${error}`))
+  }, [])
+
+  const handleDragCancel = useCallback(() => {
+    setDragState(null)
+  }, [])
+
+  const selectedRobot = robots.find((r) => r.id === selectedRobotId) ?? null
 
   if (!graph) {
     return (
@@ -67,13 +70,9 @@ export default function App() {
     <div style={{ padding: 16 }}>
       <h1 style={{ marginBottom: 12, fontSize: 16, letterSpacing: 1 }}>PATHFINDER MONITOR</h1>
 
-      {selectedRobotId ? (
-        <p style={{ marginBottom: 8, color: '#facc15' }}>
-          {selectedRobotId} selected — click a node to move
-        </p>
-      ) : (
-        <p style={{ marginBottom: 8, color: '#888' }}>Click a robot to select it</p>
-      )}
+      <p style={{ marginBottom: 8, color: '#888' }}>
+        {dragState ? `dragging ${dragState.robotId}…` : 'Click a robot to select, drag to a node to move'}
+      </p>
 
       {banner && (
         <div
@@ -89,14 +88,25 @@ export default function App() {
         </div>
       )}
 
-      <GraphCanvas
-        graph={graph}
-        robots={robots}
-        poses={poses}
-        selectedRobotId={selectedRobotId}
-        onSelectRobot={handleSelectRobot}
-        onSelectNode={handleSelectNode}
-      />
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
+        <GraphCanvas
+          graph={graph}
+          robots={robots}
+          poses={poses}
+          selectedRobotId={selectedRobotId}
+          dragState={dragState}
+          setDragState={setDragState}
+          onRobotMouseDown={handleRobotMouseDown}
+          onDrop={handleDrop}
+          onDragCancel={handleDragCancel}
+        />
+        <div style={{ background: '#1e1e1e', minWidth: 220 }}>
+          <RobotPanel
+            robot={selectedRobot}
+            pose={selectedRobotId ? poses[selectedRobotId] : null}
+          />
+        </div>
+      </div>
     </div>
   )
 }
