@@ -71,8 +71,9 @@ ping $(hostname).local   # run on the robot; should reach the laptop
 
 **Start the container**  
 ```bash
-cd /path/to/ie251-manufacturing-process
-sudo docker compose -f docker/docker-compose.yml up -d
+cd /path/to/ie251-manufacturing-process/docker
+sed "s|your-laptop-hostname|$(hostname)|" .env.example > .env
+sudo docker compose up -d
 sudo docker exec -it noetic zsh
 
 # Build (first time only)
@@ -118,13 +119,14 @@ Connect both robots and the laptop to the same LAN (e.g. the lab router). Note t
 
 **Configure the ROS master address**
 
-`docker-compose.yml` uses the host's mDNS hostname automatically via `$HOSTNAME`. No manual edits are needed as long as `avahi-daemon` is running on the laptop.
+`docker-compose.yml` automatically loads `docker/.env`. The quick-start command below writes `HOSTNAME=$(hostname)` for the laptop; no manual edits are needed as long as `avahi-daemon` is running.
 
 **Start the laptop container**
 
 ```bash
-cd /path/to/ie251-manufacturing-process
-sudo docker compose -f docker/docker-compose.yml up -d
+cd /path/to/ie251-manufacturing-process/docker
+sed "s|your-laptop-hostname|$(hostname)|" .env.example > .env
+sudo docker compose up -d
 sudo docker exec -it noetic zsh
 
 # Build (first time only)
