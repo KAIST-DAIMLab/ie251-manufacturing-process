@@ -21,17 +21,17 @@ class Client:
     """User-facing client: sends MoveToNode service calls and user commands to robots."""
 
     def __init__(self) -> None:
-        self._move_proxy = rospy.ServiceProxy('/path_server/move_to_node', MoveToNode)
-        self._cancel_proxy = rospy.ServiceProxy('/path_server/cancel_path', CancelPath)
+        self._move_proxy = rospy.ServiceProxy('/fleet/move_to_node', MoveToNode)
+        self._cancel_proxy = rospy.ServiceProxy('/fleet/cancel_path', CancelPath)
 
     def cancel(self, robot_id: str) -> None:
         result = self._cancel_proxy(robot_id)
         rospy.loginfo(f"Cancel sent to {robot_id}: {result.message}")
 
     def send_goal(self, robot_id: str, target_node_id: int) -> bool:
-        rospy.loginfo("Waiting for path_server/move_to_node...")
-        rospy.wait_for_service('/path_server/move_to_node')
-        rospy.loginfo("Connected to path_server.")
+        rospy.loginfo("Waiting for fleet/move_to_node...")
+        rospy.wait_for_service('/fleet/move_to_node')
+        rospy.loginfo("Connected to fleet.")
         result = self._move_proxy(robot_id, target_node_id)
         rospy.loginfo(f"Result: success={result.success}, message={result.message}")
         return result.success

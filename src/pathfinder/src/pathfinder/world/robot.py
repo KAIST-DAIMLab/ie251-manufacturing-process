@@ -1,4 +1,6 @@
 from __future__ import annotations
+import dataclasses
+import math
 from dataclasses import dataclass
 from geometry_msgs.msg import Pose2D
 
@@ -38,6 +40,17 @@ class Robot:
         """Record the latest world-frame pose."""
         self.pose = pose
 
+    def to_dict(self) -> dict:
+        """Return config fields serializable as JSON; excludes the mutable pose."""
+        return {
+            "id": self.id,
+            "namespace": self.namespace,
+            "start_node": self.start_node,
+            "yaw": self.yaw,
+            "motion": dataclasses.asdict(self.motion),
+            "obstacle": dataclasses.asdict(self.obstacle),
+        }
+
     @classmethod
     def from_dict(cls, data: dict, sim: bool = False) -> Robot:
         """Parse a robots.yaml entry into a Robot instance, applying sim namespace if needed."""
@@ -48,7 +61,7 @@ class Robot:
             id=robot_id,
             namespace=f"{robot_id}/sim" if sim else robot_id,
             start_node=int(data['start_node']),
-            yaw=float(data.get('yaw', 0.0)),
+            yaw=math.radians(float(data.get('yaw', 0.0))),
             motion=MotionConfig(
                 linear_speed=float(motion_data.get('linear_speed', 0.22)),
                 angular_speed=float(motion_data.get('angular_speed', 1.5)),

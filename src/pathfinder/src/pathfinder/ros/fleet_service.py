@@ -1,35 +1,43 @@
 from __future__ import annotations
 
+import json
 import rospy
 
 from pathfinder.planning.path_orchestrator import PathOrchestrator, NodeNotFoundError, NoPathError
 from pathfinder.ros.path_follow_action_client import PathFollowActionClient
-from pathfinder.srv import MoveToNode, MoveToNodeRequest, MoveToNodeResponse, CancelPath, CancelPathRequest, CancelPathResponse  # type: ignore[import]
+from pathfinder.srv import MoveToNode, MoveToNodeRequest, MoveToNodeResponse, CancelPath, CancelPathRequest, CancelPathResponse, GetGraph, GetGraphRequest, GetGraphResponse, GetRobots, GetRobotsRequest, GetRobotsResponse  # type: ignore[import]
+from pathfinder.world.graph import Graph
 from pathfinder.world.robot import Robot
 
 
-class PathRequestService:
-    """Service handler for MoveToNode and CancelPath: plans routes and dispatches to PathFollowActionServer."""
+class FleetService:
+    """Service handler for fleet operations: graph queries, robot queries, path dispatch, and cancellation."""
 
-    MOVE_SERVICE_NAME = '/path_server/move_to_node'
-    CANCEL_SERVICE_NAME = '/path_server/cancel_path'
+    MOVE_SERVICE_NAME = '/fleet/move_to_node'
+    CANCEL_SERVICE_NAME = '/fleet/cancel_path'
+    GRAPH_SERVICE_NAME = '/fleet/get_graph'
+    ROBOTS_SERVICE_NAME = '/fleet/get_robots'
 
     def __init__(
         self,
+        graph: Graph,
         orchestrator: PathOrchestrator,
         robots: list[Robot],
         clients: list[PathFollowActionClient],
     ) -> None:
-        """Store injected planning and dispatch components."""
+        """Store injected graph, planning, and dispatch components."""
+        self._graph = graph
         self._orchestrator = orchestrator
         self._robots = {robot.id: robot for robot in robots}
         self._clients = {client.robot_id: client for client in clients}
 
     def start(self) -> None:
-        """Register the MoveToNode and CancelPath services."""
+        """Register all four fleet services."""
         rospy.Service(self.MOVE_SERVICE_NAME, MoveToNode, self._handle_move)
         rospy.Service(self.CANCEL_SERVICE_NAME, CancelPath, self._handle_cancel)
-        rospy.loginfo("PathRequestService started.")
+        rospy.Service(self.GRAPH_SERVICE_NAME, GetGraph, self._handle_get_graph)
+        rospy.Service(self.ROBOTS_SERVICE_NAME, GetRobots, self._handle_get_robots)
+        rospy.loginfo("FleetService started.")
 
     def _handle_move(self, request: MoveToNodeRequest) -> MoveToNodeResponse:
         """Plan a path and dispatch it to the robot's FollowPath action server."""
@@ -63,3 +71,16 @@ class PathRequestService:
         self._clients[robot_id].cancel()
 
         return CancelPathResponse(success=True, message="canceled")
+
+    def _handle_get_graph(self, request: GetGraphRequest) -> GetGraphResponse:
+        """Return graph nodes and edges as a JSON string."""
+        payload = {
+            "nodes": [{"id": node.id, "x": node.x, "y": node.y} for node in self._graph.all_nodes()],
+            "edges": [{"from": edge.from_node.id, "to": edge.to_node.id} for edge in self._graph.all_edges()],
+        }
+        return GetGraphResponse(graph_json=json.dumps(payload))
+
+    def _handle_get_robots(self, request: GetRobotsRequest) -> GetRobotsResponse:
+        """Return robot ids, namespaces, and per-robot config as a JSON string."""
+        payload = {"robots": [robot.to_dict() for robot in self._robots.values()]}
+        return GetRobotsResponse(robots_json=json.dumps(payload))
