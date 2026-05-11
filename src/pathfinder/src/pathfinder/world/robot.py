@@ -1,5 +1,6 @@
 from __future__ import annotations
 import dataclasses
+import math
 from dataclasses import dataclass
 from geometry_msgs.msg import Pose2D
 
@@ -60,7 +61,7 @@ class Robot:
             id=robot_id,
             namespace=f"{robot_id}/sim" if sim else robot_id,
             start_node=int(data['start_node']),
-            yaw=float(data.get('yaw', 0.0)),
+            yaw=math.radians(float(data.get('yaw', 0.0))),
             motion=MotionConfig(
                 linear_speed=float(motion_data.get('linear_speed', 0.22)),
                 angular_speed=float(motion_data.get('angular_speed', 1.5)),
