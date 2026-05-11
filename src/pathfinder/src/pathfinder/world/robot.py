@@ -39,7 +39,7 @@ class Robot:
         """Record the latest world-frame pose."""
         self.pose = pose
 
-    def to_wire_dict(self) -> dict:
+    def to_dict(self) -> dict:
         """Return config fields serializable as JSON; excludes the mutable pose."""
         return {
             "id": self.id,

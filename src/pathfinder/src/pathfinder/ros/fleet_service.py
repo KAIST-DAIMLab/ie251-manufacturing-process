@@ -82,5 +82,5 @@ class FleetService:
 
     def _handle_get_robots(self, request: GetRobotsRequest) -> GetRobotsResponse:
         """Return robot ids, namespaces, and per-robot config as a JSON string."""
-        payload = {"robots": [robot.to_wire_dict() for robot in self._robots.values()]}
+        payload = {"robots": [robot.to_dict() for robot in self._robots.values()]}
         return GetRobotsResponse(robots_json=json.dumps(payload))

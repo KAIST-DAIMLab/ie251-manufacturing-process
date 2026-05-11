@@ -170,7 +170,7 @@ class FleetServiceTest(unittest.TestCase):
         robot = types.SimpleNamespace(
             id=robot_id, namespace=robot_id, pose=pose, start_node=1, yaw=0.0,
             motion=motion, obstacle=obstacle,
-            to_wire_dict=lambda: {
+            to_dict=lambda: {
                 "id": robot_id, "namespace": robot_id, "start_node": 1, "yaw": 0.0,
                 "motion": {"linear_speed": 0.22, "angular_speed": 1.5, "move_rate_hz": 5.0, "arrival_tolerance": 0.05},
                 "obstacle": {"enabled": True, "stop_distance": 0.4, "detect_degree": 20},
