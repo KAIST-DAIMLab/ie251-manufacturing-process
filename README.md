@@ -71,8 +71,11 @@ ping $(hostname).local   # run on the robot; should reach the laptop
 
 **Start the container**  
 ```bash
-cd /path/to/ie251-manufacturing-process/docker
-sed "s|your-laptop-hostname|$(hostname)|g" .env.example > .env
+cd docker
+cp .env.example .env
+vi .env
+# Edit ROS_HOSTNAME in mDNS format (hostname.local) or IP address
+
 sudo docker compose up -d
 sudo docker exec -it noetic zsh
 
@@ -230,6 +233,27 @@ rosrun pathfinder client tb3_05 0   # top route: 5 → 3 → 1 → 0
 rostopic echo /tb3_01/sim/odom        # pose and velocity from Gazebo
 rostopic echo /tb3_01/emergency_stop  # fires when collision is predicted
 ```
+
+## Web UI
+
+Start the web dashboard after the ROS stack is up:
+
+```bash
+cd web-ui
+cp .env.example .env   # defaults to ws://localhost:9090
+docker compose up
+```
+
+Open `http://localhost:5173` in a browser. The graph and both robot positions appear live. Click a robot to select it (highlighted with a ring), then click any node to dispatch a `MoveToNode` goal. The robot dot tracks the robot's position in real time.
+
+The fleet service endpoints used by the UI:
+
+| Service | Purpose |
+|---|---|
+| `/fleet/get_graph` | Fetch nodes and edges (called once on load) |
+| `/fleet/get_robots` | Fetch robot ids and namespaces (called once on load) |
+| `/fleet/move_to_node` | Dispatch a path goal to a robot |
+| `/fleet/cancel_path` | Cancel an in-flight goal |
 
 ---
 
