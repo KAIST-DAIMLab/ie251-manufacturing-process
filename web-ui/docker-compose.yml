@@ -1,0 +1,13 @@
+services:
+  web-ui:
+    build: .
+    image: pathfinder-web-ui
+    container_name: pathfinder-web-ui
+    network_mode: host
+    volumes:
+      - .:/app
+      - web-ui-node-modules:/app/node_modules
+    command: sh -c "npm install && npm run dev"
+
+volumes:
+  web-ui-node-modules:
