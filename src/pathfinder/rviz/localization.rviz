@@ -1,0 +1,49 @@
+Panels:
+  - Class: rviz/Displays
+  - Class: rviz/Views
+Visualization Manager:
+  Displays:
+    - Class: rviz/Map
+      Name: Map
+      Topic: /map
+      Enabled: true
+    - Class: rviz/LaserScan
+      Name: LaserScan_tb3_01
+      Topic: /tb3_01/scan
+      Enabled: true
+      Size (m): 0.03
+      Color: 255; 0; 0
+    - Class: rviz/LaserScan
+      Name: LaserScan_tb3_05
+      Topic: /tb3_05/scan
+      Enabled: true
+      Size (m): 0.03
+      Color: 0; 0; 255
+    - Class: rviz/PoseArray
+      Name: Particles_tb3_01
+      Topic: /tb3_01/particlecloud
+      Enabled: true
+      Color: 255; 100; 0
+    - Class: rviz/PoseArray
+      Name: Particles_tb3_05
+      Topic: /tb3_05/particlecloud
+      Enabled: true
+      Color: 0; 100; 255
+    - Class: rviz/PoseWithCovariance
+      Name: Pose_tb3_01
+      Topic: /tb3_01/amcl_pose
+      Enabled: true
+    - Class: rviz/PoseWithCovariance
+      Name: Pose_tb3_05
+      Topic: /tb3_05/amcl_pose
+      Enabled: true
+    - Class: rviz/RobotModel
+      Name: RobotModel
+      Enabled: true
+  Global Options:
+    Fixed Frame: map
+  Tools:
+    - Class: rviz/Interact
+    - Class: rviz/SetInitialPose
+      name: 2D Pose Estimate
+    - Class: rviz/MoveCamera

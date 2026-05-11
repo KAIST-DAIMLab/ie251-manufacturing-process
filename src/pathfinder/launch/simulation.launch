@@ -2,7 +2,10 @@
   <arg name="model" default="waffle"/>
   <arg name="robots_config" default="$(find pathfinder)/config/robots.yaml"/>
   <arg name="graph_config" default="$(find pathfinder)/config/graph.yaml"/>
+  <arg name="map_file" default="$(find pathfinder)/maps/my_map.yaml"/>
   <arg name="start_system" default="true"/>
+
+  <env name="GAZEBO_MODEL_PATH" value="$(find pathfinder)/models:$(optenv GAZEBO_MODEL_PATH)"/>
 
   <include file="$(find gazebo_ros)/launch/empty_world.launch">
     <arg name="world_name" value="$(find pathfinder)/worlds/pathfinding_table.world"/>
@@ -22,6 +25,9 @@
   <node name="simulation_marker_spawner" pkg="pathfinder" type="spawn_simulation_markers" output="screen">
     <param name="graph_config" value="$(arg graph_config)"/>
   </node>
+
+  <node name="map_server" pkg="map_server" type="map_server"
+        args="$(arg map_file)" output="screen"/>
 
   <include if="$(arg start_system)" file="$(find pathfinder)/launch/robots.launch">
     <arg name="robots_config" value="$(arg robots_config)"/>

@@ -1,0 +1,42 @@
+#!/usr/bin/env python3
+"""Auto-detects which robots are connected and launches real_robot.launch accordingly."""
+import subprocess
+import sys
+
+
+def has_publishers(topic: str) -> bool:
+    try:
+        out = subprocess.check_output(['rostopic', 'info', topic],
+                                      stderr=subprocess.DEVNULL, timeout=3).decode()
+        for line in out.splitlines():
+            if line.startswith('Publishers:'):
+                return 'None' not in line and line.strip() != 'Publishers:'
+    except Exception:
+        return False
+    return False
+
+
+def main():
+    print('Checking connected robots...')
+    tb3_01 = has_publishers('/tb3_01/scan')
+    tb3_05 = has_publishers('/tb3_05/scan')
+
+    print(f'  tb3_01: {"CONNECTED" if tb3_01 else "not found"}')
+    print(f'  tb3_05: {"CONNECTED" if tb3_05 else "not found"}')
+
+    if not tb3_01 and not tb3_05:
+        print('ERROR: No robots detected. Start robot bringup first.')
+        sys.exit(1)
+
+    cmd = [
+        'roslaunch', 'pathfinder', 'real_robot.launch',
+        f'amcl_tb3_01:={str(tb3_01).lower()}',
+        f'amcl_tb3_05:={str(tb3_05).lower()}',
+    ] + sys.argv[1:]
+
+    print(f'Launching: {" ".join(cmd)}\n')
+    subprocess.run(cmd)
+
+
+if __name__ == '__main__':
+    main()

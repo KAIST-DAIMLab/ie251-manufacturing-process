@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import tf
 import rospy
 from geometry_msgs.msg import Pose2D, Twist
 from nav_msgs.msg import Odometry
@@ -11,7 +12,7 @@ from pathfinder.robot.path_follower import PathFollower
 from pathfinder.robot.robot_state import RobotState
 from pathfinder.robot.turtlebot import TurtleBot
 from pathfinder.ros.robot_command_action_server import RobotCommandActionServer
-from pathfinder.utils.physics import yaw_from_quaternion
+from pathfinder.utils.physics import yaw_from_quaternion, yaw_from_xyzw
 from pathfinder.world.graph import Graph
 
 
@@ -47,6 +48,8 @@ class TurtleBotNode:
             path_follower=path_follower,
             motion_rate_hz=motion_rate_hz,
         )
+
+        self._tf_listener = tf.TransformListener()
 
         rospy.Subscriber(self.topic_odom, Odometry, self._on_odom)
         rospy.Subscriber(self.topic_stop, Empty, self._on_stop)
@@ -86,11 +89,18 @@ class TurtleBotNode:
         rospy.loginfo(f"TurtleBotNode for {self._robot.id} started.")
 
     def _on_odom(self, msg: Odometry) -> None:
-        odom_pose = msg.pose.pose
-        self._state.pose.x = odom_pose.position.x + self._state.origin.x
-        self._state.pose.y = odom_pose.position.y + self._state.origin.y
-        self._state.pose.theta = yaw_from_quaternion(odom_pose.orientation) + self._state.origin.theta
         self._state.velocity = msg.twist.twist
+        try:
+            base_frame = f'{self._namespace}/base_footprint'
+            (trans, rot) = self._tf_listener.lookupTransform('map', base_frame, rospy.Time(0))
+            self._state.pose.x = trans[0]
+            self._state.pose.y = trans[1]
+            self._state.pose.theta = yaw_from_xyzw(*rot)
+        except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
+            odom_pose = msg.pose.pose
+            self._state.pose.x = odom_pose.position.x + self._state.origin.x
+            self._state.pose.y = odom_pose.position.y + self._state.origin.y
+            self._state.pose.theta = yaw_from_quaternion(odom_pose.orientation) + self._state.origin.theta
 
     def _on_stop(self, _: Empty) -> None:
         self._robot.stop()

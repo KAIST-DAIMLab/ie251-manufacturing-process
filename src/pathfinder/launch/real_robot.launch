@@ -1,0 +1,85 @@
+<launch>
+  <arg name="robots_config" default="$(find pathfinder)/config/robots.yaml"/>
+  <arg name="map_file"      default="$(find pathfinder)/maps/my_map.yaml"/>
+  <arg name="open_rviz"     default="true"/>
+  <arg name="amcl_tb3_01"   default="true"/>
+  <arg name="amcl_tb3_05"   default="true"/>
+
+  <!-- Map server (공유) -->
+  <node name="map_server" pkg="map_server" type="map_server"
+        args="$(arg map_file)" output="screen"/>
+
+  <!-- AMCL — tb3_01 -->
+  <group ns="tb3_01" if="$(arg amcl_tb3_01)">
+    <node name="amcl" pkg="amcl" type="amcl" output="screen">
+      <param name="odom_frame_id"   value="tb3_01/odom"/>
+      <param name="base_frame_id"   value="tb3_01/base_footprint"/>
+      <param name="global_frame_id" value="map"/>
+      <param name="initial_pose_x"  value="0.0"/>
+      <param name="initial_pose_y"  value="1.3"/>
+      <param name="initial_pose_a"  value="0.0"/>
+      <param name="min_particles"   value="500"/>
+      <param name="max_particles"   value="3000"/>
+      <param name="laser_model_type"          value="likelihood_field"/>
+      <param name="laser_likelihood_max_dist" value="2.0"/>
+      <param name="laser_max_range"           value="3.5"/>
+      <param name="laser_min_range"           value="0.12"/>
+      <param name="laser_max_beams"           value="180"/>
+      <param name="odom_model_type"  value="diff"/>
+      <param name="odom_alpha1"      value="0.1"/>
+      <param name="odom_alpha2"      value="0.1"/>
+      <param name="odom_alpha3"      value="0.1"/>
+      <param name="odom_alpha4"      value="0.1"/>
+      <param name="update_min_d"     value="0.1"/>
+      <param name="update_min_a"     value="0.1"/>
+      <param name="resample_interval" value="1"/>
+      <param name="transform_tolerance" value="0.5"/>
+      <param name="use_map_topic"  value="true"/>
+      <remap from="scan" to="/tb3_01/scan"/>
+      <remap from="map"  to="/map"/>
+    </node>
+  </group>
+
+  <!-- AMCL — tb3_05 -->
+  <group ns="tb3_05" if="$(arg amcl_tb3_05)">
+    <node name="amcl" pkg="amcl" type="amcl" output="screen">
+      <param name="odom_frame_id"   value="tb3_05/odom"/>
+      <param name="base_frame_id"   value="tb3_05/base_footprint"/>
+      <param name="global_frame_id" value="map"/>
+      <param name="initial_pose_x"  value="1.2"/>
+      <param name="initial_pose_y"  value="1.3"/>
+      <param name="initial_pose_a"  value="3.1415"/>
+      <param name="min_particles"   value="500"/>
+      <param name="max_particles"   value="3000"/>
+      <param name="laser_model_type"          value="likelihood_field"/>
+      <param name="laser_likelihood_max_dist" value="2.0"/>
+      <param name="laser_max_range"           value="3.5"/>
+      <param name="laser_min_range"           value="0.12"/>
+      <param name="laser_max_beams"           value="180"/>
+      <param name="odom_model_type"  value="diff"/>
+      <param name="odom_alpha1"      value="0.1"/>
+      <param name="odom_alpha2"      value="0.1"/>
+      <param name="odom_alpha3"      value="0.1"/>
+      <param name="odom_alpha4"      value="0.1"/>
+      <param name="update_min_d"     value="0.1"/>
+      <param name="update_min_a"     value="0.1"/>
+      <param name="resample_interval" value="1"/>
+      <param name="transform_tolerance" value="0.5"/>
+      <param name="use_map_topic"  value="true"/>
+      <remap from="scan" to="/tb3_05/scan"/>
+      <remap from="map"  to="/map"/>
+    </node>
+  </group>
+
+  <!-- Path server + executors -->
+  <include file="$(find pathfinder)/launch/robots.launch">
+    <arg name="robots_config" value="$(arg robots_config)"/>
+    <arg name="sim" value="false"/>
+  </include>
+
+  <!-- RViz -->
+  <node if="$(arg open_rviz)" name="rviz" pkg="rviz" type="rviz"
+        args="-d $(find pathfinder)/rviz/localization.rviz"
+        output="screen"/>
+
+</launch>

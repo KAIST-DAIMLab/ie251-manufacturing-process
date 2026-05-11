@@ -1,0 +1,13 @@
+material MapFloorMaterial
+{
+  technique
+  {
+    pass
+    {
+      texture_unit
+      {
+        texture my_map.png
+      }
+    }
+  }
+}

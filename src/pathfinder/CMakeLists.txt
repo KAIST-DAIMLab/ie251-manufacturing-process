@@ -45,6 +45,7 @@ install(PROGRAMS
   scripts/spawn_simulation_markers
   scripts/client
   scripts/run_simulation
+  scripts/real_robot_launch
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
