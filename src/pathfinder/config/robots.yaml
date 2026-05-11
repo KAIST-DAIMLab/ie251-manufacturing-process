@@ -1,6 +1,6 @@
 robots:
   - id: tb3_01
-    start_node: 6
+    start_node: 9
     yaw: 0.0  # degrees
     motion:
       linear_speed: 0.22

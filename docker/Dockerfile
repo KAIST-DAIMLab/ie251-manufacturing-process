@@ -10,6 +10,7 @@ RUN apt-get update && apt-get install -y \
 	ros-noetic-turtlebot3 ros-noetic-turtlebot3-description ros-noetic-turtlebot3-simulations \
         ros-noetic-move-base-msgs \
         ros-noetic-rosbridge-suite \
+        ros-noetic-tf2-tools \
  && rm -rf /var/lib/apt/lists/*
 
 # Create an "ubuntu" user with UID/GID 1000 to match your host user

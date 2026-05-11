@@ -5,6 +5,7 @@ import { fetchGraph } from './ros/fetchGraph.js'
 import { fetchRobots } from './ros/fetchRobots.js'
 import { subscribePose } from './ros/subscribePose.js'
 import { moveToNode } from './ros/moveToNode.js'
+import { cancelPath } from './ros/cancelPath.js'
 
 export default function App() {
   const [graph, setGraph] = useState(null)
@@ -50,6 +51,12 @@ export default function App() {
   const handleDrop = useCallback((robotId, nodeId) => {
     setDragState(null)
     moveToNode(robotId, nodeId)
+      .then((response) => setBanner(`${robotId}: ${response.message}`))
+      .catch((error) => setBanner(`Error: ${error}`))
+  }, [])
+
+  const handleStop = useCallback((robotId) => {
+    cancelPath(robotId)
       .then((response) => setBanner(`${robotId}: ${response.message}`))
       .catch((error) => setBanner(`Error: ${error}`))
   }, [])
@@ -104,6 +111,7 @@ export default function App() {
           <RobotPanel
             robot={selectedRobot}
             pose={selectedRobotId ? poses[selectedRobotId] : null}
+            onStop={handleStop}
           />
         </div>
       </div>

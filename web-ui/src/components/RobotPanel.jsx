@@ -22,7 +22,7 @@ function Section({ title, children }) {
   )
 }
 
-export default function RobotPanel({ robot, pose }) {
+export default function RobotPanel({ robot, pose, onStop }) {
   if (!robot) {
     return (
       <div style={{ padding: 16, color: '#444', fontSize: 13 }}>
@@ -33,7 +33,22 @@ export default function RobotPanel({ robot, pose }) {
 
   return (
     <div style={{ padding: 16, fontSize: 13 }}>
-      <div style={{ color: '#facc15', fontSize: 14, letterSpacing: 1, marginBottom: 14 }}>{robot.id}</div>
+      <div style={{ color: '#facc15', fontSize: 14, letterSpacing: 1, marginBottom: 10 }}>{robot.id}</div>
+
+      <button
+        onClick={() => onStop(robot.id)}
+        style={{
+          marginBottom: 14,
+          padding: '6px 12px',
+          background: '#ef4444',
+          color: '#fff',
+          border: 'none',
+          fontSize: 13,
+          cursor: 'pointer',
+        }}
+      >
+        Stop
+      </button>
 
       <Section title="IDENTITY">
         <Row label="namespace" value={robot.namespace} />

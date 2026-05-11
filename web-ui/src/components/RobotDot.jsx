@@ -39,7 +39,7 @@ export default function RobotDot({ robot, svgX, svgY, theta, selected, worldScal
 
   return (
     <g
-      onMouseDown={(e) => { e.stopPropagation(); onMouseDown(e.clientX, e.clientY) }}
+      onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); onMouseDown(e.clientX, e.clientY) }}
       style={{ cursor: 'grab' }}
     >
       {robot.obstacle && worldScale && (
