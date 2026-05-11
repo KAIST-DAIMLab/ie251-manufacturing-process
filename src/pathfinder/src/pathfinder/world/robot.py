@@ -1,4 +1,5 @@
 from __future__ import annotations
+import dataclasses
 from dataclasses import dataclass
 from geometry_msgs.msg import Pose2D
 
@@ -37,6 +38,17 @@ class Robot:
     def set_pose(self, pose: Pose2D) -> None:
         """Record the latest world-frame pose."""
         self.pose = pose
+
+    def to_wire_dict(self) -> dict:
+        """Return config fields serializable as JSON; excludes the mutable pose."""
+        return {
+            "id": self.id,
+            "namespace": self.namespace,
+            "start_node": self.start_node,
+            "yaw": self.yaw,
+            "motion": dataclasses.asdict(self.motion),
+            "obstacle": dataclasses.asdict(self.obstacle),
+        }
 
     @classmethod
     def from_dict(cls, data: dict, sim: bool = False) -> Robot:

@@ -167,7 +167,15 @@ class FleetServiceTest(unittest.TestCase):
     def _make_service(self, robot_id='tb3_0', send_returns=True, pose=_DEFAULT_POSE):
         motion = types.SimpleNamespace(linear_speed=0.22, angular_speed=1.5, move_rate_hz=5.0, arrival_tolerance=0.05)
         obstacle = types.SimpleNamespace(enabled=True, stop_distance=0.4, detect_degree=20)
-        robot = types.SimpleNamespace(id=robot_id, namespace=robot_id, pose=pose, start_node=1, yaw=0.0, motion=motion, obstacle=obstacle)
+        robot = types.SimpleNamespace(
+            id=robot_id, namespace=robot_id, pose=pose, start_node=1, yaw=0.0,
+            motion=motion, obstacle=obstacle,
+            to_wire_dict=lambda: {
+                "id": robot_id, "namespace": robot_id, "start_node": 1, "yaw": 0.0,
+                "motion": {"linear_speed": 0.22, "angular_speed": 1.5, "move_rate_hz": 5.0, "arrival_tolerance": 0.05},
+                "obstacle": {"enabled": True, "stop_distance": 0.4, "detect_degree": 20},
+            },
+        )
         orchestrator = FakeOrchestrator(node_ids=[1, 2, 3])
         client = FakePathFollowActionClient(robot_id=robot_id, send_returns=send_returns)
         service = FleetService(
