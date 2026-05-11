@@ -29,7 +29,12 @@ class PathOrchestrator:
         self._planner = planner
 
     def plan(self, current_pose: Pose2D, target_node_id: int) -> list[int]:
-        """Resolve nearest start node, plan A* route, return ordered node id list."""
+        """Plan an A* route from the robot's current pose to the target node.
+
+        The robot's pose is treated as a temporary start; the resolved nearest
+        graph node is used only to seed A* and is dropped from the returned list
+        so the first waypoint is the first real next node the robot must drive to.
+        """
         start = self._nearest_node(current_pose)
 
         try:
@@ -39,7 +44,9 @@ class PathOrchestrator:
             raise NodeNotFoundError(f"node {target_node_id} not found") from error
         except ValueError as error:
             raise NoPathError(str(error)) from error
-            
+
+        if len(waypoints) > 1:
+            waypoints = waypoints[1:]
         return [node.id for node in waypoints]
 
     def _nearest_node(self, pose: Pose2D) -> Node:

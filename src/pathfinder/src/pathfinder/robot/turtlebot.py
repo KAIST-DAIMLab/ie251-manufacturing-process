@@ -62,10 +62,6 @@ class TurtleBot:
         target = Node(id=0, x=pose.x - meter * math.cos(pose.theta), y=pose.y - meter * math.sin(pose.theta))
         return self._motion_controller.drive_to(target)
 
-    def set_pause(self, paused: bool) -> None:
-        """Update the pause flag from the scan subscriber callback."""
-        self._motion_controller.set_pause(paused)
-
     def stop(self) -> None:
         """Cancel current movement and halt immediately."""
         self._motion_controller.stop()

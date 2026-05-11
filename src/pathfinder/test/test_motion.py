@@ -296,37 +296,6 @@ class MotionControllerTest(unittest.TestCase):
         self.assertTrue(result)
         self.assertGreaterEqual(engine.drive_calls, 3)
 
-    def test_set_pause_causes_engine_stop_instead_of_drive_towards(self):
-        engine = FakeMotionEngine()
-        engine._drive_returns = False
-        controller = MotionController(engine)
-        controller.set_pause(True)
-
-        tick = [0]
-
-        def unblock():
-            tick[0] += 1
-            if tick[0] >= 2:
-                controller.set_pause(False)
-                engine._drive_returns = True
-
-        sys.modules['rospy'].sleep_callbacks.append(unblock)
-
-        result = controller.drive_to(Node(id=1, x=1.0, y=0.0))
-
-        self.assertTrue(result)
-        self.assertGreater(engine.stop_calls, 0)
-
-    def test_set_pause_does_not_affect_turn_to(self):
-        engine = FakeMotionEngine()
-        controller = MotionController(engine)
-        controller.set_pause(True)
-
-        result = controller.turn_to(0.0)
-
-        self.assertTrue(result)
-        self.assertEqual(engine.turn_calls, 1)
-
     def test_stop_causes_drive_to_to_return_false(self):
         engine = FakeMotionEngine()
         engine._drive_returns = False

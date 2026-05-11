@@ -15,10 +15,17 @@ function buildViewBox(nodes) {
   return { minX, maxX, minY, maxY, width: maxX - minX, height: maxY - minY }
 }
 
+const PATH_COLORS = ['#f87171', '#60a5fa', '#a78bfa', '#34d399']
+
+function robotColor(robotId) {
+  return PATH_COLORS[parseInt(robotId.replace(/\D/g, ''), 10) % PATH_COLORS.length]
+}
+
 export default function GraphCanvas({
   graph,
   robots,
   poses,
+  pathStatuses,
   selectedRobotId,
   dragState,
   setDragState,
@@ -114,6 +121,29 @@ export default function GraphCanvas({
         return (
           <line key={index} x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="#555" strokeWidth={2} />
         )
+      })}
+
+      {robots.map((robot) => {
+        const status = pathStatuses?.[robot.id]
+        if (!status || status.node_ids.length === 0) return null
+        const color = robotColor(robot.id)
+        return status.node_ids.map((nodeId, i) => {
+          if (i === 0) return null
+          const a = toSvg(nodeMap[status.node_ids[i - 1]].x, nodeMap[status.node_ids[i - 1]].y)
+          const b = toSvg(nodeMap[nodeId].x, nodeMap[nodeId].y)
+          const active = i - 1 === status.current_index || i === status.current_index
+          return (
+            <line
+              key={`${robot.id}-${i}`}
+              x1={a.x} y1={a.y} x2={b.x} y2={b.y}
+              stroke={color}
+              strokeWidth={active ? 3 : 1.5}
+              strokeOpacity={active ? 0.9 : 0.4}
+              strokeDasharray={active ? 'none' : '6 4'}
+              pointerEvents="none"
+            />
+          )
+        })
       })}
 
       {graph.nodes.map((node) => {

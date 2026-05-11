@@ -45,15 +45,15 @@ class FailingPlanner:
 
 
 class TestPathOrchestratorHappyPath(unittest.TestCase):
-    def test_returns_correct_node_id_list(self):
+    def test_drops_resolved_start_from_returned_path(self):
         graph = _make_graph()
-        expected_nodes = [graph.get_node(1), graph.get_node(2), graph.get_node(3)]
-        orchestrator = PathOrchestrator(graph, FixedPathPlanner(expected_nodes))
+        planner_path = [graph.get_node(1), graph.get_node(2), graph.get_node(3)]
+        orchestrator = PathOrchestrator(graph, FixedPathPlanner(planner_path))
 
         pose = types.SimpleNamespace(x=0.5, y=0.0)
         result = orchestrator.plan(pose, target_node_id=3)
 
-        self.assertEqual(result, [1, 2, 3])
+        self.assertEqual(result, [2, 3])
 
     def test_resolves_nearest_node_as_start(self):
         graph = _make_graph()
@@ -69,6 +69,15 @@ class TestPathOrchestratorHappyPath(unittest.TestCase):
         orchestrator.plan(pose, target_node_id=1)
 
         self.assertEqual(received_starts[0].id, 3)
+
+    def test_target_equal_to_start_returns_single_target(self):
+        graph = _make_graph()
+        orchestrator = PathOrchestrator(graph, FixedPathPlanner([graph.get_node(1)]))
+
+        pose = types.SimpleNamespace(x=0.0, y=0.0)
+        result = orchestrator.plan(pose, target_node_id=1)
+
+        self.assertEqual(result, [1])
 
 
 class TestPathOrchestratorErrors(unittest.TestCase):

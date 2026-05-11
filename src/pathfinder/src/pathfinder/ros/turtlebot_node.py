@@ -17,6 +17,7 @@ from pathfinder.ros.robot_command_action_server import RobotCommandActionServer
 from pathfinder.utils.physics import yaw_from_quaternion, yaw_from_xyzw
 from pathfinder.ros.motion_control_action_server import MotionControlActionServer
 from pathfinder.safety.obstacle_detector import ObstacleDetector
+from pathfinder.safety.forward_gate import ForwardGate
 from pathfinder.utils.physics import yaw_from_quaternion
 from pathfinder.world.graph import Graph
 
@@ -45,11 +46,12 @@ class TurtleBotNode:
 
         cmd_vel_publisher = rospy.Publisher(self.topic_cmd_vel, Twist, queue_size=1)
         self._pose_publisher = rospy.Publisher(self.topic_pose, Pose2D, queue_size=1)
+        self._forward_gate = ForwardGate(cmd_vel_publisher)
 
         self._state = RobotState(id=robot_id, origin=origin or Pose2D())
         state = self._state
         engine = MotionEngine(
-            cmd_vel_publisher=cmd_vel_publisher,
+            cmd_vel_publisher=self._forward_gate,
             pose_provider=state.get_pose,
             params=params,
         )
@@ -133,6 +135,6 @@ class TurtleBotNode:
 
     def _on_scan(self, message: LaserScan) -> None:
         detected = self._obstacle_detector.detect(message)
-        self._robot.set_pause(detected)
+        self._forward_gate.set_blocked(detected)
         if detected:
-            rospy.logwarn(f"{self._robot.id}: obstacle detected, pausing")
+            rospy.logwarn(f"{self._robot.id}: obstacle detected, forward motion blocked")
