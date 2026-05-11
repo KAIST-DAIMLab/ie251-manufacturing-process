@@ -37,8 +37,10 @@ tb3_01_executor    tb3_05_executor
 
 # 2. Prerequisites
 
+**Laptop (ROS master)**
 - Docker + Docker Compose
 - An X server on the host (any Linux desktop, or XQuartz on macOS)
+- `avahi-daemon` running (ships and runs by default on Ubuntu desktop)
 
 ```bash
 # Allow containers to open GUI windows (run once per host session)
@@ -46,6 +48,19 @@ xhost +local:docker
 ```
 
 > **macOS:** Use XQuartz. Set `DISPLAY=host.docker.internal:0` and enable *Allow connections from network clients* in XQuartz preferences.
+
+**Each TurtleBot3 (real robot only)**
+
+```bash
+sudo apt install avahi-daemon avahi-utils
+sudo systemctl enable --now avahi-daemon
+```
+
+Verify the laptop is resolvable from the robot before starting any ROS nodes:
+
+```bash
+ping $(hostname).local   # run on the robot; should reach the laptop
+```
 
 ---
 
@@ -56,8 +71,9 @@ xhost +local:docker
 
 **Start the container**  
 ```bash
-cd /path/to/ie251-manufacturing-process
-sudo docker compose -f docker/docker-compose.yml up -d
+cd /path/to/ie251-manufacturing-process/docker
+sed "s|your-laptop-hostname|$(hostname)|g" .env.example > .env
+sudo docker compose up -d
 sudo docker exec -it noetic zsh
 
 # Build (first time only)
@@ -103,19 +119,14 @@ Connect both robots and the laptop to the same LAN (e.g. the lab router). Note t
 
 **Configure the ROS master address**
 
-Edit `docker/docker-compose.yml` and set `ROS_HOSTNAME` and `ROS_MASTER_URI` to the laptop's LAN IP:
-
-```yaml
-environment:
-  - ROS_HOSTNAME=<laptop-ip>       # e.g. 192.168.0.2
-  - ROS_MASTER_URI=http://<laptop-ip>:11311
-```
+`docker-compose.yml` imports `docker/.env` into the container. The quick-start command below writes `ROS_HOSTNAME=$(hostname).local`; `ROS_MASTER_URI` is derived from `ROS_HOSTNAME` in `.env`. No manual edits are needed as long as `avahi-daemon` is running. Leave `ROS_IP` empty when using `ROS_HOSTNAME`.
 
 **Start the laptop container**
 
 ```bash
-cd /path/to/ie251-manufacturing-process
-sudo docker compose -f docker/docker-compose.yml up -d
+cd /path/to/ie251-manufacturing-process/docker
+sed "s|your-laptop-hostname|$(hostname)|g" .env.example > .env
+sudo docker compose up -d
 sudo docker exec -it noetic zsh
 
 # Build (first time only)
@@ -130,8 +141,8 @@ SSH into each robot's Raspberry Pi and set it to use the laptop as the ROS maste
 **On `tb3_01` (the robot placed at node 0):**
 
 ```bash
-export ROS_MASTER_URI=http://<laptop-ip>:11311
-export ROS_IP=<tb3_01-ip>
+export ROS_MASTER_URI=http://$(laptop-hostname).local:11311
+export ROS_HOSTNAME=$(hostname).local
 export ROS_NAMESPACE=tb3_01
 roslaunch turtlebot3_bringup turtlebot3_robot.launch
 ```
@@ -139,11 +150,13 @@ roslaunch turtlebot3_bringup turtlebot3_robot.launch
 **On `tb3_05` (the robot placed at node 5):**
 
 ```bash
-export ROS_MASTER_URI=http://<laptop-ip>:11311
-export ROS_IP=<tb3_05-ip>
+export ROS_MASTER_URI=http://$(laptop-hostname).local:11311
+export ROS_HOSTNAME=$(hostname).local
 export ROS_NAMESPACE=tb3_05
 roslaunch turtlebot3_bringup turtlebot3_robot.launch
 ```
+
+Replace `$(laptop-hostname)` with the actual output of `hostname` on the laptop (e.g. `mypc`). Each robot's `ROS_HOSTNAME` is set to its own mDNS name so the master can route topic traffic back to it.
 
 Each bringup publishes `/<namespace>/odom` and subscribes to `/<namespace>/cmd_vel`, which is what the executor expects.
 

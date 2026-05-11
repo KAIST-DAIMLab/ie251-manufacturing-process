@@ -5,14 +5,16 @@ from typing import Any
 import rospy
 import actionlib
 
+from pathfinder.msg import FollowPathAction, FollowPathFeedback, FollowPathResult  # type: ignore[import]
 from pathfinder.robot.turtlebot import TurtleBot
 from pathfinder.world.graph import Graph
 
 
-class FollowPathActionServer:
-    """Handles the FollowPath action for a single robot."""
+class PathFollowActionServer:
+    """ActionServer for FollowPath: receives path goals from PathRequestActionServer and drives the robot."""
 
     def __init__(self, robot: TurtleBot, graph: Graph, topic: str) -> None:
+        """Store the robot facade, graph, and action topic."""
         self._robot = robot
         self._graph = graph
         self._topic = topic
@@ -20,8 +22,6 @@ class FollowPathActionServer:
 
     def start(self) -> None:
         """Start the FollowPath action server."""
-        from pathfinder.msg import FollowPathAction  # type: ignore[import]
-
         self._server = actionlib.SimpleActionServer(
             self._topic,
             FollowPathAction,
@@ -31,11 +31,6 @@ class FollowPathActionServer:
         self._server.start()
 
     def _on_follow_path(self, goal: Any) -> None:
-        from pathfinder.msg import (  # type: ignore[import]
-            FollowPathFeedback,
-            FollowPathResult,
-        )
-
         waypoints = [self._graph.get_node(nid) for nid in goal.node_ids]
 
         if self._server.is_preempt_requested():

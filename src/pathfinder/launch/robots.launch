@@ -1,20 +1,22 @@
 <launch>
   <arg name="robots_config" default="$(find pathfinder)/config/robots.yaml"/>
   <arg name="sim" default="false"/>
+  <arg name="rosbridge" default="true"/>
+  <arg name="rosbridge_port" default="9090"/>
 
-  <node name="path_server" pkg="pathfinder" type="path_server_node" output="screen">
-    <param name="graph_file" value="$(find pathfinder)/config/graph.yaml"/>
-    <param name="horizon" value="2.0"/>
-    <param name="check_rate_hz" value="10.0"/>
-    <param name="safety_radius" value="0.35"/>
-    <param name="time_step" value="0.1"/>
-    <param name="sim" value="$(arg sim)"/>
-    <rosparam file="$(arg robots_config)" command="load"/>
-  </node>
-
-  <node name="robot_executors" pkg="pathfinder" type="robot_executors_node" output="screen">
+  <node name="path_server" pkg="pathfinder" type="path_server" output="screen">
     <param name="graph_file" value="$(find pathfinder)/config/graph.yaml"/>
     <param name="sim" value="$(arg sim)"/>
     <rosparam file="$(arg robots_config)" command="load"/>
   </node>
+
+  <node name="robot_executors" pkg="pathfinder" type="robot" output="screen">
+    <param name="graph_file" value="$(find pathfinder)/config/graph.yaml"/>
+    <param name="sim" value="$(arg sim)"/>
+    <rosparam file="$(arg robots_config)" command="load"/>
+  </node>
+
+  <include if="$(arg rosbridge)" file="$(find rosbridge_server)/launch/rosbridge_websocket.launch">
+    <arg name="port" value="$(arg rosbridge_port)"/>
+  </include>
 </launch>
