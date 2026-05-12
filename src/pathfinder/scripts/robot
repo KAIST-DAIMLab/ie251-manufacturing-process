@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import math
 from typing import List, cast
 
 import rospy
@@ -27,7 +26,7 @@ def main():
             origin = Pose2D()
             origin.x = start_node.x
             origin.y = start_node.y
-            origin.theta = math.radians(robot.yaw)
+            origin.theta = 0.0
 
         params = MotionParameters(
             linear_speed=robot.motion.linear_speed,
