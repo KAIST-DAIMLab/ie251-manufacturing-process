@@ -89,6 +89,9 @@ def build_launch_plan(
             f'/scan_relay_{robot_id}/input': f'/{robot_id}/scan',
             f'/scan_relay_{robot_id}/output': f'/{robot_id}/scan_relayed',
             f'/scan_relay_{robot_id}/frame_id': f'{robot_id}/base_scan',
+            f'/odom_tf_bridge_{robot_id}/input': f'/{robot_id}/odom',
+            f'/odom_tf_bridge_{robot_id}/parent_frame': f'{robot_id}/odom',
+            f'/odom_tf_bridge_{robot_id}/child_frame': f'{robot_id}/base_footprint',
             f'/{robot_id}/amcl/odom_frame_id': f'{robot_id}/odom',
             f'/{robot_id}/amcl/base_frame_id': f'{robot_id}/base_footprint',
             f'/{robot_id}/amcl/initial_pose_x': initial_x,
@@ -104,6 +107,7 @@ def build_launch_plan(
             params=params,
             nodes=[
                 _node('pathfinder', 'scan_relay', name=f'scan_relay_{robot_id}', output='screen'),
+                _node('pathfinder', 'real_odom_tf_bridge', name=f'odom_tf_bridge_{robot_id}', output='screen'),
                 _node(
                     'tf2_ros',
                     'static_transform_publisher',

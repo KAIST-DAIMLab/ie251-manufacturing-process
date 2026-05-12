@@ -1,0 +1,34 @@
+#!/usr/bin/env python3
+"""Republish a robot odometry topic as a prefixed TF edge for AMCL."""
+from __future__ import annotations
+
+import rospy
+import tf2_ros
+from geometry_msgs.msg import TransformStamped
+from nav_msgs.msg import Odometry
+
+
+def main() -> None:
+    rospy.init_node('real_odom_tf_bridge')
+    input_topic = rospy.get_param('~input', 'odom')
+    parent_frame = rospy.get_param('~parent_frame', 'odom')
+    child_frame = rospy.get_param('~child_frame', 'base_footprint')
+    broadcaster = tf2_ros.TransformBroadcaster()
+
+    def callback(msg: Odometry) -> None:
+        transform = TransformStamped()
+        transform.header.stamp = msg.header.stamp
+        transform.header.frame_id = parent_frame
+        transform.child_frame_id = child_frame
+        transform.transform.translation.x = msg.pose.pose.position.x
+        transform.transform.translation.y = msg.pose.pose.position.y
+        transform.transform.translation.z = msg.pose.pose.position.z
+        transform.transform.rotation = msg.pose.pose.orientation
+        broadcaster.sendTransform(transform)
+
+    rospy.Subscriber(input_topic, Odometry, callback)
+    rospy.spin()
+
+
+if __name__ == '__main__':
+    main()

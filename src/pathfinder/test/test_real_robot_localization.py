@@ -89,10 +89,12 @@ class RealRobotLocalizationTest(unittest.TestCase):
         self.assertEqual([robot.robot_id for robot in plan], ['tb3_01', 'tb3_05'])
         self.assertEqual([node.name for robot in plan for node in robot.nodes], [
             'scan_relay_tb3_01',
+            'odom_tf_bridge_tb3_01',
             'tb3_01_base_footprint_to_base_link',
             'tb3_01_base_link_to_scan',
             'amcl',
             'scan_relay_tb3_05',
+            'odom_tf_bridge_tb3_05',
             'tb3_05_base_footprint_to_base_link',
             'tb3_05_base_link_to_scan',
             'amcl',
@@ -119,6 +121,9 @@ class RealRobotLocalizationTest(unittest.TestCase):
         self.assertEqual(plan[0].params['/scan_relay_tb3_05/input'], '/tb3_05/scan')
         self.assertEqual(plan[0].params['/scan_relay_tb3_05/output'], '/tb3_05/scan_relayed')
         self.assertEqual(plan[0].params['/scan_relay_tb3_05/frame_id'], 'tb3_05/base_scan')
+        self.assertEqual(plan[0].params['/odom_tf_bridge_tb3_05/input'], '/tb3_05/odom')
+        self.assertEqual(plan[0].params['/odom_tf_bridge_tb3_05/parent_frame'], 'tb3_05/odom')
+        self.assertEqual(plan[0].params['/odom_tf_bridge_tb3_05/child_frame'], 'tb3_05/base_footprint')
 
     def test_unknown_start_node_raises_clear_error(self):
         robots_path = _write_yaml({'robots': [{'id': 'tb3_01', 'start_node': 99}]})
