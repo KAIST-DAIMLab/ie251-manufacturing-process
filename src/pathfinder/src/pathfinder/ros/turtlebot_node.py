@@ -14,12 +14,10 @@ from pathfinder.robot.motion_controller import MotionController
 from pathfinder.robot.path_follower import PathFollower
 from pathfinder.robot.robot_state import RobotState
 from pathfinder.robot.turtlebot import TurtleBot
-from pathfinder.ros.robot_command_action_server import RobotCommandActionServer
-from pathfinder.utils.physics import yaw_from_quaternion, yaw_from_xyzw
 from pathfinder.ros.motion_control_action_server import MotionControlActionServer
 from pathfinder.safety.obstacle_detector import ObstacleDetector
 from pathfinder.safety.forward_gate import ForwardGate
-from pathfinder.utils.physics import yaw_from_quaternion
+from pathfinder.utils.physics import yaw_from_quaternion, yaw_from_xyzw
 from pathfinder.world.graph import Graph
 
 
@@ -94,6 +92,7 @@ class TurtleBotNode:
     def topic_scan(self) -> str:
         """Topic name for the LiDAR subscriber."""
         return f'/{self._namespace}/scan'
+    
     def topic_stop(self) -> str:
         return f'/{self._namespace}/stop'
 
