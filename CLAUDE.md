@@ -99,6 +99,8 @@ These exist because past output drifted from them and required dozens of follow-
 - **Every numeric tunable lives in `robots.yaml` or `params.yaml`** and is threaded YAML → dataclass (`MotionConfig`/`ObstacleConfig` in [world/robot.py](src/pathfinder/src/pathfinder/world/robot.py)) → script (`scripts/robot`) → node constructor in the same change. Hardcoded literals in constructors are bugs unless they are mathematical constants.
 - **No speculative abstractions.** Don't add a class, lock, dict, parameter, or layer until the *current* code requires it. Removing a wrong abstraction costs more than adding it when the need actually appears.
 - **No placeholder code.** If a class has no real implementation, no callers, or duplicates existing functionality, it doesn't ship. Diagrams describe what *exists*, not what was once planned.
+- **Plan mechanism-words are suggestions, not commands.** When a plan prescribes a *how* (e.g. "read field-by-field", "use a dict here"), evaluate it against the architecture rules above before implementing. If the prescribed mechanism violates a rule, implement the goal via the rule-compliant approach instead. The architecture rules win.
+- **"Whose job is this?" check.** Before placing logic in a file, ask which responsibility bucket it belongs to. Serialization of a domain object belongs on that object, not on the caller. If the answer is obvious and conflicts with where you were about to put it, move it.
 
 ## Conventions
 

@@ -7,6 +7,7 @@ from pathfinder.world.edge import Edge
 class Graph:
     def __init__(self, nodes: list[Node], edges: list[Edge]) -> None:
         self._nodes: dict[int, Node] = {n.id: n for n in nodes}
+        self._edges: list[Edge] = list(edges)
         self._adj: dict[int, list[Edge]] = {n.id: [] for n in nodes}
         for edge in edges:
             self._adj[edge.from_node.id].append(edge)
@@ -17,6 +18,10 @@ class Graph:
 
     def all_nodes(self) -> list[Node]:
         return list(self._nodes.values())
+
+    def all_edges(self) -> list[Edge]:
+        """Return the undirected edge list as originally loaded."""
+        return list(self._edges)
 
     def get_neighbors(self, node: Node) -> list[Node]:
         return [e.to_node for e in self._adj[node.id]]
