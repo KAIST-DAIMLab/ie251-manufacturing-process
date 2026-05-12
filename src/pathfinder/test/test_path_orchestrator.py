@@ -61,16 +61,16 @@ class FailingPlanner:
 
 
 class TestNoEdge(unittest.TestCase):
-    """When current_edge is None, fall back to nearest node and drop start."""
+    """When current_edge is None, fall back to nearest node."""
 
-    def test_drops_resolved_start_from_returned_path(self):
+    def test_returns_resolved_start_in_path(self):
         graph = _make_graph()
         planner_path = [graph.get_node(1), graph.get_node(2), graph.get_node(3)]
         orchestrator = PathOrchestrator(graph, FixedPathPlanner(planner_path))
 
         result = orchestrator.plan(_pose(0.5, 0.0), target_node_id=3)
 
-        self.assertEqual(result, [2, 3])
+        self.assertEqual(result, [1, 2, 3])
 
     def test_resolves_nearest_node_as_start(self):
         graph = _make_graph()
@@ -91,9 +91,9 @@ class TestNoEdge(unittest.TestCase):
 
 
 class TestAtEdgeEndpoint(unittest.TestCase):
-    """When pose is within tolerance of an endpoint of current_edge, that endpoint is the start and is dropped."""
+    """When pose is within tolerance of an endpoint of current_edge, that endpoint is the start."""
 
-    def test_at_endpoint_a_uses_a_as_start_and_drops_it(self):
+    def test_at_endpoint_a_uses_a_as_start(self):
         graph = _make_graph()
         planner = CapturingPlanner()
         orchestrator = PathOrchestrator(graph, planner)
@@ -105,9 +105,9 @@ class TestAtEdgeEndpoint(unittest.TestCase):
         )
 
         self.assertEqual(planner.starts[0].id, 1)
-        self.assertEqual(result, [3])
+        self.assertEqual(result[0], 1)
 
-    def test_at_endpoint_b_uses_b_as_start_and_drops_it(self):
+    def test_at_endpoint_b_uses_b_as_start(self):
         graph = _make_graph()
         planner = CapturingPlanner()
         orchestrator = PathOrchestrator(graph, planner)
@@ -119,13 +119,13 @@ class TestAtEdgeEndpoint(unittest.TestCase):
         )
 
         self.assertEqual(planner.starts[0].id, 2)
-        self.assertEqual(result, [3])
+        self.assertEqual(result[0], 2)
 
 
 class TestMidEdge(unittest.TestCase):
-    """When pose is between the two endpoints of current_edge, pick by heading + blocked flag and keep start."""
+    """When pose is between the two endpoints of current_edge, pick by heading + blocked flag."""
 
-    def test_mid_edge_blocked_picks_behind_endpoint_and_keeps_it(self):
+    def test_mid_edge_blocked_picks_behind_endpoint(self):
         graph = _make_graph()
         planner = CapturingPlanner()
         orchestrator = PathOrchestrator(graph, planner)
@@ -140,7 +140,7 @@ class TestMidEdge(unittest.TestCase):
         self.assertEqual(planner.starts[0].id, 1)
         self.assertEqual(result[0], 1)
 
-    def test_mid_edge_not_blocked_picks_forward_endpoint_and_keeps_it(self):
+    def test_mid_edge_not_blocked_picks_forward_endpoint(self):
         graph = _make_graph()
         planner = CapturingPlanner()
         orchestrator = PathOrchestrator(graph, planner)
