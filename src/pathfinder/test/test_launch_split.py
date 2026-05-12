@@ -28,6 +28,19 @@ class LaunchSplitTest(unittest.TestCase):
             self.assertEqual(node.find("./param[@name='graph_file']").get('value'), '$(arg graph_config)')
             self.assertEqual(node.find("./param[@name='sim']").get('value'), 'true')
 
+    def test_simulation_launch_starts_rosbridge_for_web_ui(self):
+        root = _launch_tree('simulation.launch')
+
+        rosbridge_arg = root.find("./arg[@name='rosbridge']")
+        rosbridge_port_arg = root.find("./arg[@name='rosbridge_port']")
+        self.assertEqual(rosbridge_arg.get('default'), 'true')
+        self.assertEqual(rosbridge_port_arg.get('default'), '9090')
+
+        rosbridge_include = root.find("./include[@file='$(find rosbridge_server)/launch/rosbridge_websocket.launch']")
+        self.assertIsNotNone(rosbridge_include)
+        self.assertEqual(rosbridge_include.get('if'), '$(arg rosbridge)')
+        self.assertEqual(rosbridge_include.find("./arg[@name='port']").get('value'), '$(arg rosbridge_port)')
+
     def test_robots_launch_has_real_robot_config_defaults(self):
         root = _launch_tree('robots.launch')
         executor_nodes = [

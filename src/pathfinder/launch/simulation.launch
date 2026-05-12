@@ -4,6 +4,8 @@
   <arg name="graph_config" default="$(find pathfinder)/config/graph.yaml"/>
   <arg name="map_file" default="$(find pathfinder)/maps/my_map.yaml"/>
   <arg name="start_system" default="true"/>
+  <arg name="rosbridge" default="true"/>
+  <arg name="rosbridge_port" default="9090"/>
 
   <env name="GAZEBO_MODEL_PATH" value="$(find pathfinder)/models:$(optenv GAZEBO_MODEL_PATH)"/>
 
@@ -40,5 +42,9 @@
     <param name="sim" value="true"/>
     <rosparam file="$(arg robots_config)" command="load"/>
   </node>
+
+  <include if="$(arg rosbridge)" file="$(find rosbridge_server)/launch/rosbridge_websocket.launch">
+    <arg name="port" value="$(arg rosbridge_port)"/>
+  </include>
 
 </launch>
