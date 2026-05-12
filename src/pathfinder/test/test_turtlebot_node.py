@@ -173,6 +173,11 @@ class TurtleBotNodePoseSourceTest(unittest.TestCase):
         self.assertAlmostEqual(published[-1].y, -0.4)
         self.assertAlmostEqual(published[-1].theta, 0.75)
 
+    def test_pose_publisher_is_latched_for_late_web_ui_subscribers(self):
+        TurtleBotNode('tb3_01', obstacle_enabled=False)
+
+        self.assertTrue(PUBLISHERS['/tb3_01/pose'].latch)
+
     def test_odom_updates_velocity_without_changing_or_publishing_pose(self):
         node = TurtleBotNode('tb3_01', obstacle_enabled=False)
         node._state.pose.x = 9.0

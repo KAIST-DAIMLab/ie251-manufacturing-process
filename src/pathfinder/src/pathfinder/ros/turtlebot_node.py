@@ -45,7 +45,7 @@ class TurtleBotNode:
         ) if obstacle_enabled else None
 
         cmd_vel_publisher = rospy.Publisher(self.topic_cmd_vel, Twist, queue_size=1)
-        self._pose_publisher = rospy.Publisher(self.topic_pose, Pose2D, queue_size=1)
+        self._pose_publisher = rospy.Publisher(self.topic_pose, Pose2D, queue_size=1, latch=True)
         self._forward_gate = ForwardGate(cmd_vel_publisher)
         self._obstacle_blocked_publisher = rospy.Publisher(self.topic_obstacle_blocked, Bool, queue_size=1, latch=True)
         self._obstacle_blocked_publisher.publish(Bool(data=False))
