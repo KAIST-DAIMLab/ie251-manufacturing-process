@@ -1,0 +1,31 @@
+#!/usr/bin/env python3
+"""Republishes a LaserScan with a different header.frame_id.
+
+Params:
+  ~input     – source topic  (default: 'scan')
+  ~output    – sink topic    (default: 'scan_relayed')
+  ~frame_id  – new frame_id  (default: unchanged)
+"""
+import rospy
+from sensor_msgs.msg import LaserScan
+
+
+def main() -> None:
+    rospy.init_node('scan_relay', anonymous=True)
+    input_topic  = rospy.get_param('~input',    'scan')
+    output_topic = rospy.get_param('~output',   'scan_relayed')
+    new_frame_id = rospy.get_param('~frame_id', '')
+
+    pub = rospy.Publisher(output_topic, LaserScan, queue_size=10)
+
+    def callback(msg: LaserScan) -> None:
+        if new_frame_id:
+            msg.header.frame_id = new_frame_id
+        pub.publish(msg)
+
+    rospy.Subscriber(input_topic, LaserScan, callback)
+    rospy.spin()
+
+
+if __name__ == '__main__':
+    main()

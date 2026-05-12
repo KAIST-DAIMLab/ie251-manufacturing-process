@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<sdf version="1.6">
+  <model name="map_floor">
+    <static>true</static>
+    <pose>-0.4 -0.3 0.001 0 0 0</pose>
+    <link name="link">
+      <visual name="visual">
+        <geometry>
+          <plane>
+            <normal>0 0 1</normal>
+            <size>19.2 19.2</size>
+          </plane>
+        </geometry>
+        <material>
+          <script>
+            <uri>model://map_floor/materials/scripts</uri>
+            <uri>model://map_floor/materials/textures</uri>
+            <name>MapFloorMaterial</name>
+          </script>
+        </material>
+      </visual>
+    </link>
+  </model>
+</sdf>

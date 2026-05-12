@@ -53,7 +53,13 @@ install(PROGRAMS
   scripts/simulation_robots
   scripts/simulation_markers
   scripts/client
+  scripts/run_simulation
+  scripts/real_robot_launch
+<<<<<<< HEAD
   scripts/simulation
+=======
+  scripts/scan_relay
+>>>>>>> empt
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
