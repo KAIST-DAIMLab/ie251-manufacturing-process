@@ -4,6 +4,7 @@ import RobotPanel from './components/RobotPanel.jsx'
 import { fetchGraph } from './ros/fetchGraph.js'
 import { fetchRobots } from './ros/fetchRobots.js'
 import { subscribePose } from './ros/subscribePose.js'
+import { subscribePathStatus } from './ros/subscribePathStatus.js'
 import { moveToNode } from './ros/moveToNode.js'
 import { cancelPath } from './ros/cancelPath.js'
 
@@ -11,6 +12,7 @@ export default function App() {
   const [graph, setGraph] = useState(null)
   const [robots, setRobots] = useState([])
   const [poses, setPoses] = useState({})
+  const [pathStatuses, setPathStatuses] = useState({})
   const [selectedRobotId, setSelectedRobotId] = useState(null)
   const [banner, setBanner] = useState(null)
   const [dragState, setDragState] = useState(null)
@@ -32,6 +34,16 @@ export default function App() {
           ...previous,
           [robot.id]: { x: message.x, y: message.y, theta: message.theta },
         }))
+      }),
+    )
+    return () => unsubscribers.forEach((unsubscribe) => unsubscribe())
+  }, [robots])
+
+  useEffect(() => {
+    if (robots.length === 0) return
+    const unsubscribers = robots.map((robot) =>
+      subscribePathStatus(robot.namespace, (status) => {
+        setPathStatuses((previous) => ({ ...previous, [robot.id]: status }))
       }),
     )
     return () => unsubscribers.forEach((unsubscribe) => unsubscribe())
@@ -100,6 +112,7 @@ export default function App() {
           graph={graph}
           robots={robots}
           poses={poses}
+          pathStatuses={pathStatuses}
           selectedRobotId={selectedRobotId}
           dragState={dragState}
           setDragState={setDragState}
@@ -111,6 +124,7 @@ export default function App() {
           <RobotPanel
             robot={selectedRobot}
             pose={selectedRobotId ? poses[selectedRobotId] : null}
+            pathStatus={selectedRobotId ? pathStatuses[selectedRobotId] : null}
             onStop={handleStop}
           />
         </div>

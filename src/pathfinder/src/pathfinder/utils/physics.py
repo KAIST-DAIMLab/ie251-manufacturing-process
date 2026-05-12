@@ -8,6 +8,16 @@ def wrap_to_pi(radian: float) -> float:
     return math.atan2(math.sin(radian), math.cos(radian))
 
 
+def planar_distance(a: Any, b: Any) -> float:
+    """Euclidean distance between any two objects exposing .x and .y."""
+    return math.hypot(a.x - b.x, a.y - b.y)
+
+
+def heading_offset(pose: Any, target: Any) -> float:
+    """Signed angle (rad) from pose.theta to the bearing pose -> target, wrapped to (-pi, pi]."""
+    return wrap_to_pi(math.atan2(target.y - pose.y, target.x - pose.x) - pose.theta)
+
+
 def yaw_from_quaternion(q: Any) -> float:
     siny_cosp = 2.0 * (q.w * q.z + q.x * q.y)
     cosy_cosp = 1.0 - 2.0 * (q.y * q.y + q.z * q.z)

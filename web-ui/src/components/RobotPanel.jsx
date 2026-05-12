@@ -22,7 +22,7 @@ function Section({ title, children }) {
   )
 }
 
-export default function RobotPanel({ robot, pose, onStop }) {
+export default function RobotPanel({ robot, pose, pathStatus, onStop }) {
   if (!robot) {
     return (
       <div style={{ padding: 16, color: '#444', fontSize: 13 }}>
@@ -49,6 +49,18 @@ export default function RobotPanel({ robot, pose, onStop }) {
       >
         Stop
       </button>
+
+      <Section title="STATUS">
+        {pathStatus && pathStatus.node_ids.length > 0 ? (
+          <>
+            <Row label="state" value="MOVING" />
+            <Row label="target" value={`node ${pathStatus.node_ids[pathStatus.node_ids.length - 1]}`} />
+            <Row label="step" value={`${pathStatus.current_index + 1} / ${pathStatus.node_ids.length}`} />
+          </>
+        ) : (
+          <Row label="state" value="IDLE" />
+        )}
+      </Section>
 
       <Section title="IDENTITY">
         <Row label="namespace" value={robot.namespace} />
