@@ -1,0 +1,152 @@
+#!/usr/bin/env python3
+"""Launch per-robot real localization nodes from robots.yaml."""
+from __future__ import annotations
+from dataclasses import dataclass
+
+import roslaunch
+import roslaunch.core
+import roslaunch.scriptapi
+import rospy
+import yaml
+
+
+@dataclass(frozen=True)
+class RobotLaunchPlan:
+    robot_id: str
+    params: dict[str, object]
+    nodes: list[roslaunch.core.Node]
+
+
+AMCL_PARAMS = {
+    'odom_frame_id': None,
+    'base_frame_id': None,
+    'global_frame_id': 'map',
+    'min_particles': 500,
+    'max_particles': 3000,
+    'laser_model_type': 'likelihood_field',
+    'laser_likelihood_max_dist': 2.0,
+    'laser_max_range': 3.5,
+    'laser_min_range': 0.12,
+    'laser_max_beams': 180,
+    'odom_model_type': 'diff',
+    'odom_alpha1': 0.1,
+    'odom_alpha2': 0.1,
+    'odom_alpha3': 0.1,
+    'odom_alpha4': 0.1,
+    'update_min_d': 0.05,
+    'update_min_a': 0.1,
+    'resample_interval': 1,
+    'transform_tolerance': 0.5,
+    'use_map_topic': True,
+    'recovery_alpha_slow': 0.001,
+    'recovery_alpha_fast': 0.1,
+}
+
+
+def _load_yaml(path: str) -> dict:
+    with open(path, 'r') as yaml_file:
+        return yaml.safe_load(yaml_file)
+
+
+def _node(package: str, node_type: str, **kwargs) -> roslaunch.core.Node:
+    return roslaunch.core.Node(package=package, node_type=node_type, **kwargs)
+
+
+def _parse_active_robot_ids(active_robot_ids: str) -> set[str]:
+    return {robot_id.strip() for robot_id in active_robot_ids.split(',') if robot_id.strip()}
+
+
+def _node_map(graph_config: str) -> dict[int, tuple[float, float]]:
+    graph = _load_yaml(graph_config)
+    return {int(node['id']): (float(node['x']), float(node['y'])) for node in graph['nodes']}
+
+
+def build_launch_plan(
+    robots_config: str,
+    graph_config: str,
+    active_robot_ids: str,
+) -> list[RobotLaunchPlan]:
+    robots = _load_yaml(robots_config)['robots']
+    nodes_by_id = _node_map(graph_config)
+    active_ids = _parse_active_robot_ids(active_robot_ids)
+    configured_ids = {robot['id'] for robot in robots}
+    unknown_ids = active_ids - configured_ids
+    if unknown_ids:
+        raise KeyError(f"active robot ids not in robots.yaml: {sorted(unknown_ids)}")
+
+    plan = []
+    for robot in robots:
+        robot_id = robot['id']
+        if active_ids and robot_id not in active_ids:
+            continue
+
+        start_node = int(robot['start_node'])
+        if start_node not in nodes_by_id:
+            raise KeyError(f"Robot '{robot_id}' references start_node {start_node}, which is not in the graph")
+        initial_x, initial_y = nodes_by_id[start_node]
+
+        params = {
+            f'/scan_relay_{robot_id}/input': f'/{robot_id}/scan',
+            f'/scan_relay_{robot_id}/output': f'/{robot_id}/scan_relayed',
+            f'/scan_relay_{robot_id}/frame_id': f'{robot_id}/base_scan',
+            f'/{robot_id}/amcl/odom_frame_id': f'{robot_id}/odom',
+            f'/{robot_id}/amcl/base_frame_id': f'{robot_id}/base_footprint',
+            f'/{robot_id}/amcl/initial_pose_x': initial_x,
+            f'/{robot_id}/amcl/initial_pose_y': initial_y,
+            f'/{robot_id}/amcl/initial_pose_a': 0.0,
+        }
+        for name, value in AMCL_PARAMS.items():
+            if value is not None:
+                params[f'/{robot_id}/amcl/{name}'] = value
+
+        plan.append(RobotLaunchPlan(
+            robot_id=robot_id,
+            params=params,
+            nodes=[
+                _node('pathfinder', 'scan_relay', name=f'scan_relay_{robot_id}', output='screen'),
+                _node(
+                    'tf2_ros',
+                    'static_transform_publisher',
+                    name=f'{robot_id}_base_footprint_to_base_link',
+                    args=f'0 0 0 0 0 0 {robot_id}/base_footprint {robot_id}/base_link',
+                ),
+                _node(
+                    'tf2_ros',
+                    'static_transform_publisher',
+                    name=f'{robot_id}_base_link_to_scan',
+                    args=f'-0.064 0 0.122 0 0 0 {robot_id}/base_link {robot_id}/base_scan',
+                ),
+                _node(
+                    'amcl',
+                    'amcl',
+                    name='amcl',
+                    namespace=robot_id,
+                    output='screen',
+                    remap_args=[('scan', f'/{robot_id}/scan_relayed'), ('map', '/map')],
+                ),
+            ],
+        ))
+    return plan
+
+
+def main() -> None:
+    rospy.init_node('real_robot_localization')
+    robots_config = rospy.get_param('~robots_config')
+    graph_config = rospy.get_param('~graph_config')
+    active_robot_ids = rospy.get_param('~active_robot_ids', '')
+
+    launcher = roslaunch.scriptapi.ROSLaunch()
+    launcher.start()
+
+    for robot_plan in build_launch_plan(robots_config, graph_config, active_robot_ids):
+        for name, value in robot_plan.params.items():
+            rospy.set_param(name, value)
+        for node in robot_plan.nodes:
+            launcher.launch(node)
+        rospy.loginfo(f"Started localization for {robot_plan.robot_id}")
+
+    rospy.spin()
+
+
+if __name__ == '__main__':
+    main()

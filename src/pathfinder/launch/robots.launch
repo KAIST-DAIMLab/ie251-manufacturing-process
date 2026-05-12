@@ -1,17 +1,36 @@
 <launch>
   <arg name="robots_config" default="$(find pathfinder)/config/robots.yaml"/>
+  <arg name="graph_config" default="$(find pathfinder)/config/graph.yaml"/>
+  <arg name="map_file" default="$(find pathfinder)/maps/my_map.yaml"/>
   <arg name="sim" default="false"/>
+  <arg name="open_rviz" default="true"/>
+  <arg name="active_robot_ids" default=""/>
   <arg name="rosbridge" default="true"/>
   <arg name="rosbridge_port" default="9090"/>
 
+  <group unless="$(arg sim)">
+    <node name="map_server" pkg="map_server" type="map_server"
+          args="$(arg map_file)" output="screen"/>
+
+    <node name="real_robot_localization" pkg="pathfinder" type="real_robot_localization" output="screen">
+      <param name="robots_config" value="$(arg robots_config)"/>
+      <param name="graph_config" value="$(arg graph_config)"/>
+      <param name="active_robot_ids" value="$(arg active_robot_ids)"/>
+    </node>
+
+    <node if="$(arg open_rviz)" name="rviz" pkg="rviz" type="rviz"
+          args="-d $(find pathfinder)/rviz/localization.rviz"
+          output="screen"/>
+  </group>
+
   <node name="path_server" pkg="pathfinder" type="path_server" output="screen">
-    <param name="graph_file" value="$(find pathfinder)/config/graph.yaml"/>
+    <param name="graph_file" value="$(arg graph_config)"/>
     <param name="sim" value="$(arg sim)"/>
     <rosparam file="$(arg robots_config)" command="load"/>
   </node>
 
   <node name="robot_executors" pkg="pathfinder" type="robot" output="screen">
-    <param name="graph_file" value="$(find pathfinder)/config/graph.yaml"/>
+    <param name="graph_file" value="$(arg graph_config)"/>
     <param name="sim" value="$(arg sim)"/>
     <rosparam file="$(arg robots_config)" command="load"/>
   </node>

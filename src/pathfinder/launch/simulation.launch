@@ -31,6 +31,7 @@
 
   <include if="$(arg start_system)" file="$(find pathfinder)/launch/robots.launch">
     <arg name="robots_config" value="$(arg robots_config)"/>
+    <arg name="graph_config" value="$(arg graph_config)"/>
     <arg name="sim" value="true"/>
   </include>
 

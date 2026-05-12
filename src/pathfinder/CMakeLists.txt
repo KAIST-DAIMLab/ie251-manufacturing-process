@@ -55,11 +55,9 @@ install(PROGRAMS
   scripts/client
   scripts/run_simulation
   scripts/real_robot_launch
-<<<<<<< HEAD
+  scripts/real_robot_localization
   scripts/simulation
-=======
   scripts/scan_relay
->>>>>>> empt
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
@@ -73,4 +71,6 @@ if(CATKIN_ENABLE_TESTING)
   catkin_add_nosetests(test/test_turtlebot.py)
   catkin_add_nosetests(test/test_client.py)
   catkin_add_nosetests(test/test_obstacle_detector.py)
+  catkin_add_nosetests(test/test_real_robot_launch.py)
+  catkin_add_nosetests(test/test_real_robot_localization.py)
 endif()
