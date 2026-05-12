@@ -11,7 +11,7 @@ from sensor_msgs.msg import LaserScan
 
 
 def main() -> None:
-    rospy.init_node('scan_relay', anonymous=True)
+    rospy.init_node('scan_relay')
     input_topic  = rospy.get_param('~input',    'scan')
     output_topic = rospy.get_param('~output',   'scan_relayed')
     new_frame_id = rospy.get_param('~frame_id', '')
