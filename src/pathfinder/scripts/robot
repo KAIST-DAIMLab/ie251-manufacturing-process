@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import math
 from typing import List, cast
 
 import rospy
@@ -27,7 +26,7 @@ def main():
             origin = Pose2D()
             origin.x = start_node.x
             origin.y = start_node.y
-            origin.theta = math.radians(robot.yaw)
+            origin.theta = 0.0
 
         params = MotionParameters(
             linear_speed=robot.motion.linear_speed,
@@ -41,6 +40,7 @@ def main():
             params=params,
             motion_rate_hz=robot.motion.move_rate_hz,
             origin=origin,
+            odom_pose_enabled=sim,
             obstacle_enabled=robot.obstacle.enabled,
             obstacle_stop_distance=robot.obstacle.stop_distance,
             obstacle_detect_degree=robot.obstacle.detect_degree,

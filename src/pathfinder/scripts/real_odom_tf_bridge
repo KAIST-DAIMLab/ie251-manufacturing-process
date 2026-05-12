@@ -1,0 +1,56 @@
+#!/usr/bin/env python3
+"""Republish a robot odometry topic as a prefixed TF edge for AMCL."""
+from __future__ import annotations
+
+import math
+import rospy
+import tf2_ros
+from geometry_msgs.msg import TransformStamped
+from nav_msgs.msg import Odometry
+
+
+def main() -> None:
+    rospy.init_node('real_odom_tf_bridge')
+    input_topic = rospy.get_param('~input', 'odom')
+    parent_frame = rospy.get_param('~parent_frame', 'odom')
+    child_frame = rospy.get_param('~child_frame', 'base_footprint')
+    broadcaster = tf2_ros.TransformBroadcaster()
+
+    def callback(msg: Odometry) -> None:
+        position = msg.pose.pose.position
+        orientation = msg.pose.pose.orientation
+        values = [
+            position.x,
+            position.y,
+            position.z,
+            orientation.x,
+            orientation.y,
+            orientation.z,
+            orientation.w,
+        ]
+        norm = (
+            orientation.x * orientation.x
+            + orientation.y * orientation.y
+            + orientation.z * orientation.z
+            + orientation.w * orientation.w
+        )
+        if not all(math.isfinite(value) for value in values) or norm <= 0.0:
+            rospy.logwarn_throttle(5.0, f"Skipping invalid odometry transform from {input_topic}")
+            return
+
+        transform = TransformStamped()
+        transform.header.stamp = msg.header.stamp
+        transform.header.frame_id = parent_frame
+        transform.child_frame_id = child_frame
+        transform.transform.translation.x = position.x
+        transform.transform.translation.y = position.y
+        transform.transform.translation.z = position.z
+        transform.transform.rotation = orientation
+        broadcaster.sendTransform(transform)
+
+    rospy.Subscriber(input_topic, Odometry, callback)
+    rospy.spin()
+
+
+if __name__ == '__main__':
+    main()

@@ -65,7 +65,6 @@ export default function RobotPanel({ robot, pose, pathStatus, onStop }) {
       <Section title="IDENTITY">
         <Row label="namespace" value={robot.namespace} />
         <Row label="start_node" value={robot.start_node} />
-        <Row label="yaw" value={`${toDeg(robot.yaw)}°`} />
       </Section>
 
       <Section title="MOTION">

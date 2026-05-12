@@ -1,7 +1,6 @@
 robots:
   - id: tb3_01
-    start_node: 9
-    yaw: 0.0  # degrees
+    start_node: 1
     motion:
       linear_speed: 0.22
       angular_speed: 1.5
@@ -12,8 +11,7 @@ robots:
       stop_distance: 0.45
       detect_degree: 45
   - id: tb3_05
-    start_node: 1
-    yaw: 0  # degrees
+    start_node: 4
     motion:
       linear_speed: 0.22
       angular_speed: 1.5
