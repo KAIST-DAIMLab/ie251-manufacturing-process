@@ -40,6 +40,7 @@ def main():
             params=params,
             motion_rate_hz=robot.motion.move_rate_hz,
             origin=origin,
+            odom_pose_enabled=sim,
             obstacle_enabled=robot.obstacle.enabled,
             obstacle_stop_distance=robot.obstacle.stop_distance,
             obstacle_detect_degree=robot.obstacle.detect_degree,

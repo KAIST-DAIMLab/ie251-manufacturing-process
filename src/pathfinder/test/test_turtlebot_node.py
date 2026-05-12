@@ -187,6 +187,22 @@ class TurtleBotNodePoseSourceTest(unittest.TestCase):
         self.assertAlmostEqual(node._state.pose.theta, 0.25)
         self.assertEqual(PUBLISHERS['/tb3_01/pose'].published, [])
 
+    def test_odom_pose_source_updates_state_and_publishes_pose_with_origin(self):
+        origin = types.SimpleNamespace(x=1.0, y=2.0, theta=0.25)
+        node = TurtleBotNode('tb3_01', namespace='tb3_01/sim', origin=origin, odom_pose_enabled=True, obstacle_enabled=False)
+
+        node._on_odom(_odom_msg(x=1.2, y=-0.4, yaw=0.75, linear_x=0.33))
+
+        self.assertAlmostEqual(node._state.velocity.linear.x, 0.33)
+        self.assertAlmostEqual(node._state.pose.x, 2.2)
+        self.assertAlmostEqual(node._state.pose.y, 1.6)
+        self.assertAlmostEqual(node._state.pose.theta, 1.0)
+        published = PUBLISHERS['/tb3_01/sim/pose'].published
+        self.assertEqual(len(published), 1)
+        self.assertAlmostEqual(published[-1].x, 2.2)
+        self.assertAlmostEqual(published[-1].y, 1.6)
+        self.assertAlmostEqual(published[-1].theta, 1.0)
+
 
 if __name__ == '__main__':
     unittest.main()

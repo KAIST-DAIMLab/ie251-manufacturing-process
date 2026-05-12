@@ -31,12 +31,14 @@ class TurtleBotNode:
         params: MotionParameters = MotionParameters(),
         motion_rate_hz: float = 5.0,
         origin: Pose2D | None = None,
+        odom_pose_enabled: bool = False,
         obstacle_enabled: bool = True,
         obstacle_stop_distance: float = 0.5,
         obstacle_detect_degree: int = 20,
     ) -> None:
         self._robot_id = robot_id
         self._namespace = (namespace or robot_id).strip('/')
+        self._odom_pose_enabled = odom_pose_enabled
         self._obstacle_detector = ObstacleDetector(
             stop_distance=obstacle_stop_distance,
             detect_degree=obstacle_detect_degree,
@@ -119,6 +121,13 @@ class TurtleBotNode:
 
     def _on_odom(self, msg: Odometry) -> None:
         self._state.velocity = msg.twist.twist
+        if not self._odom_pose_enabled:
+            return
+        odom_pose = msg.pose.pose
+        self._state.pose.x = odom_pose.position.x + self._state.origin.x
+        self._state.pose.y = odom_pose.position.y + self._state.origin.y
+        self._state.pose.theta = yaw_from_quaternion(odom_pose.orientation) + self._state.origin.theta
+        self._pose_publisher.publish(self._state.get_pose())
 
     def _on_amcl_pose(self, msg: PoseWithCovarianceStamped) -> None:
         pose = msg.pose.pose
