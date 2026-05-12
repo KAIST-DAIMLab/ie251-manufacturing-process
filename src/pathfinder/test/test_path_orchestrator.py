@@ -101,7 +101,7 @@ class TestAtEdgeEndpoint(unittest.TestCase):
         result = orchestrator.plan(
             _pose(0.05, 0.0),
             target_node_id=3,
-            current_edge=(1, 2),
+            current_edge=Edge(graph.get_node(1), graph.get_node(2)),
         )
 
         self.assertEqual(planner.starts[0].id, 1)
@@ -115,7 +115,7 @@ class TestAtEdgeEndpoint(unittest.TestCase):
         result = orchestrator.plan(
             _pose(3.0, 0.0),
             target_node_id=3,
-            current_edge=(1, 2),
+            current_edge=Edge(graph.get_node(1), graph.get_node(2)),
         )
 
         self.assertEqual(planner.starts[0].id, 2)
@@ -133,7 +133,7 @@ class TestMidEdge(unittest.TestCase):
         result = orchestrator.plan(
             _pose(1.5, 0.0, theta=0.0),
             target_node_id=3,
-            current_edge=(1, 2),
+            current_edge=Edge(graph.get_node(1), graph.get_node(2)),
             obstacle_blocked=True,
         )
 
@@ -148,7 +148,7 @@ class TestMidEdge(unittest.TestCase):
         result = orchestrator.plan(
             _pose(1.5, 0.0, theta=0.0),
             target_node_id=3,
-            current_edge=(1, 2),
+            current_edge=Edge(graph.get_node(1), graph.get_node(2)),
             obstacle_blocked=False,
         )
 
@@ -163,7 +163,7 @@ class TestMidEdge(unittest.TestCase):
         orchestrator.plan(
             _pose(1.5, 0.0, theta=math.pi),
             target_node_id=3,
-            current_edge=(1, 2),
+            current_edge=Edge(graph.get_node(1), graph.get_node(2)),
             obstacle_blocked=True,
         )
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 import math
 from typing import TYPE_CHECKING
 from pathfinder.utils.physics import wrap_to_pi
+from pathfinder.world.edge import Edge
 from pathfinder.world.graph import Graph
 from pathfinder.world.node import Node
 from pathfinder.planning.path_planner import PathPlanner
@@ -36,7 +37,7 @@ class PathOrchestrator:
         self,
         current_pose: Pose2D,
         target_node_id: int,
-        current_edge: tuple[int, int] | None = None,
+        current_edge: Edge | None = None,
         obstacle_blocked: bool = False,
     ) -> list[int]:
         """Plan an A* route from the robot's current pose to the target node.
@@ -68,14 +69,14 @@ class PathOrchestrator:
     def _resolve_start(
         self,
         pose: Pose2D,
-        current_edge: tuple[int, int] | None,
+        current_edge: Edge | None,
         obstacle_blocked: bool,
     ) -> tuple[Node, bool]:
         if current_edge is None:
             return self._nearest_node(pose), False
 
-        a = self._graph.get_node(current_edge[0])
-        b = self._graph.get_node(current_edge[1])
+        a = current_edge.from_node
+        b = current_edge.to_node
 
         if _distance(pose, a) <= _AT_NODE_TOL:
             return a, False

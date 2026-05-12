@@ -10,6 +10,7 @@ from pathfinder.planning.a_star_planner import AStarPlanner
 from pathfinder.planning.path_orchestrator import PathOrchestrator
 from pathfinder.ros.path_follow_action_client import PathFollowActionClient
 from pathfinder.ros.fleet_service import FleetService
+from pathfinder.world.edge import Edge
 from pathfinder.world.graph import Graph
 from pathfinder.world.robot import Robot
 
@@ -27,6 +28,7 @@ class PathServerNode:
         orchestrator = PathOrchestrator(graph, planner)
         clients = [PathFollowActionClient(robot.id, robot.namespace) for robot in robots]
 
+        self._graph = graph
         self._robots = robots
         self._request_service = FleetService(graph, orchestrator, robots, clients)
 
@@ -42,14 +44,13 @@ class PathServerNode:
             rospy.Subscriber(
                 f"/{robot.namespace}/current_edge",
                 String,
-                lambda msg, r=robot: r.set_current_edge(_parse_edge(msg.data)),
+                lambda msg, r=robot: r.set_current_edge(self._parse_edge(msg.data)),
             )
         self._request_service.start()
         rospy.loginfo("PathServerNode started.")
 
-
-def _parse_edge(payload: str) -> tuple[int, int] | None:
-    parsed = json.loads(payload)
-    if parsed is None:
-        return None
-    return (int(parsed[0]), int(parsed[1]))
+    def _parse_edge(self, payload: str) -> Edge | None:
+        parsed = json.loads(payload)
+        if parsed is None:
+            return None
+        return Edge(self._graph.get_node(int(parsed[0])), self._graph.get_node(int(parsed[1])))
