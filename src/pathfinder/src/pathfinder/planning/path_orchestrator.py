@@ -18,34 +18,40 @@ class NoPathError(Exception):
     """Raised when A* cannot find a path between start and goal nodes."""
 
 
+_AT_NODE_TOL = 0.15
+
+
 class PathOrchestrator:
-    """Resolves start node from a pose, plans a route, returns waypoint ids."""
+    """Resolves start node from the robot's pose + tracked edge, plans a route, returns waypoint ids."""
 
     def __init__(
         self,
         graph: Graph,
         planner: PathPlanner,
     ) -> None:
-        """Store graph and planner."""
         self._graph = graph
         self._planner = planner
 
-    def plan(self, current_pose: Pose2D, target_node_id: int, obstacle_blocked: bool = False) -> list[int]:
+    def plan(
+        self,
+        current_pose: Pose2D,
+        target_node_id: int,
+        current_edge: tuple[int, int] | None = None,
+        obstacle_blocked: bool = False,
+    ) -> list[int]:
         """Plan an A* route from the robot's current pose to the target node.
 
-        Default (not blocked): resolved start is treated as a temporary node and
-        dropped from the returned list — the robot is at a node, the first
-        waypoint is the next real node to drive to.
+        Start node resolution uses the robot's tracked `current_edge` (the graph edge
+        it last followed or is currently on). If the robot is at one of the edge's
+        endpoints, that endpoint is the start. Otherwise the robot is mid-edge: the
+        start is the FORWARD endpoint when free, the BEHIND endpoint when
+        obstacle_blocked. When `current_edge` is None, fall back to the nearest node.
 
-        When obstacle_blocked is True: the robot is mid-edge between two graph
-        nodes, paused by an obstacle in front. Pick the behind endpoint of the
-        current edge as A* start and keep it in the returned path so the robot
-        drives back along the edge it is currently on instead of cutting across.
+        When the resolved start is the robot's current node position, it is dropped
+        from the returned list (the engine would reach it in one tick). When the
+        robot is mid-edge, the start is kept so the trajectory follows the edge.
         """
-        if obstacle_blocked:
-            start = self._behind_endpoint(current_pose) or self._nearest_node(current_pose)
-        else:
-            start = self._nearest_node(current_pose)
+        start, keep_start = self._resolve_start(current_pose, current_edge, obstacle_blocked)
 
         try:
             target = self._graph.get_node(target_node_id)
@@ -55,9 +61,32 @@ class PathOrchestrator:
         except ValueError as error:
             raise NoPathError(str(error)) from error
 
-        if not obstacle_blocked and len(waypoints) > 1:
+        if not keep_start and len(waypoints) > 1:
             waypoints = waypoints[1:]
         return [node.id for node in waypoints]
+
+    def _resolve_start(
+        self,
+        pose: Pose2D,
+        current_edge: tuple[int, int] | None,
+        obstacle_blocked: bool,
+    ) -> tuple[Node, bool]:
+        if current_edge is None:
+            return self._nearest_node(pose), False
+
+        a = self._graph.get_node(current_edge[0])
+        b = self._graph.get_node(current_edge[1])
+
+        if _distance(pose, a) <= _AT_NODE_TOL:
+            return a, False
+        if _distance(pose, b) <= _AT_NODE_TOL:
+            return b, False
+
+        a_offset = abs(wrap_to_pi(math.atan2(a.y - pose.y, a.x - pose.x) - pose.theta))
+        b_offset = abs(wrap_to_pi(math.atan2(b.y - pose.y, b.x - pose.x) - pose.theta))
+        if obstacle_blocked:
+            return (a, True) if a_offset > b_offset else (b, True)
+        return (a, True) if a_offset < b_offset else (b, True)
 
     def _nearest_node(self, pose: Pose2D) -> Node:
         return min(
@@ -65,15 +94,6 @@ class PathOrchestrator:
             key=lambda node: (node.x - pose.x) ** 2 + (node.y - pose.y) ** 2,
         )
 
-    def _behind_endpoint(self, pose: Pose2D) -> Node | None:
-        """If the robot is mid-edge between its two nearest connected nodes, return the one behind its heading."""
-        nodes = sorted(
-            self._graph.all_nodes(),
-            key=lambda n: (n.x - pose.x) ** 2 + (n.y - pose.y) ** 2,
-        )
-        if len(nodes) < 2 or not self._graph.has_edge(nodes[0], nodes[1]):
-            return None
-        a, b = nodes[0], nodes[1]
-        a_offset = abs(wrap_to_pi(math.atan2(a.y - pose.y, a.x - pose.x) - pose.theta))
-        b_offset = abs(wrap_to_pi(math.atan2(b.y - pose.y, b.x - pose.x) - pose.theta))
-        return a if a_offset > b_offset else b
+
+def _distance(pose, node: Node) -> float:
+    return math.hypot(pose.x - node.x, pose.y - node.y)

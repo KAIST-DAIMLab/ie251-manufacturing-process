@@ -42,6 +42,17 @@ class FixedPathPlanner:
         return self._path
 
 
+class CapturingPlanner:
+    """Records the start passed to plan and returns [start, goal]."""
+
+    def __init__(self) -> None:
+        self.starts: list[Node] = []
+
+    def plan(self, start: Node, goal: Node) -> list[Node]:
+        self.starts.append(start)
+        return [start, goal]
+
+
 class FailingPlanner:
     """Always raises ValueError to simulate A* failure."""
 
@@ -49,99 +60,130 @@ class FailingPlanner:
         raise ValueError("no path exists")
 
 
-class TestPathOrchestratorHappyPath(unittest.TestCase):
+class TestNoEdge(unittest.TestCase):
+    """When current_edge is None, fall back to nearest node and drop start."""
+
     def test_drops_resolved_start_from_returned_path(self):
         graph = _make_graph()
         planner_path = [graph.get_node(1), graph.get_node(2), graph.get_node(3)]
         orchestrator = PathOrchestrator(graph, FixedPathPlanner(planner_path))
 
-        pose = types.SimpleNamespace(x=0.5, y=0.0)
-        result = orchestrator.plan(pose, target_node_id=3)
+        result = orchestrator.plan(_pose(0.5, 0.0), target_node_id=3)
 
         self.assertEqual(result, [2, 3])
 
     def test_resolves_nearest_node_as_start(self):
         graph = _make_graph()
-        received_starts = []
+        planner = CapturingPlanner()
+        orchestrator = PathOrchestrator(graph, planner)
 
-        class CapturingPlanner:
-            def plan(self, start: Node, goal: Node) -> list[Node]:
-                received_starts.append(start)
-                return [start, goal]
+        orchestrator.plan(_pose(5.8, 0.0), target_node_id=1)
 
-        orchestrator = PathOrchestrator(graph, CapturingPlanner())
-        pose = types.SimpleNamespace(x=5.8, y=0.0)
-        orchestrator.plan(pose, target_node_id=1)
-
-        self.assertEqual(received_starts[0].id, 3)
+        self.assertEqual(planner.starts[0].id, 3)
 
     def test_target_equal_to_start_returns_single_target(self):
         graph = _make_graph()
         orchestrator = PathOrchestrator(graph, FixedPathPlanner([graph.get_node(1)]))
 
-        pose = types.SimpleNamespace(x=0.0, y=0.0)
-        result = orchestrator.plan(pose, target_node_id=1)
+        result = orchestrator.plan(_pose(0.0, 0.0), target_node_id=1)
 
         self.assertEqual(result, [1])
 
 
-class TestPathOrchestratorObstacleBlocked(unittest.TestCase):
-    """Tests for the obstacle_blocked mode: pick behind endpoint, keep start in path."""
+class TestAtEdgeEndpoint(unittest.TestCase):
+    """When pose is within tolerance of an endpoint of current_edge, that endpoint is the start and is dropped."""
 
-    def test_blocked_picks_behind_endpoint_as_start(self):
+    def test_at_endpoint_a_uses_a_as_start_and_drops_it(self):
         graph = _make_graph()
-        received_starts = []
+        planner = CapturingPlanner()
+        orchestrator = PathOrchestrator(graph, planner)
 
-        class CapturingPlanner:
-            def plan(self, start: Node, goal: Node) -> list[Node]:
-                received_starts.append(start)
-                return [start, goal]
+        result = orchestrator.plan(
+            _pose(0.05, 0.0),
+            target_node_id=3,
+            current_edge=(1, 2),
+        )
 
-        orchestrator = PathOrchestrator(graph, CapturingPlanner())
-        result = orchestrator.plan(_pose(1.5, 0.0, theta=0.0), target_node_id=3, obstacle_blocked=True)
+        self.assertEqual(planner.starts[0].id, 1)
+        self.assertEqual(result, [3])
 
-        self.assertEqual(received_starts[0].id, 1)
+    def test_at_endpoint_b_uses_b_as_start_and_drops_it(self):
+        graph = _make_graph()
+        planner = CapturingPlanner()
+        orchestrator = PathOrchestrator(graph, planner)
+
+        result = orchestrator.plan(
+            _pose(3.0, 0.0),
+            target_node_id=3,
+            current_edge=(1, 2),
+        )
+
+        self.assertEqual(planner.starts[0].id, 2)
+        self.assertEqual(result, [3])
+
+
+class TestMidEdge(unittest.TestCase):
+    """When pose is between the two endpoints of current_edge, pick by heading + blocked flag and keep start."""
+
+    def test_mid_edge_blocked_picks_behind_endpoint_and_keeps_it(self):
+        graph = _make_graph()
+        planner = CapturingPlanner()
+        orchestrator = PathOrchestrator(graph, planner)
+
+        result = orchestrator.plan(
+            _pose(1.5, 0.0, theta=0.0),
+            target_node_id=3,
+            current_edge=(1, 2),
+            obstacle_blocked=True,
+        )
+
+        self.assertEqual(planner.starts[0].id, 1)
         self.assertEqual(result[0], 1)
 
-    def test_blocked_keeps_start_in_returned_path(self):
+    def test_mid_edge_not_blocked_picks_forward_endpoint_and_keeps_it(self):
         graph = _make_graph()
-        planner_path = [graph.get_node(1), graph.get_node(2), graph.get_node(3)]
-        orchestrator = PathOrchestrator(graph, FixedPathPlanner(planner_path))
+        planner = CapturingPlanner()
+        orchestrator = PathOrchestrator(graph, planner)
 
-        result = orchestrator.plan(_pose(1.5, 0.0, theta=0.0), target_node_id=3, obstacle_blocked=True)
+        result = orchestrator.plan(
+            _pose(1.5, 0.0, theta=0.0),
+            target_node_id=3,
+            current_edge=(1, 2),
+            obstacle_blocked=False,
+        )
 
-        self.assertEqual(result, [1, 2, 3])
+        self.assertEqual(planner.starts[0].id, 2)
+        self.assertEqual(result[0], 2)
 
-    def test_blocked_behind_endpoint_flips_with_heading(self):
+    def test_behind_endpoint_flips_with_heading(self):
         graph = _make_graph()
-        received_starts = []
+        planner = CapturingPlanner()
+        orchestrator = PathOrchestrator(graph, planner)
 
-        class CapturingPlanner:
-            def plan(self, start: Node, goal: Node) -> list[Node]:
-                received_starts.append(start)
-                return [start, goal]
+        orchestrator.plan(
+            _pose(1.5, 0.0, theta=math.pi),
+            target_node_id=3,
+            current_edge=(1, 2),
+            obstacle_blocked=True,
+        )
 
-        orchestrator = PathOrchestrator(graph, CapturingPlanner())
-        orchestrator.plan(_pose(1.5, 0.0, theta=math.pi), target_node_id=3, obstacle_blocked=True)
+        self.assertEqual(planner.starts[0].id, 2)
 
-        self.assertEqual(received_starts[0].id, 2)
 
 class TestPathOrchestratorErrors(unittest.TestCase):
     def test_missing_target_node_raises_node_not_found_error(self):
         graph = _make_graph()
         orchestrator = PathOrchestrator(graph, FixedPathPlanner([]))
 
-        pose = types.SimpleNamespace(x=0.0, y=0.0)
         with self.assertRaises(NodeNotFoundError):
-            orchestrator.plan(pose, target_node_id=999)
+            orchestrator.plan(_pose(0.0, 0.0), target_node_id=999)
 
     def test_no_path_raises_no_path_error(self):
         graph = _make_graph()
         orchestrator = PathOrchestrator(graph, FailingPlanner())
 
-        pose = types.SimpleNamespace(x=0.0, y=0.0)
         with self.assertRaises(NoPathError):
-            orchestrator.plan(pose, target_node_id=3)
+            orchestrator.plan(_pose(0.0, 0.0), target_node_id=3)
 
 
 if __name__ == '__main__':

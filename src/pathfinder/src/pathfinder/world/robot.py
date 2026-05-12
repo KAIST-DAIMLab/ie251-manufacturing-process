@@ -36,6 +36,7 @@ class Robot:
     obstacle: ObstacleConfig
     pose: Pose2D | None = None
     obstacle_blocked: bool = False
+    current_edge: tuple[int, int] | None = None
 
     def set_pose(self, pose: Pose2D) -> None:
         """Record the latest world-frame pose."""
@@ -44,6 +45,10 @@ class Robot:
     def set_obstacle_blocked(self, blocked: bool) -> None:
         """Record whether the executor's forward gate is currently blocking forward motion."""
         self.obstacle_blocked = blocked
+
+    def set_current_edge(self, edge: tuple[int, int] | None) -> None:
+        """Record the graph edge the robot is currently traversing (or last traversed if interrupted)."""
+        self.current_edge = edge
 
     def to_dict(self) -> dict:
         """Return config fields serializable as JSON; excludes the mutable pose."""

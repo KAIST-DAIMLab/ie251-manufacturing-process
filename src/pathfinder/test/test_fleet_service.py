@@ -131,8 +131,8 @@ class FakeOrchestrator:
         self._raises = raises
         self.calls = []
 
-    def plan(self, pose, target_node_id, obstacle_blocked=False):
-        self.calls.append((pose, target_node_id, obstacle_blocked))
+    def plan(self, pose, target_node_id, current_edge=None, obstacle_blocked=False):
+        self.calls.append((pose, target_node_id, current_edge, obstacle_blocked))
         if self._raises is not None:
             raise self._raises
         return self._node_ids
@@ -169,7 +169,7 @@ class FleetServiceTest(unittest.TestCase):
         obstacle = types.SimpleNamespace(enabled=True, stop_distance=0.4, detect_degree=20)
         robot = types.SimpleNamespace(
             id=robot_id, namespace=robot_id, pose=pose, start_node=1, yaw=0.0,
-            motion=motion, obstacle=obstacle, obstacle_blocked=False,
+            motion=motion, obstacle=obstacle, obstacle_blocked=False, current_edge=None,
             to_dict=lambda: {
                 "id": robot_id, "namespace": robot_id, "start_node": 1, "yaw": 0.0,
                 "motion": {"linear_speed": 0.22, "angular_speed": 1.5, "move_rate_hz": 5.0, "arrival_tolerance": 0.05},
