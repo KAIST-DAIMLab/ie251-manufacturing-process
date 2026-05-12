@@ -34,7 +34,7 @@ class ObstacleDetector:
                 continue
             if distance < self._stop_distance:
                 count += 1
-            if count > 4:
+            if count > 5:
                 return True
 
         return False
