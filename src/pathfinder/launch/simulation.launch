@@ -29,10 +29,16 @@
   <node name="map_server" pkg="map_server" type="map_server"
         args="$(arg map_file)" output="screen"/>
 
-  <include if="$(arg start_system)" file="$(find pathfinder)/launch/robots.launch">
-    <arg name="robots_config" value="$(arg robots_config)"/>
-    <arg name="graph_config" value="$(arg graph_config)"/>
-    <arg name="sim" value="true"/>
-  </include>
+  <node if="$(arg start_system)" name="path_server" pkg="pathfinder" type="path_server" output="screen">
+    <param name="graph_file" value="$(arg graph_config)"/>
+    <param name="sim" value="true"/>
+    <rosparam file="$(arg robots_config)" command="load"/>
+  </node>
+
+  <node if="$(arg start_system)" name="robot_executors" pkg="pathfinder" type="robot" output="screen">
+    <param name="graph_file" value="$(arg graph_config)"/>
+    <param name="sim" value="true"/>
+    <rosparam file="$(arg robots_config)" command="load"/>
+  </node>
 
 </launch>

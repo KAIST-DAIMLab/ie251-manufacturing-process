@@ -12,25 +12,23 @@ def _launch_tree(filename):
 
 
 class LaunchSplitTest(unittest.TestCase):
-    def test_simulation_launch_can_optionally_include_system_stack_in_sim_mode(self):
+    def test_simulation_launch_can_optionally_start_system_stack_in_sim_mode(self):
         root = _launch_tree('simulation.launch')
 
-        system_includes = [
-            include for include in root.findall('include')
-            if include.get('file') == '$(find pathfinder)/launch/robots.launch'
-        ]
         start_system_arg = root.find("./arg[@name='start_system']")
 
-        self.assertEqual(len(system_includes), 1)
         self.assertEqual(start_system_arg.get('default'), 'true')
-        robots_config_arg = system_includes[0].find("./arg[@name='robots_config']")
-        graph_config_arg = system_includes[0].find("./arg[@name='graph_config']")
-        sim_arg = system_includes[0].find("./arg[@name='sim']")
-        self.assertEqual(robots_config_arg.get('value'), '$(arg robots_config)')
-        self.assertEqual(graph_config_arg.get('value'), '$(arg graph_config)')
-        self.assertEqual(sim_arg.get('value'), 'true')
+        self.assertEqual(root.findall("./include[@file='$(find pathfinder)/launch/robots.launch']"), [])
 
-    def test_robots_launch_has_config_and_sim_defaults(self):
+        for node_type in ('path_server', 'robot'):
+            node = root.find(f"./node[@type='{node_type}']")
+            self.assertIsNotNone(node)
+            self.assertEqual(node.get('if'), '$(arg start_system)')
+            self.assertIsNotNone(node.find("./rosparam[@file='$(arg robots_config)']"))
+            self.assertEqual(node.find("./param[@name='graph_file']").get('value'), '$(arg graph_config)')
+            self.assertEqual(node.find("./param[@name='sim']").get('value'), 'true')
+
+    def test_robots_launch_has_real_robot_config_defaults(self):
         root = _launch_tree('robots.launch')
         executor_nodes = [
             node for node in root.findall('node')
@@ -44,8 +42,7 @@ class LaunchSplitTest(unittest.TestCase):
         self.assertEqual(config_arg.get('default'), '$(find pathfinder)/config/robots.yaml')
         graph_arg = root.find("./arg[@name='graph_config']")
         self.assertEqual(graph_arg.get('default'), '$(find pathfinder)/config/graph.yaml')
-        sim_arg = root.find("./arg[@name='sim']")
-        self.assertEqual(sim_arg.get('default'), 'false')
+        self.assertIsNone(root.find("./arg[@name='sim']"))
 
     def test_robots_launch_does_not_start_cmd_vel_router(self):
         root = _launch_tree('robots.launch')
@@ -62,11 +59,10 @@ class LaunchSplitTest(unittest.TestCase):
         for node_type in ('path_server', 'robot'):
             node = root.find(f"./node[@type='{node_type}']")
             robots_config = node.find("./rosparam[@file='$(arg robots_config)']")
-            sim_param = node.find("./param[@name='sim']")
             graph_param = node.find("./param[@name='graph_file']")
 
             self.assertIsNotNone(robots_config)
-            self.assertEqual(sim_param.get('value'), '$(arg sim)')
+            self.assertIsNone(node.find("./param[@name='sim']"))
             self.assertEqual(graph_param.get('value'), '$(arg graph_config)')
 
     def test_robot_config_is_auditable(self):
@@ -87,8 +83,9 @@ class LaunchSplitTest(unittest.TestCase):
         self.assertEqual(root.findall(".//group[@ns='tb3_01']"), [])
         self.assertEqual(root.findall(".//group[@ns='tb3_05']"), [])
 
-        real_group = root.find("./group[@unless='$(arg sim)']")
+        real_group = root.find("./group")
         self.assertIsNotNone(real_group)
+        self.assertIsNone(real_group.get('unless'))
 
         localization_node = real_group.find("./node[@type='real_robot_localization']")
         self.assertIsNotNone(localization_node)
