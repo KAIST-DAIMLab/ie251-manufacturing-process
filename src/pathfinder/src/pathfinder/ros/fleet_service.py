@@ -50,7 +50,7 @@ class FleetService:
             return MoveToNodeResponse(success=False, message=f"no pose for {robot_id}")
 
         try:
-            node_ids = self._orchestrator.plan(robot.pose, request.target_node_id)
+            node_ids = self._orchestrator.plan(robot.pose, request.target_node_id, obstacle_blocked=robot.obstacle_blocked)
         except (NodeNotFoundError, NoPathError) as error:
             return MoveToNodeResponse(success=False, message=str(error))
 

@@ -6,6 +6,7 @@ from geometry_msgs.msg import Pose2D, Twist
 from geometry_msgs.msg import PoseWithCovarianceStamped
 from nav_msgs.msg import Odometry
 from sensor_msgs.msg import LaserScan
+from std_msgs.msg import Bool
 
 from pathfinder.ros.path_follow_action_server import PathFollowActionServer
 from pathfinder.robot.motion_engine import MotionEngine, MotionParameters
@@ -47,6 +48,9 @@ class TurtleBotNode:
         cmd_vel_publisher = rospy.Publisher(self.topic_cmd_vel, Twist, queue_size=1)
         self._pose_publisher = rospy.Publisher(self.topic_pose, Pose2D, queue_size=1)
         self._forward_gate = ForwardGate(cmd_vel_publisher)
+        self._obstacle_blocked_publisher = rospy.Publisher(self.topic_obstacle_blocked, Bool, queue_size=1, latch=True)
+        self._obstacle_blocked_publisher.publish(Bool(data=False))
+        self._last_obstacle_blocked = False
 
         self._state = RobotState(id=robot_id, origin=origin or Pose2D())
         state = self._state
@@ -105,6 +109,11 @@ class TurtleBotNode:
     def topic_follow_path(self) -> str:
         return f'/{self._namespace}/follow_path'
 
+    @property
+    def topic_obstacle_blocked(self) -> str:
+        """Topic name for the obstacle-blocked state publisher."""
+        return f'/{self._namespace}/obstacle_blocked'
+
     def start(self) -> None:
         """Start executor action servers."""
         self._motion_control_server.start()
@@ -136,5 +145,8 @@ class TurtleBotNode:
     def _on_scan(self, message: LaserScan) -> None:
         detected = self._obstacle_detector.detect(message)
         self._forward_gate.set_blocked(detected)
+        if detected != self._last_obstacle_blocked:
+            self._last_obstacle_blocked = detected
+            self._obstacle_blocked_publisher.publish(Bool(data=detected))
         if detected:
             rospy.logwarn(f"{self._robot.id}: obstacle detected, forward motion blocked")

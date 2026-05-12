@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import rospy
 from geometry_msgs.msg import Pose2D
+from std_msgs.msg import Bool
 
 from pathfinder.planning.a_star_planner import AStarPlanner
 from pathfinder.planning.path_orchestrator import PathOrchestrator
@@ -28,8 +29,13 @@ class PathServerNode:
         self._request_service = FleetService(graph, orchestrator, robots, clients)
 
     def start(self) -> None:
-        """Register pose subscribers and start the path services."""
+        """Register pose and obstacle_blocked subscribers and start the path services."""
         for robot in self._robots:
             rospy.Subscriber(f"/{robot.namespace}/pose", Pose2D, robot.set_pose)
+            rospy.Subscriber(
+                f"/{robot.namespace}/obstacle_blocked",
+                Bool,
+                lambda msg, r=robot: r.set_obstacle_blocked(msg.data),
+            )
         self._request_service.start()
         rospy.loginfo("PathServerNode started.")
