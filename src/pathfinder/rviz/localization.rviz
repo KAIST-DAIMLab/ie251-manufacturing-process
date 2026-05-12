@@ -9,13 +9,13 @@ Visualization Manager:
       Enabled: true
     - Class: rviz/LaserScan
       Name: LaserScan_tb3_01
-      Topic: /tb3_01/scan
+      Topic: /tb3_01/scan_relayed
       Enabled: true
       Size (m): 0.03
       Color: 255; 0; 0
     - Class: rviz/LaserScan
       Name: LaserScan_tb3_05
-      Topic: /tb3_05/scan
+      Topic: /tb3_05/scan_relayed
       Enabled: true
       Size (m): 0.03
       Color: 0; 0; 255

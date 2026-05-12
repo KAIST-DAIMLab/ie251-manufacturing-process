@@ -3,6 +3,7 @@ from __future__ import annotations
 import tf
 import rospy
 from geometry_msgs.msg import Pose2D, Twist
+from geometry_msgs.msg import PoseWithCovarianceStamped
 from nav_msgs.msg import Odometry
 from sensor_msgs.msg import LaserScan
 
@@ -12,14 +13,11 @@ from pathfinder.robot.motion_controller import MotionController
 from pathfinder.robot.path_follower import PathFollower
 from pathfinder.robot.robot_state import RobotState
 from pathfinder.robot.turtlebot import TurtleBot
-<<<<<<< HEAD
 from pathfinder.ros.robot_command_action_server import RobotCommandActionServer
 from pathfinder.utils.physics import yaw_from_quaternion, yaw_from_xyzw
-=======
 from pathfinder.ros.motion_control_action_server import MotionControlActionServer
 from pathfinder.safety.obstacle_detector import ObstacleDetector
 from pathfinder.utils.physics import yaw_from_quaternion
->>>>>>> 38eaee76164ac4e0344db62996eb47ce06011983
 from pathfinder.world.graph import Graph
 
 
@@ -67,6 +65,7 @@ class TurtleBotNode:
         self._tf_listener = tf.TransformListener()
 
         rospy.Subscriber(self.topic_odom, Odometry, self._on_odom)
+        rospy.Subscriber(self.topic_amcl_pose, PoseWithCovarianceStamped, self._on_amcl_pose)
         if self._obstacle_detector is not None:
             rospy.Subscriber(self.topic_scan, LaserScan, self._on_scan)
         self._motion_control_server = MotionControlActionServer(self._robot, self.topic_user_command)
@@ -79,27 +78,29 @@ class TurtleBotNode:
 
     @property
     def topic_cmd_vel(self) -> str:
-        """Topic name for velocity commands."""
         return f'/{self._namespace}/cmd_vel'
 
     @property
     def topic_odom(self) -> str:
-        """Topic name for the odometry subscriber."""
         return f'/{self._namespace}/odom'
 
     @property
     def topic_scan(self) -> str:
         """Topic name for the LiDAR subscriber."""
         return f'/{self._namespace}/scan'
+    def topic_stop(self) -> str:
+        return f'/{self._namespace}/stop'
+
+    @property
+    def topic_amcl_pose(self) -> str:
+        return f'/{self._namespace}/amcl_pose'
 
     @property
     def topic_user_command(self) -> str:
-        """Topic name for the user command action server."""
         return f'/{self._namespace}/user_command'
 
     @property
     def topic_follow_path(self) -> str:
-        """Topic name for the follow path action server."""
         return f'/{self._namespace}/follow_path'
 
     def start(self) -> None:
@@ -111,7 +112,6 @@ class TurtleBotNode:
 
     def _on_odom(self, msg: Odometry) -> None:
         self._state.velocity = msg.twist.twist
-<<<<<<< HEAD
         try:
             base_frame = f'{self._namespace}/base_footprint'
             (trans, rot) = self._tf_listener.lookupTransform('map', base_frame, rospy.Time(0))
@@ -123,9 +123,13 @@ class TurtleBotNode:
             self._state.pose.x = odom_pose.position.x + self._state.origin.x
             self._state.pose.y = odom_pose.position.y + self._state.origin.y
             self._state.pose.theta = yaw_from_quaternion(odom_pose.orientation) + self._state.origin.theta
-=======
         self._pose_publisher.publish(self._state.get_pose())
->>>>>>> 38eaee76164ac4e0344db62996eb47ce06011983
+
+    def _on_amcl_pose(self, msg: PoseWithCovarianceStamped) -> None:
+        pose = msg.pose.pose
+        self._state.pose.x = pose.position.x
+        self._state.pose.y = pose.position.y
+        self._state.pose.theta = yaw_from_quaternion(pose.orientation)
 
     def _on_scan(self, message: LaserScan) -> None:
         detected = self._obstacle_detector.detect(message)
