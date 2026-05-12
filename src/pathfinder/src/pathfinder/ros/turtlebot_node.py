@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import tf
 import rospy
 from geometry_msgs.msg import Pose2D, Twist
 from geometry_msgs.msg import PoseWithCovarianceStamped
@@ -17,7 +16,7 @@ from pathfinder.robot.turtlebot import TurtleBot
 from pathfinder.ros.motion_control_action_server import MotionControlActionServer
 from pathfinder.safety.obstacle_detector import ObstacleDetector
 from pathfinder.safety.forward_gate import ForwardGate
-from pathfinder.utils.physics import yaw_from_quaternion, yaw_from_xyzw
+from pathfinder.utils.physics import yaw_from_quaternion
 from pathfinder.world.graph import Graph
 
 
@@ -65,8 +64,6 @@ class TurtleBotNode:
             motion_controller=motion_controller,
             path_follower=path_follower,
         )
-
-        self._tf_listener = tf.TransformListener()
 
         rospy.Subscriber(self.topic_odom, Odometry, self._on_odom)
         rospy.Subscriber(self.topic_amcl_pose, PoseWithCovarianceStamped, self._on_amcl_pose)
@@ -122,24 +119,13 @@ class TurtleBotNode:
 
     def _on_odom(self, msg: Odometry) -> None:
         self._state.velocity = msg.twist.twist
-        try:
-            base_frame = f'{self._namespace}/base_footprint'
-            (trans, rot) = self._tf_listener.lookupTransform('map', base_frame, rospy.Time(0))
-            self._state.pose.x = trans[0]
-            self._state.pose.y = trans[1]
-            self._state.pose.theta = yaw_from_xyzw(*rot)
-        except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
-            odom_pose = msg.pose.pose
-            self._state.pose.x = odom_pose.position.x + self._state.origin.x
-            self._state.pose.y = odom_pose.position.y + self._state.origin.y
-            self._state.pose.theta = yaw_from_quaternion(odom_pose.orientation) + self._state.origin.theta
-        self._pose_publisher.publish(self._state.get_pose())
 
     def _on_amcl_pose(self, msg: PoseWithCovarianceStamped) -> None:
         pose = msg.pose.pose
         self._state.pose.x = pose.position.x
         self._state.pose.y = pose.position.y
         self._state.pose.theta = yaw_from_quaternion(pose.orientation)
+        self._pose_publisher.publish(self._state.get_pose())
 
     def _on_scan(self, message: LaserScan) -> None:
         detected = self._obstacle_detector.detect(message)
