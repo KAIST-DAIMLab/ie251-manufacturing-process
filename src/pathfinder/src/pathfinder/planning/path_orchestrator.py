@@ -43,44 +43,62 @@ class PathOrchestrator:
 
         The returned list always begins with the resolved start node so the
         executor sees a real graph edge for every leg it traverses. Start node
-        resolution uses the robot's tracked `current_edge`: at an endpoint, that
-        endpoint is the start; mid-edge, the FORWARD endpoint when free or
-        BEHIND when obstacle_blocked. With no edge, falls back to the nearest.
+        resolution uses the robot's tracked `current_edge`:
+        - At an endpoint: that endpoint.
+        - Mid-edge, obstacle_blocked: the BEHIND endpoint (forward is impassable).
+        - Mid-edge, free: try BOTH endpoints, pick whichever gives the shorter
+          total trajectory (robot->endpoint + planner path).
+        - No edge: fall back to the nearest node.
         """
-        start = self._resolve_start(current_pose, current_edge, obstacle_blocked)
-
         try:
             target = self._graph.get_node(target_node_id)
-            waypoints = self._planner.plan(start, target)
         except KeyError as error:
             raise NodeNotFoundError(f"node {target_node_id} not found") from error
-        except ValueError as error:
-            raise NoPathError(str(error)) from error
 
-        return [node.id for node in waypoints]
+        candidates = self._candidate_starts(current_pose, current_edge, obstacle_blocked)
 
-    def _resolve_start(
+        best: tuple[float, list[Node]] | None = None
+        for start in candidates:
+            try:
+                waypoints = self._planner.plan(start, target)
+            except ValueError:
+                continue
+            cost = planar_distance(current_pose, start) + _path_length(waypoints)
+            if best is None or cost < best[0]:
+                best = (cost, waypoints)
+
+        if best is None:
+            raise NoPathError(f"no path from any candidate start to {target_node_id}")
+
+        return [node.id for node in best[1]]
+
+    def _candidate_starts(
         self,
         pose: Pose2D,
         current_edge: Edge | None,
         obstacle_blocked: bool,
-    ) -> Node:
+    ) -> list[Node]:
         if current_edge is None:
-            return self._nearest_node(pose)
+            return [self._nearest_node(pose)]
 
         a = current_edge.from_node
         b = current_edge.to_node
 
         if planar_distance(pose, a) <= _AT_NODE_TOL:
-            return a
+            return [a]
         if planar_distance(pose, b) <= _AT_NODE_TOL:
-            return b
+            return [b]
 
-        a_offset = abs(heading_offset(pose, a))
-        b_offset = abs(heading_offset(pose, b))
         if obstacle_blocked:
-            return a if a_offset > b_offset else b
-        return a if a_offset < b_offset else b
+            a_offset = abs(heading_offset(pose, a))
+            b_offset = abs(heading_offset(pose, b))
+            return [a] if a_offset > b_offset else [b]
+
+        return [a, b]
 
     def _nearest_node(self, pose: Pose2D) -> Node:
         return min(self._graph.all_nodes(), key=lambda node: planar_distance(pose, node))
+
+
+def _path_length(waypoints: list[Node]) -> float:
+    return sum(planar_distance(waypoints[i], waypoints[i + 1]) for i in range(len(waypoints) - 1))

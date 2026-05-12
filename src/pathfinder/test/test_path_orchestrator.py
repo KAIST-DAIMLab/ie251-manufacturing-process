@@ -11,6 +11,7 @@ sys.path.insert(0, ROOT)
 from pathfinder.world.node import Node
 from pathfinder.world.edge import Edge
 from pathfinder.world.graph import Graph
+from pathfinder.planning.a_star_planner import AStarPlanner
 from pathfinder.planning.path_orchestrator import (
     PathOrchestrator,
     NodeNotFoundError,
@@ -123,9 +124,10 @@ class TestAtEdgeEndpoint(unittest.TestCase):
 
 
 class TestMidEdge(unittest.TestCase):
-    """When pose is between the two endpoints of current_edge, pick by heading + blocked flag."""
+    """When pose is between the two endpoints of current_edge."""
 
-    def test_mid_edge_blocked_picks_behind_endpoint(self):
+    def test_blocked_picks_behind_endpoint_by_heading(self):
+        """Forward is impassable; only the behind endpoint is a valid start."""
         graph = _make_graph()
         planner = CapturingPlanner()
         orchestrator = PathOrchestrator(graph, planner)
@@ -137,25 +139,10 @@ class TestMidEdge(unittest.TestCase):
             obstacle_blocked=True,
         )
 
-        self.assertEqual(planner.starts[0].id, 1)
+        self.assertEqual([s.id for s in planner.starts], [1])
         self.assertEqual(result[0], 1)
 
-    def test_mid_edge_not_blocked_picks_forward_endpoint(self):
-        graph = _make_graph()
-        planner = CapturingPlanner()
-        orchestrator = PathOrchestrator(graph, planner)
-
-        result = orchestrator.plan(
-            _pose(1.5, 0.0, theta=0.0),
-            target_node_id=3,
-            current_edge=Edge(graph.get_node(1), graph.get_node(2)),
-            obstacle_blocked=False,
-        )
-
-        self.assertEqual(planner.starts[0].id, 2)
-        self.assertEqual(result[0], 2)
-
-    def test_behind_endpoint_flips_with_heading(self):
+    def test_blocked_behind_endpoint_flips_with_heading(self):
         graph = _make_graph()
         planner = CapturingPlanner()
         orchestrator = PathOrchestrator(graph, planner)
@@ -167,7 +154,35 @@ class TestMidEdge(unittest.TestCase):
             obstacle_blocked=True,
         )
 
-        self.assertEqual(planner.starts[0].id, 2)
+        self.assertEqual([s.id for s in planner.starts], [2])
+
+    def test_not_blocked_picks_endpoint_with_shorter_total_path(self):
+        """When forward route is cheap, prefer forward — even when heading is opposite."""
+        graph = _make_graph()
+        orchestrator = PathOrchestrator(graph, AStarPlanner(graph))
+
+        result = orchestrator.plan(
+            _pose(1.5, 0.0, theta=math.pi),
+            target_node_id=3,
+            current_edge=Edge(graph.get_node(1), graph.get_node(2)),
+            obstacle_blocked=False,
+        )
+
+        self.assertEqual(result, [2, 3])
+
+    def test_not_blocked_picks_behind_when_target_is_behind(self):
+        """Target is closer via the behind endpoint; pick it even though heading points forward."""
+        graph = _make_graph()
+        orchestrator = PathOrchestrator(graph, AStarPlanner(graph))
+
+        result = orchestrator.plan(
+            _pose(1.5, 0.0, theta=0.0),
+            target_node_id=1,
+            current_edge=Edge(graph.get_node(1), graph.get_node(2)),
+            obstacle_blocked=False,
+        )
+
+        self.assertEqual(result, [1])
 
 
 class TestPathOrchestratorErrors(unittest.TestCase):
