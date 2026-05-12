@@ -1,7 +1,6 @@
 from __future__ import annotations
-import math
 from typing import TYPE_CHECKING
-from pathfinder.utils.physics import wrap_to_pi
+from pathfinder.utils.physics import heading_offset, planar_distance
 from pathfinder.world.edge import Edge
 from pathfinder.world.graph import Graph
 from pathfinder.world.node import Node
@@ -78,23 +77,16 @@ class PathOrchestrator:
         a = current_edge.from_node
         b = current_edge.to_node
 
-        if _distance(pose, a) <= _AT_NODE_TOL:
+        if planar_distance(pose, a) <= _AT_NODE_TOL:
             return a, False
-        if _distance(pose, b) <= _AT_NODE_TOL:
+        if planar_distance(pose, b) <= _AT_NODE_TOL:
             return b, False
 
-        a_offset = abs(wrap_to_pi(math.atan2(a.y - pose.y, a.x - pose.x) - pose.theta))
-        b_offset = abs(wrap_to_pi(math.atan2(b.y - pose.y, b.x - pose.x) - pose.theta))
+        a_offset = abs(heading_offset(pose, a))
+        b_offset = abs(heading_offset(pose, b))
         if obstacle_blocked:
             return (a, True) if a_offset > b_offset else (b, True)
         return (a, True) if a_offset < b_offset else (b, True)
 
     def _nearest_node(self, pose: Pose2D) -> Node:
-        return min(
-            self._graph.all_nodes(),
-            key=lambda node: (node.x - pose.x) ** 2 + (node.y - pose.y) ** 2,
-        )
-
-
-def _distance(pose, node: Node) -> float:
-    return math.hypot(pose.x - node.x, pose.y - node.y)
+        return min(self._graph.all_nodes(), key=lambda node: planar_distance(pose, node))

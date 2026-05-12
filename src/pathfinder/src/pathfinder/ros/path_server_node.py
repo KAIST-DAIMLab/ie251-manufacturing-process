@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import json
-
 import rospy
 from geometry_msgs.msg import Pose2D
 from std_msgs.msg import Bool, String
@@ -44,13 +42,7 @@ class PathServerNode:
             rospy.Subscriber(
                 f"/{robot.namespace}/current_edge",
                 String,
-                lambda msg, r=robot: r.set_current_edge(self._parse_edge(msg.data)),
+                lambda msg, r=robot: r.set_current_edge(Edge.decode_wire(msg.data, self._graph)),
             )
         self._request_service.start()
         rospy.loginfo("PathServerNode started.")
-
-    def _parse_edge(self, payload: str) -> Edge | None:
-        parsed = json.loads(payload)
-        if parsed is None:
-            return None
-        return Edge(self._graph.get_node(int(parsed[0])), self._graph.get_node(int(parsed[1])))

@@ -6,7 +6,7 @@ from typing import Callable, Protocol
 from geometry_msgs.msg import Pose2D, Twist
 
 from pathfinder.world.node import Node
-from pathfinder.utils.physics import wrap_to_pi
+from pathfinder.utils.physics import heading_offset, planar_distance, wrap_to_pi
 
 
 @dataclass(frozen=True)
@@ -68,12 +68,10 @@ class MotionEngine:
         self._publish(0.0, 0.0)
 
     def _get_distance(self, target: Node) -> float:
-        pose = self._pose_provider()
-        return math.hypot(target.x - pose.x, target.y - pose.y)
+        return planar_distance(self._pose_provider(), target)
 
     def _get_angle(self, target: Node) -> float:
-        pose = self._pose_provider()
-        return wrap_to_pi(math.atan2(target.y - pose.y, target.x - pose.x) - pose.theta)
+        return heading_offset(self._pose_provider(), target)
 
     def _publish(self, linear_x: float, angular_z: float) -> None:
         twist = Twist()

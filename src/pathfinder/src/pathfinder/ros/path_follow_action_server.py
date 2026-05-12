@@ -9,10 +9,10 @@ from std_msgs.msg import String
 
 from pathfinder.msg import FollowPathAction, FollowPathFeedback, FollowPathResult  # type: ignore[import]
 from pathfinder.robot.turtlebot import TurtleBot
+from pathfinder.world.edge import Edge
 from pathfinder.world.graph import Graph
 
 _IDLE_STATUS = json.dumps({"node_ids": [], "current_index": -1})
-_NO_EDGE = json.dumps(None)
 
 
 class PathFollowActionServer:
@@ -26,7 +26,6 @@ class PathFollowActionServer:
         self._server = None
         self._status_publisher = None
         self._edge_publisher = None
-        self._edge_payload = _NO_EDGE
 
     def start(self) -> None:
         """Start the FollowPath action server and the path_status / current_edge publishers."""
@@ -34,7 +33,7 @@ class PathFollowActionServer:
         self._status_publisher = rospy.Publisher(f"{ns}/path_status", String, queue_size=1, latch=True)
         self._status_publisher.publish(_IDLE_STATUS)
         self._edge_publisher = rospy.Publisher(f"{ns}/current_edge", String, queue_size=1, latch=True)
-        self._edge_publisher.publish(_NO_EDGE)
+        self._edge_publisher.publish(Edge.encode_wire(None, None))
         self._server = actionlib.SimpleActionServer(
             self._topic,
             FollowPathAction,
@@ -47,10 +46,7 @@ class PathFollowActionServer:
         self._status_publisher.publish(json.dumps({"node_ids": list(node_ids), "current_index": current_index}))
 
     def _publish_edge(self, from_id: int | None, to_id: int | None) -> None:
-        payload = _NO_EDGE if from_id is None or to_id is None else json.dumps([from_id, to_id])
-        if payload != self._edge_payload:
-            self._edge_payload = payload
-            self._edge_publisher.publish(payload)
+        self._edge_publisher.publish(Edge.encode_wire(from_id, to_id))
 
     def _on_follow_path(self, goal: Any) -> None:
         waypoints = [self._graph.get_node(nid) for nid in goal.node_ids]
