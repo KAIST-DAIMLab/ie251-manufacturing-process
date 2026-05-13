@@ -2,12 +2,18 @@ from __future__ import annotations
 import yaml
 from pathfinder.world.node import Node
 from pathfinder.world.edge import Edge
+from pathfinder.world.station import Station
 
 
 class Graph:
-    def __init__(self, nodes: list[Node], edges: list[Edge]) -> None:
+    def __init__(self, nodes: list[Node], edges: list[Edge], stations: list[Station] | None = None) -> None:
         self._nodes: dict[int, Node] = {n.id: n for n in nodes}
-        self._stations: dict[int, Node] = {n.station: n for n in nodes if n.station is not None}
+        self._station_list: list[Station] = list(stations) if stations is not None else [
+            Station(id=n.station, node=n, orientation=n.orientation)
+            for n in nodes
+            if n.station is not None and n.orientation is not None
+        ]
+        self._stations: dict[int, Node] = {station.id: station.node for station in self._station_list}
         self._edges: list[Edge] = list(edges)
         self._adj: dict[int, list[Edge]] = {n.id: [] for n in nodes}
         for edge in edges:
@@ -30,6 +36,9 @@ class Graph:
         """Return the undirected edge list as originally loaded."""
         return list(self._edges)
 
+    def all_stations(self) -> list[Station]:
+        return list(self._station_list)
+
     def get_neighbors(self, node: Node) -> list[Node]:
         return [e.to_node for e in self._adj[node.id]]
 
@@ -51,11 +60,22 @@ class Graph:
                 id=n['id'],
                 x=float(n['x']),
                 y=float(n['y']),
-                orientation=float(n['orientation']) if n.get('orientation') is not None else None,
-                station=int(n['station']) if n.get('station') is not None else None,
             )
             for n in data['nodes']
         ]
         node_map = {n.id: n for n in nodes}
+        stations = []
+        for index, station_data in enumerate(data.get('stations', []), start=1):
+            if 'orientation' not in station_data:
+                raise KeyError(f"missing 'orientation' for station {index}")
+            node_id = int(station_data['node'])
+            if node_id not in node_map:
+                raise KeyError(f"station {index} references unknown node {node_id}")
+            node = node_map[node_id]
+            orientation = float(station_data['orientation'])
+            node = Node(id=node.id, x=node.x, y=node.y, orientation=orientation, station=index)
+            node_map[node_id] = node
+            stations.append(Station(id=index, node=node, orientation=orientation))
+        nodes = [node_map[n.id] for n in nodes]
         edges = [Edge(node_map[e['from']], node_map[e['to']]) for e in data['edges']]
-        return cls(nodes, edges)
+        return cls(nodes, edges, stations)

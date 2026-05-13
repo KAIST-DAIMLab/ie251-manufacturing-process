@@ -2,10 +2,10 @@ import React from 'react'
 
 const RADIUS = 10
 
-export default function NodeMarker({ node, svgX, svgY, dropTarget }) {
-  const isStation = node.station !== null && node.station !== undefined
+export default function NodeMarker({ node, station, svgX, svgY, dropTarget }) {
+  const isStation = station !== null && station !== undefined
   const fill = dropTarget ? '#facc15' : isStation ? '#fb923c' : '#4ade80'
-  const label = isStation ? `Station ${node.station}` : node.id
+  const label = isStation ? `Station ${station.id}` : node.id
   return (
     <g style={{ cursor: 'default' }}>
       {dropTarget && (

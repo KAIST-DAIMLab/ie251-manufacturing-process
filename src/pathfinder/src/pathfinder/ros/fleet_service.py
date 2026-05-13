@@ -108,12 +108,14 @@ class FleetService:
                     "id": node.id,
                     "x": node.x,
                     "y": node.y,
-                    "orientation": node.orientation,
-                    "station": node.station,
                 }
                 for node in self._graph.all_nodes()
             ],
             "edges": [{"from": edge.from_node.id, "to": edge.to_node.id} for edge in self._graph.all_edges()],
+            "stations": [
+                {"id": station.id, "node": station.node.id, "orientation": station.orientation}
+                for station in self._graph.all_stations()
+            ],
         }
         return GetGraphResponse(graph_json=json.dumps(payload))
 

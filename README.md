@@ -118,7 +118,7 @@ Robot IDs come from `config/robots.yaml`. Target node IDs come from `config/grap
 
 ## Configuration
 
-- `src/pathfinder/config/graph.yaml`: graph nodes, edges, station numbers, and optional station orientations.
+- `src/pathfinder/config/graph.yaml`: graph nodes, edges, and top-level station entries.
 - `src/pathfinder/config/robots.yaml`: robot IDs, `start_station`, motion tuning, and obstacle tuning.
 
 Robots can only start at station nodes. `start_station` must match a station number in `graph.yaml`.

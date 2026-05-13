@@ -42,6 +42,11 @@ export default function GraphCanvas({
     [graph],
   )
 
+  const stationByNode = useMemo(
+    () => Object.fromEntries((graph.stations ?? []).map((station) => [station.node, station])),
+    [graph],
+  )
+
   const bounds = useMemo(() => buildViewBox(graph.nodes), [graph])
 
   const scale = useMemo(() => {
@@ -152,6 +157,7 @@ export default function GraphCanvas({
           <NodeMarker
             key={node.id}
             node={node}
+            station={stationByNode[node.id]}
             svgX={x}
             svgY={y}
             dropTarget={dragState?.hoverNodeId === node.id}

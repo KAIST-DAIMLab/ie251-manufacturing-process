@@ -80,8 +80,14 @@ class RealRobotLocalizationTest(unittest.TestCase):
             ],
         })
         graph_path = _write_yaml({
-            'nodes': [{'id': 1, 'x': 0.0, 'y': 0.0, 'station': 1}, {'id': 4, 'x': 0.0, 'y': 1.3, 'station': 4}],
+            'nodes': [{'id': 1, 'x': 0.0, 'y': 0.0}, {'id': 4, 'x': 0.0, 'y': 1.3}],
             'edges': [],
+            'stations': [
+                {'node': 1, 'orientation': 0},
+                {'node': 4, 'orientation': 180},
+                {'node': 1, 'orientation': 0},
+                {'node': 4, 'orientation': 180},
+            ],
         })
 
         plan = self.module.build_launch_plan(robots_path, graph_path, '')
@@ -108,8 +114,14 @@ class RealRobotLocalizationTest(unittest.TestCase):
             ],
         })
         graph_path = _write_yaml({
-            'nodes': [{'id': 1, 'x': 0.0, 'y': 0.0, 'station': 1}, {'id': 4, 'x': 0.0, 'y': 1.3, 'station': 4}],
+            'nodes': [{'id': 1, 'x': 0.0, 'y': 0.0}, {'id': 4, 'x': 0.0, 'y': 1.3}],
             'edges': [],
+            'stations': [
+                {'node': 1, 'orientation': 0},
+                {'node': 4, 'orientation': 180},
+                {'node': 1, 'orientation': 0},
+                {'node': 4, 'orientation': 180},
+            ],
         })
 
         plan = self.module.build_launch_plan(robots_path, graph_path, 'tb3_05')
@@ -127,14 +139,18 @@ class RealRobotLocalizationTest(unittest.TestCase):
 
     def test_unknown_start_station_raises_clear_error(self):
         robots_path = _write_yaml({'robots': [{'id': 'tb3_01', 'start_station': 99}]})
-        graph_path = _write_yaml({'nodes': [{'id': 1, 'x': 0.0, 'y': 0.0, 'station': 1}], 'edges': []})
+        graph_path = _write_yaml({
+            'nodes': [{'id': 1, 'x': 0.0, 'y': 0.0}],
+            'edges': [],
+            'stations': [{'node': 1, 'orientation': 0}],
+        })
 
         with self.assertRaisesRegex(KeyError, "start_station 99"):
             self.module.build_launch_plan(robots_path, graph_path, '')
 
     def test_non_station_node_cannot_be_used_as_start_station(self):
         robots_path = _write_yaml({'robots': [{'id': 'tb3_01', 'start_station': 1}]})
-        graph_path = _write_yaml({'nodes': [{'id': 1, 'x': 0.0, 'y': 0.0}], 'edges': []})
+        graph_path = _write_yaml({'nodes': [{'id': 1, 'x': 0.0, 'y': 0.0}], 'edges': [], 'stations': []})
 
         with self.assertRaisesRegex(KeyError, "start_station 1"):
             self.module.build_launch_plan(robots_path, graph_path, '')

@@ -349,15 +349,15 @@ class FleetServiceTest(unittest.TestCase):
         payload = json.loads(response.graph_json)
         self.assertIn('nodes', payload)
         self.assertIn('edges', payload)
+        self.assertIn('stations', payload)
         self.assertEqual(len(payload['nodes']), 2)
         self.assertEqual(len(payload['edges']), 1)
         node_ids = {node['id'] for node in payload['nodes']}
         self.assertEqual(node_ids, {1, 2})
         node_by_id = {node['id']: node for node in payload['nodes']}
-        self.assertEqual(node_by_id[1]['orientation'], 90.0)
-        self.assertIsNone(node_by_id[2]['orientation'])
-        self.assertEqual(node_by_id[1]['station'], 1)
-        self.assertIsNone(node_by_id[2]['station'])
+        self.assertNotIn('orientation', node_by_id[1])
+        self.assertNotIn('station', node_by_id[1])
+        self.assertEqual(payload['stations'], [{'id': 1, 'node': 1, 'orientation': 90.0}])
         edge = payload['edges'][0]
         self.assertIn('from', edge)
         self.assertIn('to', edge)

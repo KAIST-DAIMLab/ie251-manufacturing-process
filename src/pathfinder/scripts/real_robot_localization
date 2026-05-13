@@ -58,11 +58,13 @@ def _parse_active_robot_ids(active_robot_ids: str) -> set[str]:
 
 def _station_map(graph_config: str) -> dict[int, tuple[float, float]]:
     graph = _load_yaml(graph_config)
-    return {
-        int(node['station']): (float(node['x']), float(node['y']))
-        for node in graph['nodes']
-        if node.get('station') is not None
-    }
+    node_map = {int(node['id']): (float(node['x']), float(node['y'])) for node in graph['nodes']}
+    stations = {}
+    for index, station in enumerate(graph.get('stations', []), start=1):
+        node_id = int(station['node'])
+        if node_id in node_map:
+            stations[index] = node_map[node_id]
+    return stations
 
 
 def build_launch_plan(

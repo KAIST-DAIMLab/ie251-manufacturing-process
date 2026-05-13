@@ -19,11 +19,15 @@ def _build_station_map(graph_path: str) -> dict[int, tuple[int, float, float]]:
     """Return {station: (node_id, x, y)} built from graph.yaml."""
     with open(graph_path, 'r') as graph_file:
         data = yaml.safe_load(graph_file)
-    return {
-        int(n['station']): (int(n['id']), float(n['x']), float(n['y']))
-        for n in data['nodes']
-        if n.get('station') is not None
-    }
+    node_map = {int(n['id']): (float(n['x']), float(n['y'])) for n in data['nodes']}
+    station_map = {}
+    for index, station_data in enumerate(data.get('stations', []), start=1):
+        node_id = int(station_data['node'])
+        if node_id not in node_map:
+            raise KeyError(f"station {index} references unknown node {node_id}")
+        x, y = node_map[node_id]
+        station_map[index] = (node_id, x, y)
+    return station_map
 
 
 def _render_urdf(model: str) -> str:

@@ -88,6 +88,15 @@ class LaunchSplitTest(unittest.TestCase):
         self.assertIn('start_station:', config)
         self.assertNotIn('start_node:', config)
 
+    def test_graph_config_keeps_station_metadata_out_of_nodes(self):
+        with open(os.path.join(ROOT, 'config', 'graph.yaml')) as f:
+            config = f.read()
+
+        self.assertIn('stations:\n', config)
+        self.assertIn('node:', config)
+        self.assertNotIn('station:', config.split('edges:\n')[0])
+        self.assertNotIn('orientation:', config.split('edges:\n')[0])
+
     def test_robots_launch_integrates_real_robot_localization(self):
         root = _launch_tree('robots.launch')
 

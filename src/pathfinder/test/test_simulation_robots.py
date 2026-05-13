@@ -87,15 +87,31 @@ class SimulationRobotsTest(unittest.TestCase):
     def setUp(self):
         self.module = _load_module()
 
-    def test_build_station_map_uses_only_station_nodes(self):
+    def test_build_station_map_uses_top_level_stations(self):
         graph_path = _write_yaml({
             'nodes': [
-                {'id': 1, 'x': 0.0, 'y': 0.0, 'station': 3},
+                {'id': 1, 'x': 0.0, 'y': 0.0},
                 {'id': 2, 'x': 1.0, 'y': 0.0},
+            ],
+            'stations': [
+                {'node': 2, 'orientation': 180},
+                {'node': 1, 'orientation': 0},
             ],
         })
 
-        self.assertEqual(self.module._build_station_map(graph_path), {3: (1, 0.0, 0.0)})
+        self.assertEqual(self.module._build_station_map(graph_path), {
+            1: (2, 1.0, 0.0),
+            2: (1, 0.0, 0.0),
+        })
+
+    def test_build_station_map_rejects_unknown_station_node(self):
+        graph_path = _write_yaml({
+            'nodes': [{'id': 1, 'x': 0.0, 'y': 0.0}],
+            'stations': [{'node': 2, 'orientation': 0}],
+        })
+
+        with self.assertRaisesRegex(KeyError, "station 1 references unknown node 2"):
+            self.module._build_station_map(graph_path)
 
     def test_validate_robot_accepts_start_station(self):
         self.module._validate_robot({'id': 'tb3_01', 'start_station': 3}, {3: (1, 0.0, 0.0)})
