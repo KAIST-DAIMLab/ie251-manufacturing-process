@@ -68,6 +68,7 @@ install(PROGRAMS
 if(CATKIN_ENABLE_TESTING)
   catkin_add_nosetests(test/test_launch_split.py)
   catkin_add_nosetests(test/test_motion.py)
+  catkin_add_nosetests(test/test_world_graph.py)
   catkin_add_nosetests(test/test_fleet_service.py)
   catkin_add_nosetests(test/test_motion_control_action_server.py)
   catkin_add_nosetests(test/test_path_orchestrator.py)

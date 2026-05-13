@@ -8,10 +8,10 @@ robots:
       arrival_tolerance: 0.05
     obstacle:
       enabled: true
-      stop_distance: 0.45
+      stop_distance: 0.40
       detect_degree: 45
   - id: tb3_05
-    start_node: 4
+    start_node: 7
     motion:
       linear_speed: 0.22
       angular_speed: 1.5
@@ -19,5 +19,5 @@ robots:
       arrival_tolerance: 0.05
     obstacle:
       enabled: true
-      stop_distance: 0.45
+      stop_distance: 0.40
       detect_degree: 45

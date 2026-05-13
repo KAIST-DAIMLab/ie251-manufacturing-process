@@ -38,6 +38,17 @@ def _install_ros_stubs():
     actionlib.SimpleActionClient = object
     sys.modules['actionlib'] = actionlib
 
+    actionlib_msgs = types.ModuleType('actionlib_msgs')
+    actionlib_msgs_msg = types.ModuleType('actionlib_msgs.msg')
+    actionlib_msgs_msg.GoalStatus = types.SimpleNamespace(
+        PENDING=0,
+        ACTIVE=1,
+        PREEMPTING=6,
+        RECALLING=7,
+    )
+    sys.modules['actionlib_msgs'] = actionlib_msgs
+    sys.modules['actionlib_msgs.msg'] = actionlib_msgs_msg
+
     pathfinder_msg = types.ModuleType('pathfinder.msg')
 
     class FollowPathAction:
@@ -207,7 +218,7 @@ class FakeRobotCommandActionClient:
 _DEFAULT_POSE = types.SimpleNamespace(x=0.0, y=0.0, theta=0.0)
 
 _FAKE_GRAPH = Graph(
-    nodes=[Node(id=1, x=0.0, y=0.0), Node(id=2, x=1.0, y=0.0)],
+    nodes=[Node(id=1, x=0.0, y=0.0, orientation=90.0), Node(id=2, x=1.0, y=0.0)],
     edges=[Edge(Node(id=1, x=0.0, y=0.0), Node(id=2, x=1.0, y=0.0))],
 )
 
@@ -342,6 +353,9 @@ class FleetServiceTest(unittest.TestCase):
         self.assertEqual(len(payload['edges']), 1)
         node_ids = {node['id'] for node in payload['nodes']}
         self.assertEqual(node_ids, {1, 2})
+        node_by_id = {node['id']: node for node in payload['nodes']}
+        self.assertEqual(node_by_id[1]['orientation'], 90.0)
+        self.assertIsNone(node_by_id[2]['orientation'])
         edge = payload['edges'][0]
         self.assertIn('from', edge)
         self.assertIn('to', edge)

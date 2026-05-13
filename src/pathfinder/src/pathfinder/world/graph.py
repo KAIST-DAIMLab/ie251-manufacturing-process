@@ -39,7 +39,15 @@ class Graph:
     def load_from_yaml(cls, path: str) -> Graph:
         with open(path, 'r') as f:
             data = yaml.safe_load(f)
-        nodes = [Node(id=n['id'], x=float(n['x']), y=float(n['y'])) for n in data['nodes']]
+        nodes = [
+            Node(
+                id=n['id'],
+                x=float(n['x']),
+                y=float(n['y']),
+                orientation=float(n['orientation']) if n.get('orientation') is not None else None,
+            )
+            for n in data['nodes']
+        ]
         node_map = {n.id: n for n in nodes}
         edges = [Edge(node_map[e['from']], node_map[e['to']]) for e in data['edges']]
         return cls(nodes, edges)
