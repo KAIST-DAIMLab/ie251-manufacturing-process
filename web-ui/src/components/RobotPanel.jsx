@@ -1,4 +1,5 @@
 import React from 'react'
+import RotationDial from './RotationDial.jsx'
 
 const toDeg = (rad) => ((rad * 180) / Math.PI).toFixed(1)
 
@@ -22,7 +23,7 @@ function Section({ title, children }) {
   )
 }
 
-export default function RobotPanel({ robot, pose, pathStatus, onStop }) {
+export default function RobotPanel({ robot, pose, pathStatus, onStop, onRotate }) {
   if (!robot) {
     return (
       <div style={{ padding: 16, color: '#444', fontSize: 13 }}>
@@ -30,6 +31,8 @@ export default function RobotPanel({ robot, pose, pathStatus, onStop }) {
       </div>
     )
   }
+
+  const moving = Boolean(pathStatus && pathStatus.node_ids.length > 0)
 
   return (
     <div style={{ padding: 16, fontSize: 13 }}>
@@ -79,6 +82,12 @@ export default function RobotPanel({ robot, pose, pathStatus, onStop }) {
         <Row label="stop_dist" value={`${robot.obstacle.stop_distance} m`} />
         <Row label="detect" value={`${robot.obstacle.detect_degree}°`} />
       </Section>
+
+      <RotationDial
+        pose={pose}
+        disabled={moving}
+        onRotate={(targetTheta) => onRotate(robot.id, targetTheta)}
+      />
 
       <Section title="LIVE POSE">
         {pose ? (

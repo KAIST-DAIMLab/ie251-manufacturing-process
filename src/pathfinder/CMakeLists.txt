@@ -23,6 +23,7 @@ add_service_files(
   FILES
   MoveToNode.srv
   CancelPath.srv
+  RotateRobot.srv
   GetGraph.srv
   GetRobots.srv
 )
@@ -68,6 +69,7 @@ if(CATKIN_ENABLE_TESTING)
   catkin_add_nosetests(test/test_launch_split.py)
   catkin_add_nosetests(test/test_motion.py)
   catkin_add_nosetests(test/test_fleet_service.py)
+  catkin_add_nosetests(test/test_motion_control_action_server.py)
   catkin_add_nosetests(test/test_path_orchestrator.py)
   catkin_add_nosetests(test/test_path_follow_action_client.py)
   catkin_add_nosetests(test/test_physics_utils.py)

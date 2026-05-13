@@ -1,7 +1,9 @@
 from __future__ import annotations
+import threading
 from typing import Any
 
 import actionlib
+import rospy
 
 from pathfinder.msg import RobotCommandAction, RobotCommandResult  # type: ignore[import]
 from pathfinder.robot.turtlebot import TurtleBot
@@ -10,6 +12,7 @@ from pathfinder.robot.turtlebot import TurtleBot
 _COMMANDS = {
     'turn_left',
     'turn_right',
+    'turn_to',
     'move_forward',
     'move_backward',
 }
@@ -46,7 +49,24 @@ class MotionControlActionServer:
             self._server.set_preempted()
             return
 
-        success = getattr(self._robot, command)(goal.value)
+        result_container: list[bool] = []
+        command_thread = threading.Thread(
+            target=lambda: result_container.append(getattr(self._robot, command)(goal.value)),
+            daemon=True,
+        )
+        command_thread.start()
+
+        rate = rospy.Rate(20)
+        while command_thread.is_alive():
+            if self._server.is_preempt_requested():
+                self._robot.stop()
+                command_thread.join()
+                self._server.set_preempted()
+                return
+            rate.sleep()
+
+        command_thread.join()
+        success = bool(result_container and result_container[0])
         if success:
             self._server.set_succeeded(
                 RobotCommandResult(success=True, message=f"{command} completed")

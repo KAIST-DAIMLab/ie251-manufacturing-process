@@ -50,6 +50,10 @@ class TurtleBot:
         """Turn right by radian; True when heading reached, False if cancelled or shutdown."""
         return self._motion_controller.turn_to(self.get_pose().theta - radian)
 
+    def turn_to(self, heading: float) -> bool:
+        """Turn to an absolute world-frame heading; True when heading reached."""
+        return self._motion_controller.turn_to(heading)
+
     def move_forward(self, meter: float) -> bool:
         """Drive forward by meter along current heading; True when reached, False if cancelled."""
         pose = self.get_pose()

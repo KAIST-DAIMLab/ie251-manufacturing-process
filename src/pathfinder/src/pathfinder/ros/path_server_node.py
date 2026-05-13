@@ -7,6 +7,7 @@ from std_msgs.msg import Bool, String
 from pathfinder.planning.a_star_planner import AStarPlanner
 from pathfinder.planning.path_orchestrator import PathOrchestrator
 from pathfinder.ros.path_follow_action_client import PathFollowActionClient
+from pathfinder.ros.robot_command_action_client import RobotCommandActionClient
 from pathfinder.ros.fleet_service import FleetService
 from pathfinder.world.edge import Edge
 from pathfinder.world.graph import Graph
@@ -25,10 +26,11 @@ class PathServerNode:
         planner = AStarPlanner(graph)
         orchestrator = PathOrchestrator(graph, planner)
         clients = [PathFollowActionClient(robot.id, robot.namespace) for robot in robots]
+        command_clients = [RobotCommandActionClient(robot.id, robot.namespace) for robot in robots]
 
         self._graph = graph
         self._robots = robots
-        self._request_service = FleetService(graph, orchestrator, robots, clients)
+        self._request_service = FleetService(graph, orchestrator, robots, clients, command_clients)
 
     def start(self) -> None:
         """Register pose, obstacle_blocked, and current_edge subscribers and start the path services."""

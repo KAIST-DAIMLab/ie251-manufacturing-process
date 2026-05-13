@@ -5,7 +5,8 @@ import rospy
 
 from pathfinder.planning.path_orchestrator import PathOrchestrator, NodeNotFoundError, NoPathError
 from pathfinder.ros.path_follow_action_client import PathFollowActionClient
-from pathfinder.srv import MoveToNode, MoveToNodeRequest, MoveToNodeResponse, CancelPath, CancelPathRequest, CancelPathResponse, GetGraph, GetGraphRequest, GetGraphResponse, GetRobots, GetRobotsRequest, GetRobotsResponse  # type: ignore[import]
+from pathfinder.ros.robot_command_action_client import RobotCommandActionClient
+from pathfinder.srv import MoveToNode, MoveToNodeRequest, MoveToNodeResponse, CancelPath, CancelPathRequest, CancelPathResponse, RotateRobot, RotateRobotRequest, RotateRobotResponse, GetGraph, GetGraphRequest, GetGraphResponse, GetRobots, GetRobotsRequest, GetRobotsResponse  # type: ignore[import]
 from pathfinder.world.graph import Graph
 from pathfinder.world.robot import Robot
 
@@ -15,6 +16,7 @@ class FleetService:
 
     MOVE_SERVICE_NAME = '/fleet/move_to_node'
     CANCEL_SERVICE_NAME = '/fleet/cancel_path'
+    ROTATE_SERVICE_NAME = '/fleet/rotate_robot'
     GRAPH_SERVICE_NAME = '/fleet/get_graph'
     ROBOTS_SERVICE_NAME = '/fleet/get_robots'
 
@@ -24,17 +26,20 @@ class FleetService:
         orchestrator: PathOrchestrator,
         robots: list[Robot],
         clients: list[PathFollowActionClient],
+        command_clients: list[RobotCommandActionClient],
     ) -> None:
         """Store injected graph, planning, and dispatch components."""
         self._graph = graph
         self._orchestrator = orchestrator
         self._robots = {robot.id: robot for robot in robots}
         self._clients = {client.robot_id: client for client in clients}
+        self._command_clients = {client.robot_id: client for client in command_clients}
 
     def start(self) -> None:
         """Register all four fleet services."""
         rospy.Service(self.MOVE_SERVICE_NAME, MoveToNode, self._handle_move)
         rospy.Service(self.CANCEL_SERVICE_NAME, CancelPath, self._handle_cancel)
+        rospy.Service(self.ROTATE_SERVICE_NAME, RotateRobot, self._handle_rotate)
         rospy.Service(self.GRAPH_SERVICE_NAME, GetGraph, self._handle_get_graph)
         rospy.Service(self.ROBOTS_SERVICE_NAME, GetRobots, self._handle_get_robots)
         rospy.loginfo("FleetService started.")
@@ -59,6 +64,7 @@ class FleetService:
         except (NodeNotFoundError, NoPathError) as error:
             return MoveToNodeResponse(success=False, message=str(error))
 
+        self._command_clients[robot_id].cancel()
         self._clients[robot_id].cancel()
         ok = self._clients[robot_id].send(node_ids)
 
@@ -73,9 +79,26 @@ class FleetService:
         if robot_id not in self._clients:
             return CancelPathResponse(success=False, message=f"unknown robot: {robot_id}")
 
+        self._command_clients[robot_id].cancel()
         self._clients[robot_id].cancel()
 
         return CancelPathResponse(success=True, message="canceled")
+
+    def _handle_rotate(self, request: RotateRobotRequest) -> RotateRobotResponse:
+        """Dispatch an absolute in-place rotation command for an idle robot."""
+        robot_id = request.robot_id
+        if robot_id not in self._command_clients or robot_id not in self._clients:
+            return RotateRobotResponse(success=False, message=f"unknown robot: {robot_id}")
+
+        if self._clients[robot_id].is_active():
+            return RotateRobotResponse(success=False, message=f"{robot_id} is moving")
+
+        self._command_clients[robot_id].cancel()
+        ok = self._command_clients[robot_id].send('turn_to', request.target_theta)
+        if not ok:
+            return RotateRobotResponse(success=False, message="command server unreachable")
+
+        return RotateRobotResponse(success=True, message="rotation dispatched")
 
     def _handle_get_graph(self, request: GetGraphRequest) -> GetGraphResponse:
         """Return graph nodes and edges as a JSON string."""

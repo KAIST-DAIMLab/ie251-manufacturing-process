@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import rospy
 import actionlib
+from actionlib_msgs.msg import GoalStatus
 
 from pathfinder.msg import FollowPathAction, FollowPathGoal  # type: ignore[import]
 
@@ -28,3 +29,12 @@ class PathFollowActionClient:
     def cancel(self) -> None:
         """Cancel any in-flight FollowPath goal."""
         self._client.cancel_goal()
+
+    def is_active(self) -> bool:
+        """Return whether the follow-path action currently owns robot motion."""
+        return self._client.get_state() in {
+            GoalStatus.PENDING,
+            GoalStatus.ACTIVE,
+            GoalStatus.PREEMPTING,
+            GoalStatus.RECALLING,
+        }
