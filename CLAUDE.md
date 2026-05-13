@@ -105,6 +105,6 @@ These exist because past output drifted from them and required dozens of follow-
 ## Conventions
 
 - Robot namespaces are `tb3_0` and `tb3_1` everywhere (topics, action names, params). The README's collision-avoidance example only fires when both clients run within ~1 s of each other.
-- Spawn poses are driven by `config/robots.yaml` (`start_node` + `yaw`) and resolved against `config/graph.yaml` at runtime by `spawn_simulation_robots`. To move a robot's start position, change `start_node` in `robots.yaml` to a valid graph node id.
+- Spawn poses are driven by `config/robots.yaml` (`start_station`) and resolved against station entries in `config/graph.yaml` at runtime by `spawn_simulation_robots`. To move a robot's start position, change `start_station` in `robots.yaml` to a valid graph station number.
 - Python 3.8+ syntax is fine (Noetic ships Python 3.8); `from __future__ import annotations` is used throughout to allow `list[int]`-style hints.
 - `scripts/` executables are extension-less and are listed in `install(PROGRAMS …)` in CMakeLists.txt — when adding a new node, add it there or `rosrun` won't find it.

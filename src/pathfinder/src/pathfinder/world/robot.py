@@ -30,7 +30,7 @@ class Robot:
 
     id: str
     namespace: str
-    start_node: int
+    start_station: int
     motion: MotionConfig
     obstacle: ObstacleConfig
     pose: Pose2D | None = None
@@ -54,7 +54,7 @@ class Robot:
         return {
             "id": self.id,
             "namespace": self.namespace,
-            "start_node": self.start_node,
+            "start_station": self.start_station,
             "motion": dataclasses.asdict(self.motion),
             "obstacle": dataclasses.asdict(self.obstacle),
         }
@@ -68,7 +68,7 @@ class Robot:
         return cls(
             id=robot_id,
             namespace=f"{robot_id}/sim" if sim else robot_id,
-            start_node=int(data['start_node']),
+            start_station=int(data['start_station']),
             motion=MotionConfig(
                 linear_speed=float(motion_data.get('linear_speed', 0.22)),
                 angular_speed=float(motion_data.get('angular_speed', 1.5)),

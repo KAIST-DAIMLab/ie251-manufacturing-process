@@ -104,7 +104,13 @@ class FleetService:
         """Return graph nodes and edges as a JSON string."""
         payload = {
             "nodes": [
-                {"id": node.id, "x": node.x, "y": node.y, "orientation": node.orientation}
+                {
+                    "id": node.id,
+                    "x": node.x,
+                    "y": node.y,
+                    "orientation": node.orientation,
+                    "station": node.station,
+                }
                 for node in self._graph.all_nodes()
             ],
             "edges": [{"from": edge.from_node.id, "to": edge.to_node.id} for edge in self._graph.all_edges()],

@@ -218,7 +218,7 @@ class FakeRobotCommandActionClient:
 _DEFAULT_POSE = types.SimpleNamespace(x=0.0, y=0.0, theta=0.0)
 
 _FAKE_GRAPH = Graph(
-    nodes=[Node(id=1, x=0.0, y=0.0, orientation=90.0), Node(id=2, x=1.0, y=0.0)],
+    nodes=[Node(id=1, x=0.0, y=0.0, orientation=90.0, station=1), Node(id=2, x=1.0, y=0.0)],
     edges=[Edge(Node(id=1, x=0.0, y=0.0), Node(id=2, x=1.0, y=0.0))],
 )
 
@@ -228,10 +228,10 @@ class FleetServiceTest(unittest.TestCase):
         motion = types.SimpleNamespace(linear_speed=0.22, angular_speed=1.5, move_rate_hz=5.0, arrival_tolerance=0.05)
         obstacle = types.SimpleNamespace(enabled=True, stop_distance=0.4, detect_degree=20)
         robot = types.SimpleNamespace(
-            id=robot_id, namespace=robot_id, pose=pose, start_node=1,
+            id=robot_id, namespace=robot_id, pose=pose, start_station=1,
             motion=motion, obstacle=obstacle, obstacle_blocked=False, current_edge=None,
             to_dict=lambda: {
-                "id": robot_id, "namespace": robot_id, "start_node": 1,
+                "id": robot_id, "namespace": robot_id, "start_station": 1,
                 "motion": {"linear_speed": 0.22, "angular_speed": 1.5, "move_rate_hz": 5.0, "arrival_tolerance": 0.05},
                 "obstacle": {"enabled": True, "stop_distance": 0.4, "detect_degree": 20},
             },
@@ -356,6 +356,8 @@ class FleetServiceTest(unittest.TestCase):
         node_by_id = {node['id']: node for node in payload['nodes']}
         self.assertEqual(node_by_id[1]['orientation'], 90.0)
         self.assertIsNone(node_by_id[2]['orientation'])
+        self.assertEqual(node_by_id[1]['station'], 1)
+        self.assertIsNone(node_by_id[2]['station'])
         edge = payload['edges'][0]
         self.assertIn('from', edge)
         self.assertIn('to', edge)
@@ -372,7 +374,8 @@ class FleetServiceTest(unittest.TestCase):
         robot = payload['robots'][0]
         self.assertEqual(robot['id'], 'tb3_0')
         self.assertEqual(robot['namespace'], 'tb3_0')
-        self.assertEqual(robot['start_node'], 1)
+        self.assertEqual(robot['start_station'], 1)
+        self.assertNotIn('start_node', robot)
         self.assertNotIn('yaw', robot)
         self.assertIn('motion', robot)
         self.assertEqual(robot['motion']['linear_speed'], 0.22)
