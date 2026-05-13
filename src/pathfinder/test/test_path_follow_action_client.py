@@ -22,6 +22,17 @@ def _install_ros_stubs():
     actionlib.SimpleActionClient = _FakeSimpleActionClient
     sys.modules['actionlib'] = actionlib
 
+    actionlib_msgs = types.ModuleType('actionlib_msgs')
+    actionlib_msgs_msg = types.ModuleType('actionlib_msgs.msg')
+    actionlib_msgs_msg.GoalStatus = types.SimpleNamespace(
+        PENDING=0,
+        ACTIVE=1,
+        PREEMPTING=6,
+        RECALLING=7,
+    )
+    sys.modules['actionlib_msgs'] = actionlib_msgs
+    sys.modules['actionlib_msgs.msg'] = actionlib_msgs_msg
+
     pathfinder_msg = types.ModuleType('pathfinder.msg')
 
     class FollowPathGoal:
@@ -48,6 +59,7 @@ class FakeActionClient:
         self._server_available = server_available
         self.sent_goal = None
         self.canceled = False
+        self.state = 3
 
     def wait_for_server(self, timeout):
         return self._server_available
@@ -57,6 +69,9 @@ class FakeActionClient:
 
     def cancel_goal(self):
         self.canceled = True
+
+    def get_state(self):
+        return self.state
 
 
 def _make_client_with_fake(fake_action_client):
@@ -93,6 +108,13 @@ class TestPathFollowActionClient(unittest.TestCase):
         client.cancel()
 
         self.assertTrue(fake.canceled)
+
+    def test_is_active_reflects_active_action_state(self):
+        fake = FakeActionClient()
+        fake.state = 1
+        client = _make_client_with_fake(fake)
+
+        self.assertTrue(client.is_active())
 
 
 if __name__ == '__main__':

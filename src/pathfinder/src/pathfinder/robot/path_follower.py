@@ -22,6 +22,10 @@ class PathFollower:
             self._current_index = index
             if not self._motion_controller.drive_to(waypoint):
                 return False
+        if waypoints:
+            final_orientation = waypoints[-1].orientation_rad()
+            if final_orientation is not None:
+                return self._motion_controller.turn_to(final_orientation)
         return True
 
     def cancel(self) -> None:

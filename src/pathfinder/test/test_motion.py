@@ -81,9 +81,11 @@ class FakePublisher:
 class FakeMotionController:
     """Fake MotionController that records drive_to calls and returns configurable results."""
 
-    def __init__(self, return_value=True):
+    def __init__(self, return_value=True, turn_return_value=True):
         self.calls = []
+        self.turn_calls = []
         self.return_value = return_value
+        self.turn_return_value = turn_return_value
         self.stopped = False
 
     def drive_to(self, target):
@@ -91,10 +93,16 @@ class FakeMotionController:
         self.calls.append(target)
         return self.return_value
 
+    def turn_to(self, heading):
+        """Record a turn_to call and return the configured result."""
+        self.turn_calls.append(heading)
+        return self.turn_return_value
+
     def stop(self):
         """Record a stop request."""
         self.stopped = True
         self.return_value = False
+        self.turn_return_value = False
 
 
 class FakeMotionEngine:
@@ -359,6 +367,36 @@ class PathFollowerTest(unittest.TestCase):
         follower.follow([Node(id=1, x=1.0, y=0.0), Node(id=2, x=2.0, y=0.0)])
 
         self.assertEqual(observed, [0, 1])
+
+    def test_follow_turns_to_final_node_orientation_after_arrival(self):
+        controller = FakeMotionController(return_value=True)
+        follower = PathFollower(controller)
+
+        result = follower.follow([Node(id=1, x=1.0, y=0.0, orientation=90.0)])
+
+        self.assertTrue(result)
+        self.assertEqual(len(controller.calls), 1)
+        self.assertEqual(controller.turn_calls, [math.pi / 2.0])
+
+    def test_follow_returns_false_when_final_orientation_turn_fails(self):
+        controller = FakeMotionController(return_value=True, turn_return_value=False)
+        follower = PathFollower(controller)
+
+        result = follower.follow([Node(id=1, x=1.0, y=0.0, orientation=90.0)])
+
+        self.assertFalse(result)
+
+    def test_follow_ignores_intermediate_node_orientation(self):
+        controller = FakeMotionController(return_value=True)
+        follower = PathFollower(controller)
+
+        result = follower.follow([
+            Node(id=1, x=1.0, y=0.0, orientation=180.0),
+            Node(id=2, x=2.0, y=0.0),
+        ])
+
+        self.assertTrue(result)
+        self.assertEqual(controller.turn_calls, [])
 
 
 if __name__ == '__main__':

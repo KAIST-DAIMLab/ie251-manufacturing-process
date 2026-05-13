@@ -7,6 +7,7 @@ import { subscribePose } from './ros/subscribePose.js'
 import { subscribePathStatus } from './ros/subscribePathStatus.js'
 import { moveToNode } from './ros/moveToNode.js'
 import { cancelPath } from './ros/cancelPath.js'
+import { rotateRobot } from './ros/rotateRobot.js'
 
 export default function App() {
   const [graph, setGraph] = useState(null)
@@ -73,6 +74,12 @@ export default function App() {
       .catch((error) => setBanner(`Error: ${error}`))
   }, [])
 
+  const handleRotate = useCallback((robotId, targetTheta) => {
+    rotateRobot(robotId, targetTheta)
+      .then((response) => setBanner(`${robotId}: ${response.message}`))
+      .catch((error) => setBanner(`Error: ${error}`))
+  }, [])
+
   const handleDragCancel = useCallback(() => {
     setDragState(null)
   }, [])
@@ -126,6 +133,7 @@ export default function App() {
             pose={selectedRobotId ? poses[selectedRobotId] : null}
             pathStatus={selectedRobotId ? pathStatuses[selectedRobotId] : null}
             onStop={handleStop}
+            onRotate={handleRotate}
           />
         </div>
       </div>
