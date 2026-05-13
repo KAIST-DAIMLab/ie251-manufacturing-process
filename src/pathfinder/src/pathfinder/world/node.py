@@ -9,6 +9,7 @@ class Node:
     x: float
     y: float
     orientation: float | None = None
+    station: int | None = None
 
     def distance_to(self, other: Node) -> float:
         return math.sqrt((self.x - other.x) ** 2 + (self.y - other.y) ** 2)

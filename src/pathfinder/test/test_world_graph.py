@@ -42,6 +42,27 @@ class GraphYamlTest(unittest.TestCase):
 
         self.assertIsNone(graph.get_node(1).orientation)
 
+    def test_load_from_yaml_reads_optional_node_station(self):
+        graph = _load_graph_yaml("""
+            nodes:
+              - {id: 1, x: 0.0, y: 0.0, station: 1}
+              - {id: 2, x: 1.0, y: 0.0}
+            edges:
+              - {from: 1, to: 2}
+        """)
+
+        self.assertEqual(graph.get_node(1).station, 1)
+        self.assertIsNone(graph.get_node(2).station)
+
+    def test_load_from_yaml_treats_null_station_as_absent(self):
+        graph = _load_graph_yaml("""
+            nodes:
+              - {id: 1, x: 0.0, y: 0.0, station: null}
+            edges: []
+        """)
+
+        self.assertIsNone(graph.get_node(1).station)
+
 
 def _load_graph_yaml(contents: str) -> Graph:
     with tempfile.NamedTemporaryFile('w', suffix='.yaml', delete=False) as config_file:

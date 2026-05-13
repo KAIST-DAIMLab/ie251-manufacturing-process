@@ -45,6 +45,7 @@ class Graph:
                 x=float(n['x']),
                 y=float(n['y']),
                 orientation=float(n['orientation']) if n.get('orientation') is not None else None,
+                station=int(n['station']) if n.get('station') is not None else None,
             )
             for n in data['nodes']
         ]

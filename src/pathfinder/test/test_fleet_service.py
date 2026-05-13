@@ -218,7 +218,7 @@ class FakeRobotCommandActionClient:
 _DEFAULT_POSE = types.SimpleNamespace(x=0.0, y=0.0, theta=0.0)
 
 _FAKE_GRAPH = Graph(
-    nodes=[Node(id=1, x=0.0, y=0.0, orientation=90.0), Node(id=2, x=1.0, y=0.0)],
+    nodes=[Node(id=1, x=0.0, y=0.0, orientation=90.0, station=1), Node(id=2, x=1.0, y=0.0)],
     edges=[Edge(Node(id=1, x=0.0, y=0.0), Node(id=2, x=1.0, y=0.0))],
 )
 
@@ -356,6 +356,8 @@ class FleetServiceTest(unittest.TestCase):
         node_by_id = {node['id']: node for node in payload['nodes']}
         self.assertEqual(node_by_id[1]['orientation'], 90.0)
         self.assertIsNone(node_by_id[2]['orientation'])
+        self.assertEqual(node_by_id[1]['station'], 1)
+        self.assertIsNone(node_by_id[2]['station'])
         edge = payload['edges'][0]
         self.assertIn('from', edge)
         self.assertIn('to', edge)
