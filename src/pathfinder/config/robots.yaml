@@ -1,6 +1,6 @@
 robots:
   - id: tb3_01
-    start_node: 1
+    start_station: 3
     motion:
       linear_speed: 0.22
       angular_speed: 1.5
@@ -11,7 +11,7 @@ robots:
       stop_distance: 0.40
       detect_degree: 45
   - id: tb3_05
-    start_node: 7
+    start_station: 6
     motion:
       linear_speed: 0.22
       angular_speed: 1.5

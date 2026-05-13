@@ -111,12 +111,12 @@ rosrun pathfinder client tb3_01 5
 
 **Physical setup**
 
-Place the two TurtleBot3 Waffles on the 6 m x 3 m table at their start nodes (defined in `config/robots.yaml`):
+Place the two TurtleBot3 Waffles on the 6 m x 3 m table at their start stations (defined in `config/robots.yaml`):
 
-| Robot   | Node | x (m) | y (m) | Facing   |
-|---------|------|--------|--------|----------|
-| `tb3_01`| 4    | 0.0    | 1.3    | East (0 deg) |
-| `tb3_05`| 5    | 1.2    | 1.3    | West (180 deg) |
+| Robot   | Station | Node | x (m) | y (m) | Facing   |
+|---------|---------|------|-------|-------|----------|
+| `tb3_01`| 3       | 1    | 0.00  | 1.57  | East (0 deg) |
+| `tb3_05`| 5       | 7    | 0.00  | 4.56  | East (0 deg) |
 
 Connect both robots and the laptop to the same LAN (e.g. the lab router). Note the laptop's IP address — it will act as the ROS master.
 
@@ -261,7 +261,7 @@ The fleet service endpoints used by the UI:
 
 **`config/graph.yaml`** — edit nodes and edges to change the layout.
 
-**`config/robots.yaml`** — edit robot IDs when adding or renaming robots.
+**`config/robots.yaml`** — edit robot IDs and `start_station` values when adding, renaming, or repositioning robots. Start stations must match station numbers in `config/graph.yaml`.
 
 **`config/params.yaml`** — key tuning values:
 

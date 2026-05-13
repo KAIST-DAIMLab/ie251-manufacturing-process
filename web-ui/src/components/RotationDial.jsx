@@ -32,32 +32,56 @@ function pointerAngle(event, element) {
 
 export default function RotationDial({ pose, disabled, onRotate }) {
   const svgRef = useRef(null)
+  const activePointerIdRef = useRef(null)
+  const dragThetaRef = useRef(null)
   const [dragTheta, setDragTheta] = useState(null)
   const activeTheta = dragTheta ?? pose?.theta ?? 0
   const currentMarker = useMemo(() => markerPoint(pose?.theta ?? 0), [pose?.theta])
   const targetMarker = useMemo(() => markerPoint(activeTheta), [activeTheta])
 
+  function setPreviewTheta(theta) {
+    dragThetaRef.current = theta
+    setDragTheta(theta)
+  }
+
+  function clearPreviewTheta() {
+    dragThetaRef.current = null
+    setDragTheta(null)
+  }
+
   function handlePointerDown(event) {
     if (disabled || !pose || !svgRef.current) return
     event.preventDefault()
-    setDragTheta(pointerAngle(event, svgRef.current))
+    activePointerIdRef.current = event.pointerId
+    event.currentTarget.setPointerCapture(event.pointerId)
+    setPreviewTheta(pointerAngle(event, svgRef.current))
   }
 
   function handlePointerMove(event) {
-    if (dragTheta === null || !svgRef.current) return
+    if (dragThetaRef.current === null || !svgRef.current || event.pointerId !== activePointerIdRef.current) return
     event.preventDefault()
-    setDragTheta(pointerAngle(event, svgRef.current))
+    setPreviewTheta(pointerAngle(event, svgRef.current))
   }
 
-  function handlePointerUp() {
-    if (dragTheta === null || disabled || !pose) return
-    const targetTheta = dragTheta
-    setDragTheta(null)
+  function handlePointerUp(event) {
+    if (event.pointerId !== activePointerIdRef.current) return
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId)
+    }
+    activePointerIdRef.current = null
+    const targetTheta = dragThetaRef.current
+    clearPreviewTheta()
+    if (targetTheta === null || disabled || !pose) return
     onRotate(targetTheta)
   }
 
-  function cancelPreview() {
-    if (dragTheta !== null) setDragTheta(null)
+  function cancelPreview(event) {
+    if (event?.pointerId !== undefined && event.pointerId !== activePointerIdRef.current) return
+    if (event?.currentTarget?.hasPointerCapture?.(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId)
+    }
+    activePointerIdRef.current = null
+    if (dragThetaRef.current !== null) clearPreviewTheta()
   }
 
   const muted = disabled || !pose
@@ -75,7 +99,6 @@ export default function RotationDial({ pose, disabled, onRotate }) {
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
           onPointerCancel={cancelPreview}
-          onPointerLeave={cancelPreview}
           style={{
             display: 'block',
             cursor: muted ? 'not-allowed' : dragTheta === null ? 'grab' : 'grabbing',

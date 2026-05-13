@@ -56,9 +56,13 @@ def _parse_active_robot_ids(active_robot_ids: str) -> set[str]:
     return {robot_id.strip() for robot_id in active_robot_ids.split(',') if robot_id.strip()}
 
 
-def _node_map(graph_config: str) -> dict[int, tuple[float, float]]:
+def _station_map(graph_config: str) -> dict[int, tuple[float, float]]:
     graph = _load_yaml(graph_config)
-    return {int(node['id']): (float(node['x']), float(node['y'])) for node in graph['nodes']}
+    return {
+        int(node['station']): (float(node['x']), float(node['y']))
+        for node in graph['nodes']
+        if node.get('station') is not None
+    }
 
 
 def build_launch_plan(
@@ -67,7 +71,7 @@ def build_launch_plan(
     active_robot_ids: str,
 ) -> list[RobotLaunchPlan]:
     robots = _load_yaml(robots_config)['robots']
-    nodes_by_id = _node_map(graph_config)
+    stations = _station_map(graph_config)
     active_ids = _parse_active_robot_ids(active_robot_ids)
     configured_ids = {robot['id'] for robot in robots}
     unknown_ids = active_ids - configured_ids
@@ -80,10 +84,10 @@ def build_launch_plan(
         if active_ids and robot_id not in active_ids:
             continue
 
-        start_node = int(robot['start_node'])
-        if start_node not in nodes_by_id:
-            raise KeyError(f"Robot '{robot_id}' references start_node {start_node}, which is not in the graph")
-        initial_x, initial_y = nodes_by_id[start_node]
+        start_station = int(robot['start_station'])
+        if start_station not in stations:
+            raise KeyError(f"Robot '{robot_id}' references start_station {start_station}, which is not in the graph")
+        initial_x, initial_y = stations[start_station]
 
         params = {
             f'/scan_relay_{robot_id}/input': f'/{robot_id}/scan',

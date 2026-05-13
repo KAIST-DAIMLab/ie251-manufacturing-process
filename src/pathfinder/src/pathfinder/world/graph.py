@@ -7,6 +7,7 @@ from pathfinder.world.edge import Edge
 class Graph:
     def __init__(self, nodes: list[Node], edges: list[Edge]) -> None:
         self._nodes: dict[int, Node] = {n.id: n for n in nodes}
+        self._stations: dict[int, Node] = {n.station: n for n in nodes if n.station is not None}
         self._edges: list[Edge] = list(edges)
         self._adj: dict[int, list[Edge]] = {n.id: [] for n in nodes}
         for edge in edges:
@@ -15,6 +16,12 @@ class Graph:
 
     def get_node(self, node_id: int) -> Node:
         return self._nodes[node_id]
+
+    def get_station_node(self, station: int) -> Node:
+        try:
+            return self._stations[station]
+        except KeyError:
+            raise KeyError(f"station {station} not in graph") from None
 
     def all_nodes(self) -> list[Node]:
         return list(self._nodes.values())

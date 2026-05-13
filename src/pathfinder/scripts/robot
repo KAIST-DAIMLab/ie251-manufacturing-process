@@ -22,10 +22,10 @@ def main():
     for robot in robots:
         origin = None
         if not sim:
-            start_node = graph.get_node(robot.start_node)
+            station_node = graph.get_station_node(robot.start_station)
             origin = Pose2D()
-            origin.x = start_node.x
-            origin.y = start_node.y
+            origin.x = station_node.x
+            origin.y = station_node.y
             origin.theta = 0.0
 
         params = MotionParameters(

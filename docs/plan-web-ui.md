@@ -50,7 +50,7 @@ Response payload: `{"nodes":[{"id":int,"x":float,"y":float},...], "edges":[{"fro
 ---
 string robots_json
 ```
-Response payload: `{"robots":[{"id":"tb3_01","namespace":"tb3_01","start_node":int},...]}`.
+Response payload: `{"robots":[{"id":"tb3_01","namespace":"tb3_01","start_station":int},...]}`.
 
 `src/pathfinder/CMakeLists.txt:21-25` — add both files to `add_service_files`.
 
@@ -158,7 +158,7 @@ Create:
    ```
    Open `http://localhost:5173`. Confirm:
    - Graph (9 nodes, 12 edges from `config/graph.yaml`) renders with sensible spacing.
-   - Both robots appear at their `start_node` positions and update live as Gazebo moves them.
+   - Both robots appear at their `start_station` positions and update live as Gazebo moves them.
    - Click `tb3_01` → highlight ring appears. Click node `5` → robot drives 4 → ... → 5; the dot tracks the motion. Banner shows the service response.
    - Click `tb3_05` and pick a different node while the first move is in flight; both robots move concurrently (path server already supports this).
 6. **Pre-commit walk** of project CLAUDE.md and the memory rules (no shortened names, public-method docstrings, type hints, full rename propagation, no placeholder code) before declaring done.

@@ -28,13 +28,26 @@ class RobotConfigTest(unittest.TestCase):
     def test_robot_config_does_not_include_starting_yaw(self):
         robot = Robot.from_dict({
             "id": "tb3_01",
-            "start_node": 9,
+            "start_station": 4,
             "motion": {},
             "obstacle": {},
         })
 
         self.assertFalse(hasattr(robot, "yaw"))
         self.assertNotIn("yaw", robot.to_dict())
+
+    def test_robot_config_uses_start_station_not_start_node(self):
+        robot = Robot.from_dict({
+            "id": "tb3_01",
+            "start_station": 4,
+            "motion": {},
+            "obstacle": {},
+        })
+
+        self.assertEqual(robot.start_station, 4)
+        self.assertFalse(hasattr(robot, "start_node"))
+        self.assertEqual(robot.to_dict()["start_station"], 4)
+        self.assertNotIn("start_node", robot.to_dict())
 
     def test_default_robots_yaml_does_not_include_starting_yaw(self):
         with open(os.path.join(PACKAGE_ROOT, 'config', 'robots.yaml')) as config_file:
@@ -43,6 +56,8 @@ class RobotConfigTest(unittest.TestCase):
         self.assertEqual([robot["id"] for robot in config["robots"]], ["tb3_01", "tb3_05"])
         for robot in config["robots"]:
             self.assertNotIn("yaw", robot)
+            self.assertIn("start_station", robot)
+            self.assertNotIn("start_node", robot)
 
 
 if __name__ == '__main__':

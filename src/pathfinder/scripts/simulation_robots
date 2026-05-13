@@ -15,11 +15,15 @@ from gazebo_msgs.srv import SpawnModel, SpawnModelRequest
 from geometry_msgs.msg import Pose, Point, Quaternion
 
 
-def _build_node_map(graph_path: str) -> dict[int, tuple[float, float]]:
-    """Return {node_id: (x, y)} built from graph.yaml."""
+def _build_station_map(graph_path: str) -> dict[int, tuple[int, float, float]]:
+    """Return {station: (node_id, x, y)} built from graph.yaml."""
     with open(graph_path, 'r') as graph_file:
         data = yaml.safe_load(graph_file)
-    return {n['id']: (float(n['x']), float(n['y'])) for n in data['nodes']}
+    return {
+        int(n['station']): (int(n['id']), float(n['x']), float(n['y']))
+        for n in data['nodes']
+        if n.get('station') is not None
+    }
 
 
 def _render_urdf(model: str) -> str:
@@ -34,20 +38,20 @@ def _render_urdf(model: str) -> str:
     return document.toxml()
 
 
-def _validate_robot(robot_cfg: dict, node_map: dict[int, tuple[float, float]]) -> None:
+def _validate_robot(robot_cfg: dict, station_map: dict[int, tuple[int, float, float]]) -> None:
     """Validate required fields; log and raise on any missing or unknown value."""
     robot_id = robot_cfg.get('id', '<unknown>')
-    if 'start_node' not in robot_cfg:
-        rospy.logerr(f"Robot '{robot_id}' is missing required field 'start_node'")
-        raise KeyError(f"missing 'start_node' for robot '{robot_id}'")
-    start_node = robot_cfg['start_node']
-    if start_node not in node_map:
-        valid_ids = sorted(node_map.keys())
+    if 'start_station' not in robot_cfg:
+        rospy.logerr(f"Robot '{robot_id}' is missing required field 'start_station'")
+        raise KeyError(f"missing 'start_station' for robot '{robot_id}'")
+    start_station = int(robot_cfg['start_station'])
+    if start_station not in station_map:
+        valid_stations = sorted(station_map.keys())
         rospy.logerr(
-            f"Robot '{robot_id}' references start_node {start_node}, "
-            f"which is not in the graph. Valid node ids: {valid_ids}"
+            f"Robot '{robot_id}' references start_station {start_station}, "
+            f"which is not in the graph. Valid stations: {valid_stations}"
         )
-        raise KeyError(f"start_node {start_node} not in graph for robot '{robot_id}'")
+        raise KeyError(f"start_station {start_station} not in graph for robot '{robot_id}'")
 
 
 def main():
@@ -60,11 +64,11 @@ def main():
     with open(robots_config, 'r') as robots_file:
         robots = yaml.safe_load(robots_file)['robots']
 
-    node_map = _build_node_map(graph_config)
+    station_map = _build_station_map(graph_config)
     urdf_string = _render_urdf(model)
 
     for robot_cfg in robots:
-        _validate_robot(robot_cfg, node_map)
+        _validate_robot(robot_cfg, station_map)
 
     uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
     roslaunch.configure_logging(uuid)
@@ -76,9 +80,9 @@ def main():
 
     for robot_cfg in robots:
         robot_id = robot_cfg['id']
-        start_node = robot_cfg['start_node']
+        start_station = int(robot_cfg['start_station'])
 
-        x, y = node_map[start_node]
+        station_node_id, x, y = station_map[start_station]
         pose = Pose(
             position=Point(x=x, y=y, z=0.0),
             orientation=Quaternion(x=0.0, y=0.0, z=0.0, w=1.0),
@@ -108,7 +112,7 @@ def main():
             rospy.logerr(f"Failed to spawn {robot_id}: {response.status_message}")
             raise RuntimeError(f"Spawn failed for {robot_id}: {response.status_message}")
 
-        rospy.loginfo(f"Spawned {robot_id} at graph node {start_node} (x={x}, y={y})")
+        rospy.loginfo(f"Spawned {robot_id} at station {start_station} / graph node {station_node_id} (x={x}, y={y})")
 
     rospy.loginfo(f"All {len(robots)} robots spawned.")
     rospy.spin()

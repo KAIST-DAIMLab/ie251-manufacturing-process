@@ -1,13 +1,13 @@
 nodes:
-  - {id: 1, x: 0.00, y: 1.57, orientation: 0}
-  - {id: 2, x: 0.92, y: 1.57, station: 1}
-  - {id: 3, x: 1.94, y: 1.57, orientation: 180}
-  - {id: 4, x: 0.00, y: 2.78, orientation: 0}
-  - {id: 5, x: 0.92, y: 2.78, station: 2}
-  - {id: 6, x: 1.94, y: 2.78, orientation: 180}
-  - {id: 7, x: 0.00, y: 4.56, orientation: 0}
-  - {id: 8, x: 0.92, y: 4.56, station: 3}
-  - {id: 9, x: 1.94, y: 4.56, orientation: 180}
+  - {id: 1, x: 0.00, y: 1.57, station: 3, orientation: 0}
+  - {id: 2, x: 0.92, y: 1.57}
+  - {id: 3, x: 1.94, y: 1.57, station: 2, orientation: 180}
+  - {id: 4, x: 0.00, y: 2.78, station: 6, orientation: 0}
+  - {id: 5, x: 0.92, y: 2.78}
+  - {id: 6, x: 1.94, y: 2.78, station: 1, orientation: 180}
+  - {id: 7, x: 0.00, y: 4.56, station: 5, orientation: 0}
+  - {id: 8, x: 0.92, y: 4.56}
+  - {id: 9, x: 1.94, y: 4.56, station: 4, orientation: 180}
 
 edges:
   - {from: 1, to: 2}

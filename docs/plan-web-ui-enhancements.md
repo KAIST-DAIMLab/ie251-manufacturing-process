@@ -27,7 +27,7 @@ Today it returns `{id, namespace}`. The panel needs the full per-robot config th
     {
       "id": "tb3_01",
       "namespace": "tb3_01",
-      "start_node": 1,
+      "start_station": 1,
       "yaw": 0.0,
       "motion": {
         "linear_speed": 0.22,
@@ -47,14 +47,14 @@ Today it returns `{id, namespace}`. The panel needs the full per-robot config th
 
 The srv shape (`string robots_json`) does not change. `Robot` already exposes `motion: MotionConfig` and `obstacle: ObstacleConfig` ([world/robot.py:25-35](../src/pathfinder/src/pathfinder/world/robot.py#L25-L35)) — read field-by-field rather than `dataclasses.asdict` so we have explicit control over the wire shape.
 
-`src/pathfinder/test/test_fleet_service.py` — the fake robot in `_make_service` is `types.SimpleNamespace(id, namespace, pose)`. Extend it with `start_node`, `yaw`, `motion`, `obstacle` (using nested `SimpleNamespace`s) and assert the new fields appear in the get_robots response JSON.
+`src/pathfinder/test/test_fleet_service.py` — the fake robot in `_make_service` is `types.SimpleNamespace(id, namespace, pose)`. Extend it with `start_station`, `yaw`, `motion`, `obstacle` (using nested `SimpleNamespace`s) and assert the new fields appear in the get_robots response JSON.
 
 ### 2. Web UI: right-side config panel
 
 New file `web-ui/src/components/RobotPanel.jsx`:
 - Props: `robot` (the selected robot record, including the new fields above) and `pose` (live `{x, y, theta}` or undefined).
 - Renders three sections:
-  - **Identity**: id, namespace, start_node, yaw.
+  - **Identity**: id, namespace, start_station, yaw.
   - **Motion**: linear_speed, angular_speed, move_rate_hz, arrival_tolerance.
   - **Obstacle**: enabled, stop_distance, detect_degree.
   - **Live pose**: x, y, theta (degrees, derived from radians).
@@ -168,7 +168,7 @@ Create:
    Verify:
    - Each robot dot has a translucent red cone in front, oriented along the robot's heading. As `tb3_01` rotates (e.g. when reaching a waypoint), the cone rotates with it. The cone's tip distance equals `obstacle.stop_distance` in world units.
    - If `config/robots.yaml` is edited to `obstacle.enabled: false` for one robot and the system is restarted, that robot's cone renders as a dashed grey outline.
-   - Click `tb3_01` → right panel populates: id `tb3_01`, namespace, start_node, motion fields, obstacle fields, live pose updating in real time. Click again or click empty space → panel clears.
+   - Click `tb3_01` → right panel populates: id `tb3_01`, namespace, start_station, motion fields, obstacle fields, live pose updating in real time. Click again or click empty space → panel clears.
    - Drag `tb3_01` toward node 5: a dashed line follows the pointer, node 5 highlights as the pointer enters its hit radius. Release on node 5 → banner reads "tb3_01: dispatched N waypoints", robot drives to node 5, cone tracks heading, panel still shows tb3_01 (selection persists).
    - Drag from `tb3_05` and release in empty space → no dispatch, ghost line vanishes.
    - The graph nodes themselves no longer respond to plain clicks (drag is the only way to dispatch a goal).

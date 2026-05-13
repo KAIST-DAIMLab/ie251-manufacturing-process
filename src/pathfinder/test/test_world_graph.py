@@ -63,6 +63,27 @@ class GraphYamlTest(unittest.TestCase):
 
         self.assertIsNone(graph.get_node(1).station)
 
+    def test_get_station_node_returns_node_for_station(self):
+        graph = _load_graph_yaml("""
+            nodes:
+              - {id: 1, x: 0.0, y: 0.0, station: 3}
+              - {id: 2, x: 1.0, y: 0.0}
+            edges:
+              - {from: 1, to: 2}
+        """)
+
+        self.assertEqual(graph.get_station_node(3).id, 1)
+
+    def test_get_station_node_rejects_non_station_nodes(self):
+        graph = _load_graph_yaml("""
+            nodes:
+              - {id: 1, x: 0.0, y: 0.0}
+            edges: []
+        """)
+
+        with self.assertRaisesRegex(KeyError, "station 1"):
+            graph.get_station_node(1)
+
 
 def _load_graph_yaml(contents: str) -> Graph:
     with tempfile.NamedTemporaryFile('w', suffix='.yaml', delete=False) as config_file:

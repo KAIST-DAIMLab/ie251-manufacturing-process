@@ -85,6 +85,8 @@ class LaunchSplitTest(unittest.TestCase):
         self.assertIn('robots:\n', config)
         self.assertIn('id: tb3_01\n', config)
         self.assertIn('id: tb3_05\n', config)
+        self.assertIn('start_station:', config)
+        self.assertNotIn('start_node:', config)
 
     def test_robots_launch_integrates_real_robot_localization(self):
         root = _launch_tree('robots.launch')

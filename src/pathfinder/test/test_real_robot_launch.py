@@ -45,7 +45,7 @@ def _load_module():
 def _write_robots_config(robot_ids: list[str]) -> str:
     handle = tempfile.NamedTemporaryFile('w', delete=False)
     with handle:
-        yaml.safe_dump({'robots': [{'id': robot_id, 'start_node': 1} for robot_id in robot_ids]}, handle)
+        yaml.safe_dump({'robots': [{'id': robot_id, 'start_station': 1} for robot_id in robot_ids]}, handle)
     return handle.name
 
 
