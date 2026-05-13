@@ -1,312 +1,152 @@
 # TurtleBot3 Pathfinder
 
-- [TurtleBot3 Pathfinder](#turtlebot3-pathfinder)
-- [1. Architecture](#1-architecture)
-- [2. Prerequisites](#2-prerequisites)
-- [4. Quick Start](#4-quick-start)
-  - [4.1. Simulation](#41-simulation)
-  - [4.2. Real Robots](#42-real-robots)
-- [5. Usage](#5-usage)
-  - [6. Examples](#6-examples)
-  - [Monitor state](#monitor-state)
-- [7. Configuration](#7-configuration)
-- [8. Troubleshooting](#8-troubleshooting)
-- [8. Design Decisions](#8-design-decisions)
+Centralized graph navigation for two TurtleBot3 Waffle robots on a 6 m x 3 m table. A fleet service plans A* paths over `graph.yaml`, dispatches per-robot `FollowPath` goals, and exposes ROS services used by the CLI and web dashboard.
 
-
-A centralized path-finding system for two TurtleBot3 Waffle robots navigating a shared graph on a 6 m × 3 m table. A user sends a target node ID to a central server; the server plans an A* path and dispatches it to the robot's executor, which drives between waypoints using a proportional controller. A collision monitor predicts head-on encounters and stops both robots before impact.
-
-# 1. Architecture
+## Architecture
 ![architecture](.images/README-architecture.png)  
 
-```
-client (CLI)
-      │  MoveToNode action
-      ▼
-  path_server ──── CollisionMonitor (10 Hz)
-      │  FollowPath action        │ /tb3_01/emergency_stop
-      ├──────────────────┐        │ /tb3_05/emergency_stop
-      ▼                  ▼        ▼
-tb3_01_executor    tb3_05_executor
-  /tb3_01/cmd_vel   /tb3_05/cmd_vel
-  /tb3_01/odom      /tb3_05/odom
-      │                  │
-      └──────────────────┘
-              Gazebo
+```text
+CLI / Web UI
+    |
+    | /fleet/move_to_node, /fleet/cancel_path, /fleet/rotate_robot
+    v
+path_server
+    |
+    | FollowPath action goals
+    v
+robot_executors
+    |
+    | /<robot>/cmd_vel, /<robot>/odom, /<robot>/path_status
+    v
+Gazebo or real TurtleBot3s
 ```
 
-# 2. Prerequisites
+Key pieces:
+- `path_server`: loads graph + robot config, owns fleet services, plans paths.
+- `robot_executors`: one executor per robot; follows paths, handles stop/rotate commands, and applies obstacle settings.
+- `web-ui`: rosbridge dashboard for live poses, drag-to-node dispatch, stop, and rotation.
 
-**Laptop (ROS master)**
+## Prerequisites
+
 - Docker + Docker Compose
-- An X server on the host (any Linux desktop, or XQuartz on macOS)
-- `avahi-daemon` running (ships and runs by default on Ubuntu desktop)
+- ROS Noetic environment from `docker/`
+- X server for Gazebo/RViz windows
+- Real robots only: TurtleBot3 bringup installed and all machines on the same LAN
+
+Allow GUI windows from Docker once per host session:
 
 ```bash
-# Allow containers to open GUI windows (run once per host session)
 xhost +local:docker
 ```
 
-> **macOS:** Use XQuartz. Set `DISPLAY=host.docker.internal:0` and enable *Allow connections from network clients* in XQuartz preferences.
+## Quick Start
+Use one runtime mode at a time: simulation.launch for Gazebo, or robots.launch for physical robots. 
+  > Do not run both against the same ROS master.
 
-**Each TurtleBot3 (real robot only)**
+### Setup
 
-```bash
-sudo apt install avahi-daemon avahi-utils
-sudo systemctl enable --now avahi-daemon
-```
-
-Verify the laptop is resolvable from the robot before starting any ROS nodes:
-
-```bash
-ping $(hostname).local   # run on the robot; should reach the laptop
-```
-
----
-
-# 4. Quick Start
-
-## 4.1. Simulation
-![simulation](.images/README-simulation.png)  
-
-**Start the container**  
 ```bash
 cd docker
 cp .env.example .env
-vi .env
-# Edit ROS_HOSTNAME in mDNS format (hostname.local) or IP address
+# Set ROS_HOSTNAME to your laptop hostname.local or IP.
 
 sudo docker compose up -d
 sudo docker exec -it noetic zsh
 
-# Build (first time only)
 catkin_make
 source devel/setup.zsh
 ```
 
-**Launch simulation and pathfinding**
+For real robots, use mDNS or fixed IPs consistently. Each robot should reach the laptop ROS master before launching bringup.
 
-**Terminal 1** — Gazebo + simulated robots + pathfinding system:
+### Simulation
+![simulation](.images/README-simulation.png)  
 
 ```bash
 source devel/setup.zsh
 roslaunch pathfinder simulation.launch
 ```
+This will start Gazebo and virtual robots based on robots.yaml
 
-Wait until the executor action servers are up and both odometry topics (`/tb3_01/sim/odom`, `/tb3_05/sim/odom`) are publishing before sending goals.
+### Real Robots
 
+Place robots at their configured start stations
 
-**Send a goal**
-
-**Terminal 2**
-
-```bash
-source devel/setup.zsh
-rosrun pathfinder client tb3_01 5
-```
-
-`tb3_01` drives from node 0 to node 5 via the top route (0 → 1 → 3 → 5). The client prints feedback as each waypoint is reached and exits with code 0 on success.
-
-## 4.2. Real Robots
-
-**Physical setup**
-
-Place the two TurtleBot3 Waffles on the 6 m x 3 m table at their start stations (defined in `config/robots.yaml`):
-
-| Robot   | Station | Node | x (m) | y (m) | Facing   |
-|---------|---------|------|-------|-------|----------|
-| `tb3_01`| 3       | 1    | 0.00  | 1.57  | East (0 deg) |
-| `tb3_05`| 5       | 7    | 0.00  | 4.56  | East (0 deg) |
-
-Connect both robots and the laptop to the same LAN (e.g. the lab router). Note the laptop's IP address — it will act as the ROS master.
-
-**Configure the ROS master address**
-
-`docker-compose.yml` imports `docker/.env` into the container. The quick-start command below writes `ROS_HOSTNAME=$(hostname).local`; `ROS_MASTER_URI` is derived from `ROS_HOSTNAME` in `.env`. No manual edits are needed as long as `avahi-daemon` is running. Leave `ROS_IP` empty when using `ROS_HOSTNAME`.
-
-**Start the laptop container**
+On each TurtleBot3:
 
 ```bash
-cd /path/to/ie251-manufacturing-process/docker
-sed "s|your-laptop-hostname|$(hostname)|g" .env.example > .env
-sudo docker compose up -d
-sudo docker exec -it noetic zsh
-
-# Build (first time only)
-catkin_make
-source devel/setup.zsh
-```
-
-**Bring up each TurtleBot3**
-
-SSH into each robot's Raspberry Pi and set it to use the laptop as the ROS master, then launch the bringup with the correct namespace.
-
-**On `tb3_01` (the robot placed at node 0):**
-
-```bash
-export ROS_MASTER_URI=http://$(laptop-hostname).local:11311
+export ROS_MASTER_URI=http://<laptop-hostname>.local:11311
 export ROS_HOSTNAME=$(hostname).local
-export ROS_NAMESPACE=tb3_01
+export ROS_NAMESPACE=<tb3_01-or-tb3_05>
 roslaunch turtlebot3_bringup turtlebot3_robot.launch
 ```
 
-**On `tb3_05` (the robot placed at node 5):**
-
-```bash
-export ROS_MASTER_URI=http://$(laptop-hostname).local:11311
-export ROS_HOSTNAME=$(hostname).local
-export ROS_NAMESPACE=tb3_05
-roslaunch turtlebot3_bringup turtlebot3_robot.launch
-```
-
-Replace `$(laptop-hostname)` with the actual output of `hostname` on the laptop (e.g. `mypc`). Each robot's `ROS_HOSTNAME` is set to its own mDNS name so the master can route topic traffic back to it.
-
-Each bringup publishes `/<namespace>/odom` and subscribes to `/<namespace>/cmd_vel`, which is what the executor expects.
-
-**Launch the pathfinding system**
-
-Back in the laptop container (**Terminal 1**):
+In the laptop container, auto-detect connected robots and launch the stack:
 
 ```bash
 source devel/setup.zsh
 roslaunch pathfinder robots.launch
 ```
 
-Confirm the executors are ready by checking that odometry is arriving:
+### Web UI
+![web-ui](.images/README-web-ui.png)  
 
-```bash
-rostopic hz /tb3_01/odom
-rostopic hz /tb3_05/odom
-```
-
-Both should report ~30 Hz before you send any goals.
-
-**Send a goal**
-
-**Terminal 2** (inside the same container):
-
-```bash
-source devel/setup.zsh
-rosrun pathfinder client tb3_01 5   # drives node 0 → 1 → 3 → 5
-```
-
-The client prints feedback at each waypoint and exits with code 0 on success.
-
----
-
-# 5. Usage
-
-```
-rosrun pathfinder client <robot_id> <target_node_id>
-```
-
-| Argument        | Values              |
-|-----------------|---------------------|
-| `robot_id`      | `tb3_01` or `tb3_05`  |
-| `target_node_id`| `0` – `5`           |
-
-## 6. Examples
-
-**Single robot — corner to corner:**
-```bash
-rosrun pathfinder client tb3_01 5   # 0 → 1 → 3 → 5
-```
-
-**Two robots — parallel rows (no collision):**
-```bash
-# Terminal A                                # Terminal B
-rosrun pathfinder client tb3_01 4   rosrun pathfinder client tb3_05 1
-# tb3_01: bottom row 0 → 2 → 4             # tb3_05: top row 5 → 3 → 1
-```
-
-**Collision avoidance — head-on on N1–N3 edge:**
-```bash
-# Start both within ~1 s of each other
-rosrun pathfinder client tb3_01 5   # top route: 0 → 1 → 3 → 5
-rosrun pathfinder client tb3_05 0   # top route: 5 → 3 → 1 → 0
-# CollisionMonitor fires; both robots stop before impact.
-```
-
-## Monitor state
-
-```bash
-rostopic echo /tb3_01/sim/odom        # pose and velocity from Gazebo
-rostopic echo /tb3_01/emergency_stop  # fires when collision is predicted
-```
-
-## Web UI
-
-Start the web dashboard after the ROS stack is up:
+The ROS launch files start rosbridge on port `9090` by default.
 
 ```bash
 cd web-ui
-cp .env.example .env   # defaults to ws://localhost:9090
+cp .env.example .env
 docker compose up
 ```
 
-Open `http://localhost:5173` in a browser. The graph and both robot positions appear live. Click a robot to select it (highlighted with a ring), then click any node to dispatch a `MoveToNode` goal. The robot dot tracks the robot's position in real time.
+Open `http://localhost:5173`.
 
-The fleet service endpoints used by the UI:
+The dashboard shows the graph, station nodes, robot poses, path state, robot config, stop control, and rotation control. Click a robot to select it, then drag it to a graph node to dispatch a move.
 
-| Service | Purpose |
-|---|---|
-| `/fleet/get_graph` | Fetch nodes and edges (called once on load) |
-| `/fleet/get_robots` | Fetch robot ids and namespaces (called once on load) |
-| `/fleet/move_to_node` | Dispatch a path goal to a robot |
-| `/fleet/cancel_path` | Cancel an in-flight goal |
+### CLI
 
----
+```bash
+rosrun pathfinder client <robot_id> <target_node_id>
+rosrun pathfinder client <robot_id> stop
+rosrun pathfinder client <robot_id> turn_left 90
+rosrun pathfinder client <robot_id> move_forward 0.2
+```
 
-# 7. Configuration
+Robot IDs come from `config/robots.yaml`. Target node IDs come from `config/graph.yaml`.
 
-**`config/graph.yaml`** — edit nodes and edges to change the layout.
 
-**`config/robots.yaml`** — edit robot IDs and `start_station` values when adding, renaming, or repositioning robots. Start stations must match station numbers in `config/graph.yaml`.
 
-**`config/params.yaml`** — key tuning values:
+## Configuration
 
-| Parameter | Default | Effect |
-|-----------|---------|--------|
-| `path_server.safety_radius` | 0.35 m | Stop if predicted distance drops below this |
-| `path_server.horizon` | 2.0 s | How far ahead collision is predicted |
-| `executor.controller.k_lin` | 0.5 | Linear speed gain |
-| `executor.controller.k_ang` | 1.5 | Angular speed gain |
-| `executor.controller.arrival_tol` | 0.10 m | Distance to declare a waypoint reached |
+- `src/pathfinder/config/graph.yaml`: graph nodes, edges, station numbers, and optional station orientations.
+- `src/pathfinder/config/robots.yaml`: robot IDs, `start_station`, motion tuning, and obstacle tuning.
 
----
+Robots can only start at station nodes. `start_station` must match a station number in `graph.yaml`.
 
-# 8. Troubleshooting
+## Troubleshooting
 
-**Gazebo window doesn't open**
+Gazebo or RViz does not open:
+
 ```bash
 xhost +local:docker
-touch /tmp/.docker.xauth
-xauth nlist $DISPLAY | sed -e 's/^..../ffff/' | xauth -f /tmp/.docker.xauth nmerge -
 ```
 
-**`Failed to load model 'waffle'`**
-```bash
-export TURTLEBOT3_MODEL=waffle
-roslaunch pathfinder simulation.launch
-```
+ROS package is not found:
 
-**`rospack find pathfinder` fails**
 ```bash
 source devel/setup.zsh
 ```
 
-**Robot doesn't move after goal is sent**
-Check that both executor nodes are alive and odometry is available:
+Robot does not move:
+
 ```bash
-rostopic hz /tb3_01/sim/odom
-rostopic hz /tb3_05/sim/odom
+rostopic hz /<robot_id>/odom
+rosservice call /fleet/get_robots
 ```
 
-**Both robots stop and never resume**
-An emergency stop is latched until a new `FollowPath` goal arrives. Send a new goal via `client` to resume.
+Web UI cannot connect:
 
----
-
-# 8. Design Decisions
-
-**`*Node` classes are the assembly layer and are not unit-tested.** `TurtleBotNode`, `PathServerNode`, and similar classes are responsible for instantiating components, wiring them together, and creating all ROS publishers/subscribers. All topic names live here. They are covered by integration tests only. Every other class follows constructor injection and must be unit-testable without a running ROS core.
+```bash
+rosnode list | grep rosbridge
+echo $VITE_ROSBRIDGE_URL
+```
