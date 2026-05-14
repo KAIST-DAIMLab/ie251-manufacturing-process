@@ -83,6 +83,7 @@ class FakeMotionController:
 
     def __init__(self, return_value=True, turn_return_value=True):
         self.calls = []
+        self.drive_through_calls = []
         self.turn_calls = []
         self.return_value = return_value
         self.turn_return_value = turn_return_value
@@ -91,6 +92,11 @@ class FakeMotionController:
     def drive_to(self, target):
         """Record a drive_to call and return the configured result."""
         self.calls.append(target)
+        return self.return_value
+
+    def drive_through(self, target):
+        """Record a drive_through call and return the configured result."""
+        self.drive_through_calls.append(target)
         return self.return_value
 
     def turn_to(self, heading):
@@ -110,15 +116,22 @@ class FakeMotionEngine:
 
     def __init__(self):
         self.drive_calls = 0
+        self.drive_through_calls = 0
         self.stop_calls = 0
         self.turn_calls = 0
         self._drive_returns = True
+        self._drive_through_returns = True
         self._turn_returns = True
 
     def drive_towards(self, target):
         """Record a drive_towards call and return the configured result."""
         self.drive_calls += 1
         return self._drive_returns
+
+    def drive_through(self, target):
+        """Record a drive_through call and return the configured result."""
+        self.drive_through_calls += 1
+        return self._drive_through_returns
 
     def turn_towards(self, heading):
         """Record a turn_towards call and return the configured result."""
@@ -201,6 +214,31 @@ class DriveTowardsTest(unittest.TestCase):
         self.assertFalse(arrived)
         self.assertGreater(publisher.published[-1].angular.z, 0.0)
         self.assertLess(publisher.published[-1].angular.z, math.radians(2.0))
+
+    def test_drive_through_arrival_returns_true_without_publishing_stop(self):
+        engine, publisher = self._engine_at(x=0.0, y=0.0, arrival_tolerance=0.10)
+
+        arrived = engine.drive_through(Node(id=1, x=0.05, y=0.0))
+
+        self.assertTrue(arrived)
+        self.assertEqual(publisher.published, [])
+
+    def test_drive_through_uses_full_linear_speed_when_heading_is_acceptable(self):
+        engine, publisher = self._engine_at(x=0.0, y=0.0, linear_speed=0.3, linear_gain=0.5)
+
+        arrived = engine.drive_through(Node(id=1, x=0.2, y=0.0))
+
+        self.assertFalse(arrived)
+        self.assertEqual(publisher.published[-1].linear.x, 0.3)
+
+    def test_drive_through_blocks_forward_velocity_when_heading_error_is_large(self):
+        engine, publisher = self._engine_at(x=0.0, y=0.0, theta=math.pi / 2.0, heading_tolerance=0.2)
+
+        arrived = engine.drive_through(Node(id=1, x=1.0, y=0.0))
+
+        self.assertFalse(arrived)
+        self.assertEqual(publisher.published[-1].linear.x, 0.0)
+        self.assertLess(publisher.published[-1].angular.z, 0.0)
 
 
 class TurnTowardsTest(unittest.TestCase):
@@ -324,6 +362,36 @@ class MotionControllerTest(unittest.TestCase):
 
         self.assertTrue(result)
 
+    def test_drive_through_loops_until_engine_reports_pass_through(self):
+        sys.modules['rospy'].max_sleep_count = 1000
+        engine = FakeMotionEngine()
+        engine._drive_through_returns = False
+        tick = [0]
+
+        def unblock():
+            tick[0] += 1
+            if tick[0] >= 3:
+                engine._drive_through_returns = True
+
+        sys.modules['rospy'].sleep_callbacks.append(unblock)
+        controller = MotionController(engine)
+
+        result = controller.drive_through(Node(id=1, x=1.0, y=0.0))
+
+        self.assertTrue(result)
+        self.assertGreaterEqual(engine.drive_through_calls, 3)
+
+    def test_stop_causes_drive_through_to_return_false(self):
+        engine = FakeMotionEngine()
+        engine._drive_through_returns = False
+        controller = MotionController(engine)
+
+        sys.modules['rospy'].sleep_callbacks.append(lambda: controller.stop())
+
+        result = controller.drive_through(Node(id=1, x=1.0, y=0.0))
+
+        self.assertFalse(result)
+
 
 class PathFollowerTest(unittest.TestCase):
     """Tests for PathFollower's waypoint sequencing behavior."""
@@ -339,6 +407,34 @@ class PathFollowerTest(unittest.TestCase):
 
         self.assertTrue(result)
         self.assertEqual(len(controller.calls), 2)
+
+    def test_follow_drives_through_straight_intermediate_waypoint(self):
+        controller = FakeMotionController(return_value=True)
+        follower = PathFollower(controller)
+
+        result = follower.follow([
+            Node(id=1, x=0.0, y=0.0),
+            Node(id=2, x=1.0, y=0.0),
+            Node(id=3, x=2.0, y=0.0),
+        ])
+
+        self.assertTrue(result)
+        self.assertEqual([node.id for node in controller.drive_through_calls], [2])
+        self.assertEqual([node.id for node in controller.calls], [1, 3])
+
+    def test_follow_uses_drive_to_for_turning_intermediate_waypoint(self):
+        controller = FakeMotionController(return_value=True)
+        follower = PathFollower(controller)
+
+        result = follower.follow([
+            Node(id=1, x=0.0, y=0.0),
+            Node(id=2, x=1.0, y=0.0),
+            Node(id=3, x=1.0, y=1.0),
+        ])
+
+        self.assertTrue(result)
+        self.assertEqual(controller.drive_through_calls, [])
+        self.assertEqual([node.id for node in controller.calls], [1, 2, 3])
 
     def test_follow_returns_false_when_drive_to_fails(self):
         follower = PathFollower(FakeMotionController(return_value=False))

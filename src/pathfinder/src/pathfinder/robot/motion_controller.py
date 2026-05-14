@@ -24,6 +24,16 @@ class MotionController:
             rate.sleep()
         return False
 
+    def drive_through(self, target: Node) -> bool:
+        """Loop engine.drive_through until pass-through or cancel."""
+        self._cancel = False
+        rate = rospy.Rate(self._rate_hz)
+        while not rospy.is_shutdown() and not self._cancel:
+            if self._engine.drive_through(target):
+                return True
+            rate.sleep()
+        return False
+
     def turn_to(self, heading: float) -> bool:
         """Loop engine.turn_towards until aligned or cancel."""
         self._cancel = False

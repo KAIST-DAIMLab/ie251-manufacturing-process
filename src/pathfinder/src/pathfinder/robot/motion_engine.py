@@ -52,6 +52,18 @@ class MotionEngine:
         self._publish(speed_linear, speed_angular)
         return False
 
+    def drive_through(self, target: Node) -> bool:
+        """Publish one pass-through cmd_vel toward target; True when within arrival tolerance."""
+        if self._get_distance(target) <= self._params.arrival_tolerance:
+            return True
+
+        angle = self._get_angle(target)
+        speed_angular = _clamp(self._params.angular_gain * angle, self._params.angular_speed)
+        speed_linear = self._params.linear_speed if abs(angle) <= self._params.heading_tolerance else 0.0
+
+        self._publish(speed_linear, speed_angular)
+        return False
+
     def turn_towards(self, heading: float) -> bool:
         """Publish one proportional angular cmd_vel toward absolute heading."""
         angle = wrap_to_pi(heading - self._pose_provider().theta)
