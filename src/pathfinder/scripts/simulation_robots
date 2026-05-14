@@ -2,6 +2,7 @@
 """One-shot node: reads robots.yaml + graph.yaml and spawns each robot in Gazebo."""
 from __future__ import annotations
 import os
+import xml.etree.ElementTree as ET
 import yaml
 
 import rospy
@@ -42,6 +43,20 @@ def _render_urdf(model: str) -> str:
     return document.toxml()
 
 
+def _disable_diff_drive_odom_tf(urdf_string: str) -> str:
+    """Disable only Gazebo diff-drive odom TF, keeping namespaced odometry topics alive."""
+    root = ET.fromstring(urdf_string)
+    for plugin in root.findall(".//plugin"):
+        filename = plugin.get('filename', '')
+        if 'gazebo_ros_diff_drive' not in filename:
+            continue
+        publish_odom_tf = plugin.find('publishOdomTF')
+        if publish_odom_tf is None:
+            publish_odom_tf = ET.SubElement(plugin, 'publishOdomTF')
+        publish_odom_tf.text = 'false'
+    return ET.tostring(root, encoding='unicode')
+
+
 def _validate_robot(robot_cfg: dict, station_map: dict[int, tuple[int, float, float]]) -> None:
     """Validate required fields; log and raise on any missing or unknown value."""
     robot_id = robot_cfg.get('id', '<unknown>')
@@ -69,7 +84,7 @@ def main():
         robots = yaml.safe_load(robots_file)['robots']
 
     station_map = _build_station_map(graph_config)
-    urdf_string = _render_urdf(model)
+    urdf_string = _disable_diff_drive_odom_tf(_render_urdf(model))
 
     for robot_cfg in robots:
         _validate_robot(robot_cfg, station_map)

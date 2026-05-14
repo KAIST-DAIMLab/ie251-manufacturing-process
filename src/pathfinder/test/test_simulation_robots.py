@@ -6,6 +6,7 @@ import sys
 import tempfile
 import types
 import unittest
+import xml.etree.ElementTree as ET
 
 import yaml
 
@@ -119,6 +120,47 @@ class SimulationRobotsTest(unittest.TestCase):
     def test_validate_robot_rejects_non_station_start(self):
         with self.assertRaisesRegex(KeyError, "start_station 2"):
             self.module._validate_robot({'id': 'tb3_01', 'start_station': 2}, {3: (1, 0.0, 0.0)})
+
+    def test_disable_diff_drive_odom_tf_turns_off_only_gazebo_odom_tf(self):
+        urdf = """
+        <robot name="tb3">
+          <gazebo>
+            <plugin name="diff_drive" filename="libgazebo_ros_diff_drive.so">
+              <publishTf>true</publishTf>
+              <publishOdomTF>true</publishOdomTF>
+              <odometryFrame>odom</odometryFrame>
+              <robotBaseFrame>base_footprint</robotBaseFrame>
+            </plugin>
+          </gazebo>
+        </robot>
+        """
+
+        patched = self.module._disable_diff_drive_odom_tf(urdf)
+
+        root = ET.fromstring(patched)
+        plugin = root.find(".//plugin[@filename='libgazebo_ros_diff_drive.so']")
+        self.assertIsNotNone(plugin)
+        self.assertEqual(plugin.findtext('publishTf'), 'true')
+        self.assertEqual(plugin.findtext('publishOdomTF'), 'false')
+
+    def test_disable_diff_drive_odom_tf_adds_missing_odom_tf_flag(self):
+        urdf = """
+        <robot name="tb3">
+          <gazebo>
+            <plugin name="diff_drive" filename="libgazebo_ros_diff_drive.so">
+              <odometryFrame>odom</odometryFrame>
+              <robotBaseFrame>base_footprint</robotBaseFrame>
+            </plugin>
+          </gazebo>
+        </robot>
+        """
+
+        patched = self.module._disable_diff_drive_odom_tf(urdf)
+
+        root = ET.fromstring(patched)
+        plugin = root.find(".//plugin[@filename='libgazebo_ros_diff_drive.so']")
+        self.assertIsNotNone(plugin)
+        self.assertEqual(plugin.findtext('publishOdomTF'), 'false')
 
 
 if __name__ == '__main__':
