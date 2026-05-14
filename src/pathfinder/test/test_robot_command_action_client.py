@@ -37,21 +37,22 @@ def _install_ros_stubs():
 
     pathfinder_msg = types.ModuleType('pathfinder.msg')
 
-    class FollowPathGoal:
+    class RobotCommandGoal:
         def __init__(self):
-            self.node_ids = []
+            self.command = ''
+            self.value = 0.0
 
-    class FollowPathAction:
+    class RobotCommandAction:
         pass
 
-    pathfinder_msg.FollowPathGoal = FollowPathGoal
-    pathfinder_msg.FollowPathAction = FollowPathAction
+    pathfinder_msg.RobotCommandGoal = RobotCommandGoal
+    pathfinder_msg.RobotCommandAction = RobotCommandAction
     sys.modules['pathfinder.msg'] = pathfinder_msg
 
 
 _install_ros_stubs()
 
-from pathfinder.ros.path_follow_action_client import PathFollowActionClient
+from pathfinder.ros.robot_command_action_client import RobotCommandActionClient
 
 
 class FakeActionClient:
@@ -62,8 +63,7 @@ class FakeActionClient:
         self.sent_goal = None
         self.canceled = False
         self.waited_for_result = False
-        self.wait_timeout = None
-        self.state = 3
+        self.state = 9  # LOST — no goal sent yet
 
     def wait_for_server(self, timeout):
         return self._server_available
@@ -76,7 +76,6 @@ class FakeActionClient:
 
     def wait_for_result(self, timeout):
         self.waited_for_result = True
-        self.wait_timeout = timeout
         return True
 
     def get_state(self):
@@ -84,35 +83,34 @@ class FakeActionClient:
 
 
 def _make_client_with_fake(fake_action_client):
-    """Return a PathFollowActionClient whose internal actionlib client is replaced by the fake."""
-    client = PathFollowActionClient.__new__(PathFollowActionClient)
+    client = RobotCommandActionClient.__new__(RobotCommandActionClient)
     client._client = fake_action_client
     return client
 
 
-class TestPathFollowActionClient(unittest.TestCase):
-    def test_send_returns_true_and_dispatches_goal_when_server_available(self):
+class TestRobotCommandActionClient(unittest.TestCase):
+    def test_send_dispatches_goal_with_command_and_value(self):
         fake = FakeActionClient(server_available=True)
         client = _make_client_with_fake(fake)
 
-        result = client.send([1, 2, 3])
+        result = client.send('turn_to', 1.5)
 
         self.assertTrue(result)
-        self.assertIsNotNone(fake.sent_goal)
-        self.assertEqual(fake.sent_goal.node_ids, [1, 2, 3])
+        self.assertEqual(fake.sent_goal.command, 'turn_to')
+        self.assertEqual(fake.sent_goal.value, 1.5)
 
     def test_send_returns_false_when_server_unavailable(self):
         fake = FakeActionClient(server_available=False)
         client = _make_client_with_fake(fake)
 
-        result = client.send([1, 2])
+        result = client.send('turn_to', 0.0)
 
         self.assertFalse(result)
         self.assertIsNone(fake.sent_goal)
 
     def test_cancel_is_noop_when_goal_already_terminal(self):
         fake = FakeActionClient()
-        fake.state = 3  # SUCCEEDED — terminal
+        fake.state = 3  # SUCCEEDED
         client = _make_client_with_fake(fake)
 
         client.cancel()
@@ -122,7 +120,7 @@ class TestPathFollowActionClient(unittest.TestCase):
 
     def test_cancel_is_noop_when_no_goal_ever_sent(self):
         fake = FakeActionClient()
-        fake.state = 9  # LOST — no goal tracked
+        fake.state = 9  # LOST
         client = _make_client_with_fake(fake)
 
         client.cancel()
