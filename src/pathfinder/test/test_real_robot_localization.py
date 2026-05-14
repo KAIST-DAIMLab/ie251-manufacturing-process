@@ -133,9 +133,38 @@ class RealRobotLocalizationTest(unittest.TestCase):
         self.assertEqual(plan[0].params['/scan_relay_tb3_05/input'], '/tb3_05/scan')
         self.assertEqual(plan[0].params['/scan_relay_tb3_05/output'], '/tb3_05/scan_relayed')
         self.assertEqual(plan[0].params['/scan_relay_tb3_05/frame_id'], 'tb3_05/base_scan')
+        self.assertTrue(plan[0].params['/scan_relay_tb3_05/stamp_with_now'])
         self.assertEqual(plan[0].params['/odom_tf_bridge_tb3_05/input'], '/tb3_05/odom')
         self.assertEqual(plan[0].params['/odom_tf_bridge_tb3_05/parent_frame'], 'tb3_05/odom')
         self.assertEqual(plan[0].params['/odom_tf_bridge_tb3_05/child_frame'], 'tb3_05/base_footprint')
+        self.assertTrue(plan[0].params['/odom_tf_bridge_tb3_05/stamp_with_now'])
+
+    def test_remaps_tf_nodes_to_pathfinder_tf_bus(self):
+        robots_path = _write_yaml({'robots': [{'id': 'tb3_01', 'start_station': 1}]})
+        graph_path = _write_yaml({
+            'nodes': [{'id': 1, 'x': 0.0, 'y': 0.0}],
+            'edges': [],
+            'stations': [{'node': 1, 'orientation': 0}],
+        })
+
+        plan = self.module.build_launch_plan(
+            robots_path,
+            graph_path,
+            '',
+            '/pathfinder/tf',
+            '/pathfinder/tf_static',
+        )
+
+        nodes_by_name = {node.name: node for node in plan[0].nodes}
+        expected_remaps = [('/tf', '/pathfinder/tf'), ('/tf_static', '/pathfinder/tf_static')]
+        self.assertEqual(nodes_by_name['odom_tf_bridge_tb3_01'].remap_args, expected_remaps)
+        self.assertEqual(nodes_by_name['tb3_01_base_footprint_to_base_link'].remap_args, expected_remaps)
+        self.assertEqual(nodes_by_name['tb3_01_base_link_to_scan'].remap_args, expected_remaps)
+        self.assertEqual(nodes_by_name['amcl'].remap_args, [
+            ('scan', '/tb3_01/scan_relayed'),
+            ('map', '/map'),
+            *expected_remaps,
+        ])
 
     def test_unknown_start_station_raises_clear_error(self):
         robots_path = _write_yaml({'robots': [{'id': 'tb3_01', 'start_station': 99}]})

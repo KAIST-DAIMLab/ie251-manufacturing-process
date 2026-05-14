@@ -1,0 +1,43 @@
+#!/usr/bin/env python3
+"""Run TurtleBot3 bringup in a namespace without publishing raw global TF."""
+from __future__ import annotations
+
+import os
+import sys
+
+
+def build_command(robot_id: str, extra_args: list[str]) -> list[str]:
+    return [
+        'roslaunch',
+        'turtlebot3_bringup',
+        'turtlebot3_robot.launch',
+        f'/tf:=/{robot_id}/raw_tf',
+        f'/tf_static:=/{robot_id}/raw_tf_static',
+        *extra_args,
+    ]
+
+
+def build_environment(robot_id: str, base_env: dict[str, str] | None = None) -> dict[str, str]:
+    env = dict(os.environ if base_env is None else base_env)
+    env['ROS_NAMESPACE'] = robot_id
+    return env
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = list(sys.argv[1:] if argv is None else argv)
+    if not args:
+        print('usage: rosrun pathfinder real_robot_bringup <robot_id> [roslaunch-args...]', file=sys.stderr)
+        return 2
+
+    robot_id = args[0].strip().strip('/')
+    if not robot_id:
+        print('robot_id must not be empty', file=sys.stderr)
+        return 2
+
+    command = build_command(robot_id, args[1:])
+    os.execvpe(command[0], command, build_environment(robot_id))
+    return 127
+
+
+if __name__ == '__main__':
+    sys.exit(main())

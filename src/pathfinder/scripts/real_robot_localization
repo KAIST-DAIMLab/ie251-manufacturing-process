@@ -71,6 +71,8 @@ def build_launch_plan(
     robots_config: str,
     graph_config: str,
     active_robot_ids: str,
+    tf_topic: str = '/pathfinder/tf',
+    tf_static_topic: str = '/pathfinder/tf_static',
 ) -> list[RobotLaunchPlan]:
     robots = _load_yaml(robots_config)['robots']
     stations = _station_map(graph_config)
@@ -90,14 +92,17 @@ def build_launch_plan(
         if start_station not in stations:
             raise KeyError(f"Robot '{robot_id}' references start_station {start_station}, which is not in the graph")
         initial_x, initial_y = stations[start_station]
+        tf_remaps = [('/tf', tf_topic), ('/tf_static', tf_static_topic)]
 
         params = {
             f'/scan_relay_{robot_id}/input': f'/{robot_id}/scan',
             f'/scan_relay_{robot_id}/output': f'/{robot_id}/scan_relayed',
             f'/scan_relay_{robot_id}/frame_id': f'{robot_id}/base_scan',
+            f'/scan_relay_{robot_id}/stamp_with_now': True,
             f'/odom_tf_bridge_{robot_id}/input': f'/{robot_id}/odom',
             f'/odom_tf_bridge_{robot_id}/parent_frame': f'{robot_id}/odom',
             f'/odom_tf_bridge_{robot_id}/child_frame': f'{robot_id}/base_footprint',
+            f'/odom_tf_bridge_{robot_id}/stamp_with_now': True,
             f'/{robot_id}/amcl/odom_frame_id': f'{robot_id}/odom',
             f'/{robot_id}/amcl/base_frame_id': f'{robot_id}/base_footprint',
             f'/{robot_id}/amcl/initial_pose_x': initial_x,
@@ -113,18 +118,26 @@ def build_launch_plan(
             params=params,
             nodes=[
                 _node('pathfinder', 'scan_relay', name=f'scan_relay_{robot_id}', output='screen'),
-                _node('pathfinder', 'real_odom_tf_bridge', name=f'odom_tf_bridge_{robot_id}', output='screen'),
+                _node(
+                    'pathfinder',
+                    'real_odom_tf_bridge',
+                    name=f'odom_tf_bridge_{robot_id}',
+                    output='screen',
+                    remap_args=tf_remaps,
+                ),
                 _node(
                     'tf2_ros',
                     'static_transform_publisher',
                     name=f'{robot_id}_base_footprint_to_base_link',
                     args=f'0 0 0 0 0 0 {robot_id}/base_footprint {robot_id}/base_link',
+                    remap_args=tf_remaps,
                 ),
                 _node(
                     'tf2_ros',
                     'static_transform_publisher',
                     name=f'{robot_id}_base_link_to_scan',
                     args=f'-0.064 0 0.122 0 0 0 {robot_id}/base_link {robot_id}/base_scan',
+                    remap_args=tf_remaps,
                 ),
                 _node(
                     'amcl',
@@ -132,7 +145,7 @@ def build_launch_plan(
                     name='amcl',
                     namespace=robot_id,
                     output='screen',
-                    remap_args=[('scan', f'/{robot_id}/scan_relayed'), ('map', '/map')],
+                    remap_args=[('scan', f'/{robot_id}/scan_relayed'), ('map', '/map'), *tf_remaps],
                 ),
             ],
         ))
@@ -144,11 +157,13 @@ def main() -> None:
     robots_config = rospy.get_param('~robots_config')
     graph_config = rospy.get_param('~graph_config')
     active_robot_ids = rospy.get_param('~active_robot_ids', '')
+    tf_topic = rospy.get_param('~tf_topic', '/pathfinder/tf')
+    tf_static_topic = rospy.get_param('~tf_static_topic', '/pathfinder/tf_static')
 
     launcher = roslaunch.scriptapi.ROSLaunch()
     launcher.start()
 
-    for robot_plan in build_launch_plan(robots_config, graph_config, active_robot_ids):
+    for robot_plan in build_launch_plan(robots_config, graph_config, active_robot_ids, tf_topic, tf_static_topic):
         for name, value in robot_plan.params.items():
             rospy.set_param(name, value)
         for node in robot_plan.nodes:

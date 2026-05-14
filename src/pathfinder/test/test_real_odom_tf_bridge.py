@@ -96,6 +96,31 @@ class RealOdomTfBridgeTest(unittest.TestCase):
         self.assertEqual(sent[0].transform.translation.y, 2.0)
         self.assertIs(sent[0].transform.rotation, rotation)
 
+    def test_bridge_can_stamp_transform_with_host_time(self):
+        module, subscribers, sent, restore = self._load_bridge_for_callback({
+            '~input': '/tb3_01/odom',
+            '~parent_frame': 'tb3_01/odom',
+            '~child_frame': 'tb3_01/base_footprint',
+            '~stamp_with_now': True,
+        })
+        try:
+            module.main()
+            callback = subscribers[0][2]
+            msg = types.SimpleNamespace(
+                header=types.SimpleNamespace(stamp='robot-clock-stamp'),
+                pose=types.SimpleNamespace(
+                    pose=types.SimpleNamespace(
+                        position=types.SimpleNamespace(x=1.0, y=2.0, z=0.0),
+                        orientation=types.SimpleNamespace(x=0.0, y=0.0, z=0.0, w=1.0),
+                    )
+                ),
+            )
+            callback(msg)
+        finally:
+            restore()
+
+        self.assertEqual(sent[0].header.stamp, 'host-now')
+
     def test_bridge_ignores_odom_with_nan_pose(self):
         module, subscribers, sent, restore = self._load_bridge_for_callback()
         try:
@@ -116,7 +141,7 @@ class RealOdomTfBridgeTest(unittest.TestCase):
 
         self.assertEqual(sent, [])
 
-    def _load_bridge_for_callback(self):
+    def _load_bridge_for_callback(self, params=None):
         original_modules = {
             name: sys.modules.get(name)
             for name in ['rospy', 'tf2_ros', 'geometry_msgs', 'geometry_msgs.msg', 'nav_msgs', 'nav_msgs.msg']
@@ -126,11 +151,15 @@ class RealOdomTfBridgeTest(unittest.TestCase):
 
         rospy = types.ModuleType('rospy')
         rospy.init_node = lambda name: None
-        rospy.get_param = lambda name, default=None: {
+        param_values = {
             '~input': '/tb3_01/odom',
             '~parent_frame': 'tb3_01/odom',
             '~child_frame': 'tb3_01/base_footprint',
-        }.get(name, default)
+        }
+        if params is not None:
+            param_values.update(params)
+        rospy.get_param = lambda name, default=None: param_values.get(name, default)
+        rospy.Time = types.SimpleNamespace(now=lambda: 'host-now')
         rospy.Subscriber = lambda topic, msg_type, callback: subscribers.append((topic, msg_type, callback))
         rospy.spin = lambda: None
         rospy.logwarn_throttle = lambda *args, **kwargs: None

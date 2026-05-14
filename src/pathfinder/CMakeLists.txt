@@ -61,6 +61,7 @@ install(PROGRAMS
   scripts/client
   scripts/run_simulation
   scripts/real_robot_launch
+  scripts/real_robot_bringup
   scripts/real_robot_localization
   scripts/real_odom_tf_bridge
   scripts/simulation
@@ -81,7 +82,9 @@ if(CATKIN_ENABLE_TESTING)
   catkin_add_nosetests(test/test_client.py)
   catkin_add_nosetests(test/test_obstacle_detector.py)
   catkin_add_nosetests(test/test_real_robot_launch.py)
+  catkin_add_nosetests(test/test_real_robot_bringup.py)
   catkin_add_nosetests(test/test_real_robot_localization.py)
   catkin_add_nosetests(test/test_real_odom_tf_bridge.py)
+  catkin_add_nosetests(test/test_scan_relay.py)
   catkin_add_nosetests(test/test_simulation_rviz_markers.py)
 endif()

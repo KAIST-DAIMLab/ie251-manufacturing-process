@@ -134,6 +134,8 @@ class LaunchSplitTest(unittest.TestCase):
         self.assertIsNotNone(localization_node.find("./param[@name='robots_config'][@value='$(arg robots_config)']"))
         self.assertIsNotNone(localization_node.find("./param[@name='graph_config'][@value='$(arg graph_config)']"))
         self.assertIsNotNone(localization_node.find("./param[@name='active_robot_ids'][@value='$(arg active_robot_ids)']"))
+        self.assertIsNotNone(localization_node.find("./param[@name='tf_topic'][@value='/pathfinder/tf']"))
+        self.assertIsNotNone(localization_node.find("./param[@name='tf_static_topic'][@value='/pathfinder/tf_static']"))
 
         map_server = real_group.find("./node[@type='map_server']")
         self.assertIsNotNone(map_server)
@@ -142,6 +144,8 @@ class LaunchSplitTest(unittest.TestCase):
         rviz = real_group.find("./node[@type='rviz']")
         self.assertIsNotNone(rviz)
         self.assertEqual(rviz.get('if'), '$(arg open_rviz)')
+        self.assertIsNotNone(rviz.find("./remap[@from='/tf'][@to='/pathfinder/tf']"))
+        self.assertIsNotNone(rviz.find("./remap[@from='/tf_static'][@to='/pathfinder/tf_static']"))
 
     def test_real_robot_launch_is_removed_in_favor_of_robots_launch(self):
         self.assertFalse(os.path.exists(os.path.join(LAUNCH_DIR, 'real_robot.launch')))

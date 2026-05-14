@@ -2,9 +2,10 @@
 """Republishes a LaserScan with a different header.frame_id.
 
 Params:
-  ~input     – source topic  (default: 'scan')
-  ~output    – sink topic    (default: 'scan_relayed')
-  ~frame_id  – new frame_id  (default: unchanged)
+  ~input           – source topic  (default: 'scan')
+  ~output          – sink topic    (default: 'scan_relayed')
+  ~frame_id        – new frame_id  (default: unchanged)
+  ~stamp_with_now  – replace header.stamp with host time (default: false)
 """
 import rospy
 from sensor_msgs.msg import LaserScan
@@ -15,12 +16,15 @@ def main() -> None:
     input_topic  = rospy.get_param('~input',    'scan')
     output_topic = rospy.get_param('~output',   'scan_relayed')
     new_frame_id = rospy.get_param('~frame_id', '')
+    stamp_with_now = rospy.get_param('~stamp_with_now', False)
 
     pub = rospy.Publisher(output_topic, LaserScan, queue_size=10)
 
     def callback(msg: LaserScan) -> None:
         if new_frame_id:
             msg.header.frame_id = new_frame_id
+        if stamp_with_now:
+            msg.header.stamp = rospy.Time.now()
         pub.publish(msg)
 
     rospy.Subscriber(input_topic, LaserScan, callback)

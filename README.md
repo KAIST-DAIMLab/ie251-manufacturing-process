@@ -77,8 +77,16 @@ On each TurtleBot3:
 ```bash
 export ROS_MASTER_URI=http://<laptop-hostname>.local:11311
 export ROS_HOSTNAME=$(hostname).local
-export ROS_NAMESPACE=<tb3_01-or-tb3_05>
-roslaunch turtlebot3_bringup turtlebot3_robot.launch
+rosrun pathfinder real_robot_bringup <tb3_01-or-tb3_05>
+```
+
+If the `pathfinder` package is not available on the robot, run the equivalent
+TurtleBot3 command directly:
+
+```bash
+export ROBOT_ID=<tb3_01-or-tb3_05>
+export ROS_NAMESPACE=$ROBOT_ID
+roslaunch turtlebot3_bringup turtlebot3_robot.launch /tf:=/$ROBOT_ID/raw_tf /tf_static:=/$ROBOT_ID/raw_tf_static
 ```
 
 In the laptop container, auto-detect connected robots and launch the stack:

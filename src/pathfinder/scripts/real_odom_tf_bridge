@@ -14,6 +14,7 @@ def main() -> None:
     input_topic = rospy.get_param('~input', 'odom')
     parent_frame = rospy.get_param('~parent_frame', 'odom')
     child_frame = rospy.get_param('~child_frame', 'base_footprint')
+    stamp_with_now = rospy.get_param('~stamp_with_now', False)
     broadcaster = tf2_ros.TransformBroadcaster()
 
     def callback(msg: Odometry) -> None:
@@ -39,7 +40,7 @@ def main() -> None:
             return
 
         transform = TransformStamped()
-        transform.header.stamp = msg.header.stamp
+        transform.header.stamp = rospy.Time.now() if stamp_with_now else msg.header.stamp
         transform.header.frame_id = parent_frame
         transform.child_frame_id = child_frame
         transform.transform.translation.x = position.x

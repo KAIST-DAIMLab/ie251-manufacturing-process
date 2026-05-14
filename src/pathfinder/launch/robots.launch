@@ -15,11 +15,16 @@
       <param name="robots_config" value="$(arg robots_config)"/>
       <param name="graph_config" value="$(arg graph_config)"/>
       <param name="active_robot_ids" value="$(arg active_robot_ids)"/>
+      <param name="tf_topic" value="/pathfinder/tf"/>
+      <param name="tf_static_topic" value="/pathfinder/tf_static"/>
     </node>
 
     <node if="$(arg open_rviz)" name="rviz" pkg="rviz" type="rviz"
           args="-d $(find pathfinder)/rviz/localization.rviz"
-          output="screen"/>
+          output="screen">
+      <remap from="/tf" to="/pathfinder/tf"/>
+      <remap from="/tf_static" to="/pathfinder/tf_static"/>
+    </node>
   </group>
 
   <node name="path_server" pkg="pathfinder" type="path_server" output="screen">
