@@ -228,10 +228,10 @@ class FleetServiceTest(unittest.TestCase):
         motion = types.SimpleNamespace(linear_speed=0.22, angular_speed=1.5, move_rate_hz=5.0, arrival_tolerance=0.05)
         obstacle = types.SimpleNamespace(enabled=True, stop_distance=0.4, detect_degree=20)
         robot = types.SimpleNamespace(
-            id=robot_id, namespace=robot_id, pose=pose, start_station=1,
+            id=robot_id, name='Robot Zero', namespace=robot_id, pose=pose, start_station=1,
             motion=motion, obstacle=obstacle, obstacle_blocked=False, current_edge=None,
             to_dict=lambda: {
-                "id": robot_id, "namespace": robot_id, "start_station": 1,
+                "id": robot_id, "name": "Robot Zero", "namespace": robot_id, "start_station": 1,
                 "motion": {"linear_speed": 0.22, "angular_speed": 1.5, "move_rate_hz": 5.0, "arrival_tolerance": 0.05},
                 "obstacle": {"enabled": True, "stop_distance": 0.4, "detect_degree": 20},
             },
@@ -373,6 +373,7 @@ class FleetServiceTest(unittest.TestCase):
         self.assertEqual(len(payload['robots']), 1)
         robot = payload['robots'][0]
         self.assertEqual(robot['id'], 'tb3_0')
+        self.assertEqual(robot['name'], 'Robot Zero')
         self.assertEqual(robot['namespace'], 'tb3_0')
         self.assertEqual(robot['start_station'], 1)
         self.assertNotIn('start_node', robot)

@@ -4,6 +4,7 @@
   <arg name="graph_config" default="$(find pathfinder)/config/graph.yaml"/>
   <arg name="map_file" default="$(find pathfinder)/maps/my_map.yaml"/>
   <arg name="start_system" default="true"/>
+  <arg name="open_rviz" default="true"/>
   <arg name="rosbridge" default="true"/>
   <arg name="rosbridge_port" default="9090"/>
 
@@ -27,6 +28,16 @@
   <node name="simulation_marker_spawner" pkg="pathfinder" type="simulation_markers" output="screen">
     <param name="graph_config" value="$(arg graph_config)"/>
   </node>
+
+  <node name="simulation_rviz_markers" pkg="pathfinder" type="simulation_rviz_markers" output="screen">
+    <param name="graph_config" value="$(arg graph_config)"/>
+    <param name="robots_config" value="$(arg robots_config)"/>
+    <param name="frame_id" value="map"/>
+  </node>
+
+  <node if="$(arg open_rviz)" name="rviz" pkg="rviz" type="rviz"
+        args="-d $(find pathfinder)/rviz/simulation.rviz"
+        output="screen"/>
 
   <node name="map_server" pkg="map_server" type="map_server"
         args="$(arg map_file)" output="screen"/>

@@ -41,6 +41,24 @@ class LaunchSplitTest(unittest.TestCase):
         self.assertEqual(rosbridge_include.get('if'), '$(arg rosbridge)')
         self.assertEqual(rosbridge_include.find("./arg[@name='port']").get('value'), '$(arg rosbridge_port)')
 
+    def test_simulation_launch_starts_rviz_with_simulation_markers(self):
+        root = _launch_tree('simulation.launch')
+
+        open_rviz_arg = root.find("./arg[@name='open_rviz']")
+        self.assertIsNotNone(open_rviz_arg)
+        self.assertEqual(open_rviz_arg.get('default'), 'true')
+
+        marker_node = root.find("./node[@type='simulation_rviz_markers']")
+        self.assertIsNotNone(marker_node)
+        self.assertEqual(marker_node.find("./param[@name='graph_config']").get('value'), '$(arg graph_config)')
+        self.assertEqual(marker_node.find("./param[@name='robots_config']").get('value'), '$(arg robots_config)')
+        self.assertEqual(marker_node.find("./param[@name='frame_id']").get('value'), 'map')
+
+        rviz = root.find("./node[@type='rviz']")
+        self.assertIsNotNone(rviz)
+        self.assertEqual(rviz.get('if'), '$(arg open_rviz)')
+        self.assertEqual(rviz.get('args'), '-d $(find pathfinder)/rviz/simulation.rviz')
+
     def test_robots_launch_has_real_robot_config_defaults(self):
         root = _launch_tree('robots.launch')
         executor_nodes = [

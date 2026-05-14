@@ -29,6 +29,7 @@ class Robot:
     """One robot's config (from robots.yaml) plus its latest world-frame pose."""
 
     id: str
+    name: str
     namespace: str
     start_station: int
     motion: MotionConfig
@@ -53,6 +54,7 @@ class Robot:
         """Return config fields serializable as JSON; excludes the mutable pose."""
         return {
             "id": self.id,
+            "name": self.name,
             "namespace": self.namespace,
             "start_station": self.start_station,
             "motion": dataclasses.asdict(self.motion),
@@ -63,10 +65,12 @@ class Robot:
     def from_dict(cls, data: dict, sim: bool = False) -> Robot:
         """Parse a robots.yaml entry into a Robot instance, applying sim namespace if needed."""
         robot_id = data['id']
+        robot_name = str(data.get('name', robot_id)).strip() or robot_id
         motion_data = data.get('motion', {})
         obstacle_data = data.get('obstacle', {})
         return cls(
             id=robot_id,
+            name=robot_name,
             namespace=f"{robot_id}/sim" if sim else robot_id,
             start_station=int(data['start_station']),
             motion=MotionConfig(

@@ -1,0 +1,22 @@
+Panels:
+  - Class: rviz/Displays
+  - Class: rviz/Views
+Visualization Manager:
+  Displays:
+    - Class: rviz/Map
+      Name: Map
+      Topic: /map
+      Enabled: true
+    - Class: rviz/MarkerArray
+      Name: Graph
+      Marker Topic: /pathfinder/graph_markers
+      Enabled: true
+    - Class: rviz/MarkerArray
+      Name: Robots
+      Marker Topic: /pathfinder/robot_markers
+      Enabled: true
+  Global Options:
+    Fixed Frame: map
+  Tools:
+    - Class: rviz/Interact
+    - Class: rviz/MoveCamera

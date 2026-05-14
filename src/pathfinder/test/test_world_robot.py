@@ -49,11 +49,36 @@ class RobotConfigTest(unittest.TestCase):
         self.assertEqual(robot.to_dict()["start_station"], 4)
         self.assertNotIn("start_node", robot.to_dict())
 
+    def test_robot_config_includes_display_name(self):
+        robot = Robot.from_dict({
+            "id": "tb3_01",
+            "name": "Robot 01",
+            "start_station": 4,
+            "motion": {},
+            "obstacle": {},
+        })
+
+        self.assertEqual(robot.name, "Robot 01")
+        self.assertEqual(robot.to_dict()["name"], "Robot 01")
+
+    def test_robot_config_defaults_blank_display_name_to_id(self):
+        robot = Robot.from_dict({
+            "id": "tb3_01",
+            "name": "  ",
+            "start_station": 4,
+            "motion": {},
+            "obstacle": {},
+        })
+
+        self.assertEqual(robot.name, "tb3_01")
+        self.assertEqual(robot.to_dict()["name"], "tb3_01")
+
     def test_default_robots_yaml_does_not_include_starting_yaw(self):
         with open(os.path.join(PACKAGE_ROOT, 'config', 'robots.yaml')) as config_file:
             config = yaml.safe_load(config_file)
 
         self.assertEqual([robot["id"] for robot in config["robots"]], ["tb3_01", "tb3_05"])
+        self.assertEqual([robot["name"] for robot in config["robots"]], ["Robot 1", "Robot 2"])
         for robot in config["robots"]:
             self.assertNotIn("yaw", robot)
             self.assertIn("start_station", robot)

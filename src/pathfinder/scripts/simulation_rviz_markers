@@ -1,0 +1,144 @@
+#!/usr/bin/env python3
+"""Publish graph and simulated robot RViz markers for simulation.launch."""
+from __future__ import annotations
+import math
+from typing import Iterable
+
+import rospy
+import yaml
+from geometry_msgs.msg import Point, Pose2D, Quaternion
+from visualization_msgs.msg import Marker, MarkerArray
+
+from pathfinder.world.robot import Robot
+
+
+ROBOT_COLORS = [
+    (0.97, 0.44, 0.44, 1.0),
+    (0.38, 0.65, 0.98, 1.0),
+    (0.65, 0.55, 0.96, 1.0),
+    (0.20, 0.83, 0.60, 1.0),
+]
+
+
+def _set_color(marker: Marker, color: tuple[float, float, float, float]) -> None:
+    marker.color.r, marker.color.g, marker.color.b, marker.color.a = color
+
+
+def _point(x: float, y: float, z: float) -> Point:
+    return Point(x=float(x), y=float(y), z=float(z))
+
+
+def _quaternion_from_yaw(yaw: float) -> Quaternion:
+    return Quaternion(x=0.0, y=0.0, z=math.sin(yaw / 2.0), w=math.cos(yaw / 2.0))
+
+
+def _marker(frame_id: str, namespace: str, marker_id: int, marker_type: int) -> Marker:
+    marker = Marker()
+    marker.header.frame_id = frame_id
+    marker.ns = namespace
+    marker.id = marker_id
+    marker.type = marker_type
+    marker.action = Marker.ADD
+    return marker
+
+
+def build_graph_markers(graph_data: dict, frame_id: str) -> MarkerArray:
+    """Build RViz markers for graph nodes and edges in the fixed map frame."""
+    nodes = graph_data['nodes']
+    node_map = {int(node['id']): (float(node['x']), float(node['y'])) for node in nodes}
+
+    edge_marker = _marker(frame_id, 'graph_edges', 0, Marker.LINE_LIST)
+    edge_marker.scale.x = 0.035
+    _set_color(edge_marker, (0.02, 0.02, 0.02, 1.0))
+    for edge in graph_data.get('edges', []):
+        from_x, from_y = node_map[int(edge['from'])]
+        to_x, to_y = node_map[int(edge['to'])]
+        edge_marker.points.append(_point(from_x, from_y, 0.07))
+        edge_marker.points.append(_point(to_x, to_y, 0.07))
+
+    node_marker = _marker(frame_id, 'graph_nodes', 0, Marker.SPHERE_LIST)
+    node_marker.scale.x = 0.16
+    node_marker.scale.y = 0.16
+    node_marker.scale.z = 0.04
+    _set_color(node_marker, (0.0, 0.85, 0.25, 1.0))
+    for node in nodes:
+        node_marker.points.append(_point(float(node['x']), float(node['y']), 0.09))
+
+    return MarkerArray(markers=[edge_marker, node_marker])
+
+
+def build_robot_markers(robots: Iterable[tuple[str, str, Pose2D]], frame_id: str) -> MarkerArray:
+    """Build arrow and label markers for robots with known simulation poses."""
+    markers = []
+    for index, (robot_id, robot_name, pose) in enumerate(robots):
+        color = ROBOT_COLORS[index % len(ROBOT_COLORS)]
+
+        robot_marker = _marker(frame_id, 'robots', index, Marker.ARROW)
+        robot_marker.pose.position.x = pose.x
+        robot_marker.pose.position.y = pose.y
+        robot_marker.pose.position.z = 0.16
+        robot_marker.pose.orientation = _quaternion_from_yaw(pose.theta)
+        robot_marker.scale.x = 0.36
+        robot_marker.scale.y = 0.14
+        robot_marker.scale.z = 0.14
+        _set_color(robot_marker, color)
+        markers.append(robot_marker)
+
+        label_marker = _marker(frame_id, 'robot_labels', index, Marker.TEXT_VIEW_FACING)
+        label_marker.pose.position.x = pose.x
+        label_marker.pose.position.y = pose.y
+        label_marker.pose.position.z = 0.35
+        label_marker.scale.z = 0.20
+        label_marker.text = robot_name or robot_id
+        _set_color(label_marker, (1.0, 1.0, 1.0, 1.0))
+        markers.append(label_marker)
+
+    return MarkerArray(markers=markers)
+
+
+class SimulationRvizMarkerNode:
+    """Publishes static graph markers and live robot pose markers for RViz."""
+
+    def __init__(self, graph_config: str, robots_config: str, frame_id: str) -> None:
+        self._frame_id = frame_id
+        with open(graph_config, 'r') as graph_file:
+            self._graph_data = yaml.safe_load(graph_file)
+        with open(robots_config, 'r') as robots_file:
+            robot_data = yaml.safe_load(robots_file)['robots']
+        self._robots = [Robot.from_dict(data, sim=True) for data in robot_data]
+        self._poses: dict[str, Pose2D] = {}
+        self._graph_publisher = rospy.Publisher('/pathfinder/graph_markers', MarkerArray, queue_size=1, latch=True)
+        self._robot_publisher = rospy.Publisher('/pathfinder/robot_markers', MarkerArray, queue_size=1, latch=True)
+
+    def start(self) -> None:
+        self._graph_publisher.publish(build_graph_markers(self._graph_data, self._frame_id))
+        for robot in self._robots:
+            rospy.Subscriber(f'/{robot.namespace}/pose', Pose2D, self._on_pose, callback_args=robot.id)
+        rospy.loginfo(
+            f"Publishing RViz markers for {len(self._graph_data['nodes'])} graph nodes "
+            f"and {len(self._robots)} robots."
+        )
+
+    def _on_pose(self, pose: Pose2D, robot_id: str) -> None:
+        self._poses[robot_id] = pose
+        visible_robots = [
+            (robot.id, robot.name, self._poses[robot.id])
+            for robot in self._robots
+            if robot.id in self._poses
+        ]
+        self._robot_publisher.publish(build_robot_markers(visible_robots, self._frame_id))
+
+
+def main() -> None:
+    rospy.init_node('simulation_rviz_markers')
+    node = SimulationRvizMarkerNode(
+        graph_config=rospy.get_param('~graph_config'),
+        robots_config=rospy.get_param('~robots_config'),
+        frame_id=rospy.get_param('~frame_id', 'map'),
+    )
+    node.start()
+    rospy.spin()
+
+
+if __name__ == '__main__':
+    main()

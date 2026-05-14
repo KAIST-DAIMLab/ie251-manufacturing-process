@@ -33,10 +33,11 @@ export default function RobotPanel({ robot, pose, pathStatus, onStop, onRotate }
   }
 
   const moving = Boolean(pathStatus && pathStatus.node_ids.length > 0)
+  const label = robot.name || robot.id
 
   return (
     <div style={{ padding: 16, fontSize: 13 }}>
-      <div style={{ color: '#facc15', fontSize: 14, letterSpacing: 1, marginBottom: 10 }}>{robot.id}</div>
+      <div style={{ color: '#facc15', fontSize: 14, letterSpacing: 1, marginBottom: 10 }}>{label}</div>
 
       <button
         onClick={() => onStop(robot.id)}

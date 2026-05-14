@@ -1,5 +1,6 @@
 robots:
   - id: tb3_01
+    name: Robot 1
     start_station: 3
     motion:
       linear_speed: 0.22
@@ -11,6 +12,7 @@ robots:
       stop_distance: 0.40
       detect_degree: 45
   - id: tb3_05
+    name: Robot 2
     start_station: 6
     motion:
       linear_speed: 0.22

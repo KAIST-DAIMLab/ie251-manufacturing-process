@@ -32,6 +32,7 @@ function ObstacleCone({ svgX, svgY, theta, obstacle, worldScale }) {
 
 export default function RobotDot({ robot, svgX, svgY, theta, selected, worldScale, onMouseDown }) {
   const colorIndex = parseInt(robot.id.replace(/\D/g, ''), 10) % COLORS.length
+  const label = robot.name || robot.id
   const fill = COLORS[colorIndex]
   const ringStroke = selected ? '#fff' : 'transparent'
   const tickX = svgX + Math.cos(-theta) * TICK
@@ -49,7 +50,7 @@ export default function RobotDot({ robot, svgX, svgY, theta, selected, worldScal
       <circle cx={svgX} cy={svgY} r={RADIUS} fill={fill} />
       <line x1={svgX} y1={svgY} x2={tickX} y2={tickY} stroke="#fff" strokeWidth={2} />
       <text x={svgX} y={svgY + RADIUS + 16} textAnchor="middle" fill="#eee" fontSize={14} fontWeight="700">
-        {robot.id}
+        {label}
       </text>
     </g>
   )

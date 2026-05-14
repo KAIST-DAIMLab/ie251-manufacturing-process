@@ -61,24 +61,28 @@ export default function App() {
     setDragState({ robotId, pointerSvg, hoverNodeId: null })
   }, [])
 
+  const getRobotLabel = useCallback((robotId) => {
+    return robots.find((robot) => robot.id === robotId)?.name || robotId
+  }, [robots])
+
   const handleDrop = useCallback((robotId, nodeId) => {
     setDragState(null)
     moveToNode(robotId, nodeId)
-      .then((response) => setBanner(`${robotId}: ${response.message}`))
+      .then((response) => setBanner(`${getRobotLabel(robotId)}: ${response.message}`))
       .catch((error) => setBanner(`Error: ${error}`))
-  }, [])
+  }, [getRobotLabel])
 
   const handleStop = useCallback((robotId) => {
     cancelPath(robotId)
-      .then((response) => setBanner(`${robotId}: ${response.message}`))
+      .then((response) => setBanner(`${getRobotLabel(robotId)}: ${response.message}`))
       .catch((error) => setBanner(`Error: ${error}`))
-  }, [])
+  }, [getRobotLabel])
 
   const handleRotate = useCallback((robotId, targetTheta) => {
     rotateRobot(robotId, targetTheta)
-      .then((response) => setBanner(`${robotId}: ${response.message}`))
+      .then((response) => setBanner(`${getRobotLabel(robotId)}: ${response.message}`))
       .catch((error) => setBanner(`Error: ${error}`))
-  }, [])
+  }, [getRobotLabel])
 
   const handleDragCancel = useCallback(() => {
     setDragState(null)
@@ -97,7 +101,7 @@ export default function App() {
       <h1 style={{ marginBottom: 12, fontSize: 16, letterSpacing: 1 }}>PATHFINDER MONITOR</h1>
 
       <p style={{ marginBottom: 8, color: '#888' }}>
-        {dragState ? `dragging ${dragState.robotId}…` : 'Click a robot to select, drag to a node to move'}
+        {dragState ? `dragging ${getRobotLabel(dragState.robotId)}…` : 'Click a robot to select, drag to a node to move'}
       </p>
 
       {banner && (

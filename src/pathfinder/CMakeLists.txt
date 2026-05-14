@@ -5,6 +5,7 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   std_msgs
   geometry_msgs
+  visualization_msgs
   nav_msgs
   sensor_msgs
   tf2_ros
@@ -42,6 +43,7 @@ catkin_package(
     rospy
     std_msgs
     geometry_msgs
+    visualization_msgs
     nav_msgs
     sensor_msgs
     tf2_ros
@@ -55,6 +57,7 @@ install(PROGRAMS
   scripts/robot
   scripts/simulation_robots
   scripts/simulation_markers
+  scripts/simulation_rviz_markers
   scripts/client
   scripts/run_simulation
   scripts/real_robot_launch
@@ -80,4 +83,5 @@ if(CATKIN_ENABLE_TESTING)
   catkin_add_nosetests(test/test_real_robot_launch.py)
   catkin_add_nosetests(test/test_real_robot_localization.py)
   catkin_add_nosetests(test/test_real_odom_tf_bridge.py)
+  catkin_add_nosetests(test/test_simulation_rviz_markers.py)
 endif()
