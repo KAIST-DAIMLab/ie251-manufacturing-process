@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import rospy
 import actionlib
+from actionlib_msgs.msg import GoalStatus
 
 from pathfinder.msg import RobotCommandAction, RobotCommandGoal  # type: ignore[import]
 
@@ -26,5 +27,17 @@ class RobotCommandActionClient:
         return True
 
     def cancel(self) -> None:
-        """Cancel any in-flight primitive motion command."""
+        """Cancel any in-flight primitive motion command and wait for it to reach a terminal state."""
+        if not self.is_active():
+            return
         self._client.cancel_goal()
+        self._client.wait_for_result(rospy.Duration(1.0))
+
+    def is_active(self) -> bool:
+        """Return whether a primitive motion command is currently in flight."""
+        return self._client.get_state() in {
+            GoalStatus.PENDING,
+            GoalStatus.ACTIVE,
+            GoalStatus.PREEMPTING,
+            GoalStatus.RECALLING,
+        }

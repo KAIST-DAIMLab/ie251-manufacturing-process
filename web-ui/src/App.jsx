@@ -7,7 +7,6 @@ import { subscribePose } from './ros/subscribePose.js'
 import { subscribePathStatus } from './ros/subscribePathStatus.js'
 import { moveToNode } from './ros/moveToNode.js'
 import { cancelPath } from './ros/cancelPath.js'
-import { rotateRobot } from './ros/rotateRobot.js'
 
 export default function App() {
   const [graph, setGraph] = useState(null)
@@ -78,11 +77,9 @@ export default function App() {
       .catch((error) => setBanner(`Error: ${error}`))
   }, [getRobotLabel])
 
-  const handleRotate = useCallback((robotId, targetTheta) => {
-    rotateRobot(robotId, targetTheta)
-      .then((response) => setBanner(`${getRobotLabel(robotId)}: ${response.message}`))
-      .catch((error) => setBanner(`Error: ${error}`))
-  }, [getRobotLabel])
+  const handleJogError = useCallback((message) => {
+    setBanner(`Error: ${message}`)
+  }, [])
 
   const handleDragCancel = useCallback(() => {
     setDragState(null)
@@ -104,19 +101,19 @@ export default function App() {
         {dragState ? `dragging ${getRobotLabel(dragState.robotId)}…` : 'Click a robot to select, drag to a node to move'}
       </p>
 
-      {banner && (
-        <div
-          style={{
-            marginBottom: 8,
-            padding: '6px 12px',
-            background: '#1f2937',
-            borderLeft: '3px solid #4ade80',
-            fontSize: 13,
-          }}
-        >
-          {banner}
-        </div>
-      )}
+      <div
+        style={{
+          marginBottom: 8,
+          padding: '6px 12px',
+          background: banner ? '#1f2937' : 'transparent',
+          borderLeft: `3px solid ${banner ? '#4ade80' : 'transparent'}`,
+          fontSize: 13,
+          minHeight: 18,
+          visibility: banner ? 'visible' : 'hidden',
+        }}
+      >
+        {banner || ' '}
+      </div>
 
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
         <GraphCanvas
@@ -137,7 +134,7 @@ export default function App() {
             pose={selectedRobotId ? poses[selectedRobotId] : null}
             pathStatus={selectedRobotId ? pathStatuses[selectedRobotId] : null}
             onStop={handleStop}
-            onRotate={handleRotate}
+            onJogError={handleJogError}
           />
         </div>
       </div>
