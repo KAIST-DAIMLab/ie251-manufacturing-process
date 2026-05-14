@@ -1,5 +1,5 @@
 import React from 'react'
-import RotationDial from './RotationDial.jsx'
+import TeleopControls from './TeleopControls.jsx'
 
 const toDeg = (rad) => ((rad * 180) / Math.PI).toFixed(1)
 
@@ -23,7 +23,7 @@ function Section({ title, children }) {
   )
 }
 
-export default function RobotPanel({ robot, pose, pathStatus, onStop, onRotate }) {
+export default function RobotPanel({ robot, pose, pathStatus, onStop, onJogError }) {
   if (!robot) {
     return (
       <div style={{ padding: 16, color: '#444', fontSize: 13 }}>
@@ -32,7 +32,6 @@ export default function RobotPanel({ robot, pose, pathStatus, onStop, onRotate }
     )
   }
 
-  const moving = Boolean(pathStatus && pathStatus.node_ids.length > 0)
   const label = robot.name || robot.id
 
   return (
@@ -55,15 +54,22 @@ export default function RobotPanel({ robot, pose, pathStatus, onStop, onRotate }
       </button>
 
       <Section title="STATUS">
-        {pathStatus && pathStatus.node_ids.length > 0 ? (
-          <>
-            <Row label="state" value="MOVING" />
-            <Row label="target" value={`node ${pathStatus.node_ids[pathStatus.node_ids.length - 1]}`} />
-            <Row label="step" value={`${pathStatus.current_index + 1} / ${pathStatus.node_ids.length}`} />
-          </>
-        ) : (
-          <Row label="state" value="IDLE" />
-        )}
+        {(() => {
+          const moving = pathStatus && pathStatus.node_ids.length > 0
+          return (
+            <>
+              <Row label="state" value={moving ? 'MOVING' : 'IDLE'} />
+              <Row
+                label="target"
+                value={moving ? `node ${pathStatus.node_ids[pathStatus.node_ids.length - 1]}` : '—'}
+              />
+              <Row
+                label="step"
+                value={moving ? `${pathStatus.current_index + 1} / ${pathStatus.node_ids.length}` : '—'}
+              />
+            </>
+          )
+        })()}
       </Section>
 
       <Section title="IDENTITY">
@@ -84,11 +90,7 @@ export default function RobotPanel({ robot, pose, pathStatus, onStop, onRotate }
         <Row label="detect" value={`${robot.obstacle.detect_degree}°`} />
       </Section>
 
-      <RotationDial
-        pose={pose}
-        disabled={moving}
-        onRotate={(targetTheta) => onRotate(robot.id, targetTheta)}
-      />
+      <TeleopControls robot={robot} onError={onJogError} />
 
       <Section title="LIVE POSE">
         {pose ? (
