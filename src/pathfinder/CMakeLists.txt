@@ -27,6 +27,7 @@ add_service_files(
   RotateRobot.srv
   GetGraph.srv
   GetRobots.srv
+  Relocalize.srv
 )
 
 catkin_python_setup()

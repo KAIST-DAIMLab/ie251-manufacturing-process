@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import math
+
 import rospy
 from geometry_msgs.msg import Pose2D, Twist
 from geometry_msgs.msg import PoseWithCovarianceStamped
@@ -20,6 +22,8 @@ from pathfinder.utils.physics import wrap_to_pi, yaw_from_quaternion
 from pathfinder.world.graph import Graph
 
 ODOM_FRESHNESS_SEC = 2.0
+RELOCALIZE_XY_VARIANCE = 0.25
+RELOCALIZE_THETA_VARIANCE = 0.0685
 
 
 class TurtleBotNode:
@@ -53,7 +57,9 @@ class TurtleBotNode:
         self._obstacle_blocked_publisher.publish(Bool(data=False))
         self._last_obstacle_blocked = False
         self._state_publisher = rospy.Publisher(self.topic_state, Int8, queue_size=1, latch=True)
+        self._initial_pose_publisher = rospy.Publisher(self.topic_initial_pose, PoseWithCovarianceStamped, queue_size=1)
         self._state_timer = None
+        self._relocalize_service = None
         self._last_odom_received_at: rospy.Time | None = None
 
         self._state = RobotState(id=robot_id, origin=origin or Pose2D())
@@ -77,6 +83,7 @@ class TurtleBotNode:
             state=state,
             motion_controller=motion_controller,
             path_follower=path_follower,
+            initial_pose_publisher=self._publish_initial_pose,
         )
 
         rospy.Subscriber(self.topic_odom, Odometry, self._on_odom)
@@ -129,14 +136,53 @@ class TurtleBotNode:
         """Topic name for the RobotMode heartbeat publisher (UI infers OFFLINE from its absence)."""
         return f'/{self._namespace}/state'
 
+    @property
+    def topic_initial_pose(self) -> str:
+        """Topic name for the AMCL initial-pose seed publisher."""
+        return f'/{self._namespace}/initialpose'
+
+    @property
+    def service_relocalize(self) -> str:
+        """Service name for the (x, y, theta) relocalize endpoint."""
+        return f'/{self._namespace}/relocalize'
+
     def start(self) -> None:
         """Start executor action servers."""
+        from pathfinder.srv import Relocalize  # lazy: avoids circular import on test stubs
+
         self._motion_control_server.start()
         if self._path_follow_server is not None:
             self._path_follow_server.start()
+        self._relocalize_service = rospy.Service(self.service_relocalize, Relocalize, self._on_relocalize)
         self._publish_state()
         self._state_timer = rospy.Timer(rospy.Duration(0.5), self._publish_state)
         rospy.loginfo(f"TurtleBotNode for {self._robot.id} started.")
+
+    def _publish_initial_pose(self, x: float, y: float, theta: float) -> None:
+        msg = PoseWithCovarianceStamped()
+        msg.header.frame_id = 'map'
+        msg.header.stamp = rospy.Time.now()
+        msg.pose.pose.position.x = x
+        msg.pose.pose.position.y = y
+        msg.pose.pose.position.z = 0.0
+        half = theta / 2.0
+        msg.pose.pose.orientation.x = 0.0
+        msg.pose.pose.orientation.y = 0.0
+        msg.pose.pose.orientation.z = math.sin(half)
+        msg.pose.pose.orientation.w = math.cos(half)
+        covariance = [0.0] * 36
+        covariance[0] = RELOCALIZE_XY_VARIANCE
+        covariance[7] = RELOCALIZE_XY_VARIANCE
+        covariance[35] = RELOCALIZE_THETA_VARIANCE
+        msg.pose.covariance = covariance
+        self._initial_pose_publisher.publish(msg)
+
+    def _on_relocalize(self, request):
+        from pathfinder.srv import RelocalizeResponse  # lazy: avoids circular import on test stubs
+
+        self._robot.relocalize(request.x, request.y, request.theta)
+        message = f"{self._robot.id}: relocalized at ({request.x:.2f}, {request.y:.2f}, {math.degrees(request.theta):.1f}°)"
+        return RelocalizeResponse(success=True, message=message)
 
     def _publish_state(self, _event=None) -> None:
         self._recompute_online_status()

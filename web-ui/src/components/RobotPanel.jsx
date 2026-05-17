@@ -25,7 +25,7 @@ function Section({ title, children }) {
 
 const STATE_LABELS = { 0: 'OFFLINE', 1: 'IDLE', 2: 'MOVING', 3: 'OBSTACLE' }
 
-export default function RobotPanel({ robot, pose, pathStatus, serverStateValue, online, onStop, onJogError }) {
+export default function RobotPanel({ robot, pose, pathStatus, serverStateValue, online, onStop, onJogError, onRelocalize, relocalizePending }) {
   if (!robot) {
     return (
       <div style={{ padding: 16, color: '#444', fontSize: 13 }}>
@@ -40,20 +40,35 @@ export default function RobotPanel({ robot, pose, pathStatus, serverStateValue, 
     <div style={{ padding: 16, fontSize: 13 }}>
       <div style={{ color: '#facc15', fontSize: 14, letterSpacing: 1, marginBottom: 10 }}>{label}</div>
 
-      <button
-        onClick={() => onStop(robot.id)}
-        style={{
-          marginBottom: 14,
-          padding: '6px 12px',
-          background: '#ef4444',
-          color: '#fff',
-          border: 'none',
-          fontSize: 13,
-          cursor: 'pointer',
-        }}
-      >
-        Stop
-      </button>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+        <button
+          onClick={() => onStop(robot.id)}
+          style={{
+            padding: '6px 12px',
+            background: '#ef4444',
+            color: '#fff',
+            border: 'none',
+            fontSize: 13,
+            cursor: 'pointer',
+          }}
+        >
+          Stop
+        </button>
+        <button
+          onClick={onRelocalize}
+          disabled={relocalizePending}
+          style={{
+            padding: '6px 12px',
+            background: relocalizePending ? '#7c3aed' : '#4c1d95',
+            color: '#e9d5ff',
+            border: '1px solid #7c3aed',
+            fontSize: 13,
+            cursor: relocalizePending ? 'crosshair' : 'pointer',
+          }}
+        >
+          {relocalizePending ? 'Click station…' : 'Relocalize…'}
+        </button>
+      </div>
 
       <Section title="STATUS">
         {(() => {

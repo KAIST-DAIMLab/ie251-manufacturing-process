@@ -96,7 +96,7 @@ def _odom_msg(x=1.0, y=2.0, yaw=0.5, linear_x=0.1, stamp='stamp'):
     )
 
 
-def _build_turtlebot(robot_id='tb3_0', state=None):
+def _build_turtlebot(robot_id='tb3_0', state=None, initial_pose_publisher=None):
     state = state or RobotState(id=robot_id)
     publisher = FakePublisher()
     engine = MotionEngine(
@@ -110,6 +110,7 @@ def _build_turtlebot(robot_id='tb3_0', state=None):
         state=state,
         motion_controller=motion_controller,
         path_follower=path_follower,
+        initial_pose_publisher=initial_pose_publisher or (lambda x, y, theta: None),
     )
 
 
@@ -298,6 +299,37 @@ class TurtleBotStatusTransitionTest(unittest.TestCase):
         robot.set_online(True)
 
         self.assertEqual(robot._state.status, RobotMode.MOVING)
+
+
+class TurtleBotRelocalizeTest(unittest.TestCase):
+    def test_relocalize_invokes_publisher_with_args(self):
+        published = []
+        robot = _build_turtlebot(initial_pose_publisher=lambda x, y, theta: published.append((x, y, theta)))
+
+        robot.relocalize(1.0, 2.0, 0.5)
+
+        self.assertEqual(published, [(1.0, 2.0, 0.5)])
+
+    def test_relocalize_stops_motion_before_publishing(self):
+        events = []
+        robot = _build_turtlebot(initial_pose_publisher=lambda x, y, theta: events.append('publish'))
+        robot._motion_controller.stop = lambda: events.append('motion_stop')
+        robot._path_follower.cancel = lambda: events.append('follower_cancel')
+
+        robot.relocalize(0.0, 0.0, 0.0)
+
+        self.assertEqual(events, ['motion_stop', 'follower_cancel', 'publish'])
+
+    def test_relocalize_returns_to_idle_when_following(self):
+        robot = _build_turtlebot(initial_pose_publisher=lambda x, y, theta: None)
+        robot.set_online(True)
+        robot.set_following(True)
+        self.assertEqual(robot._state.status, RobotMode.MOVING)
+
+        robot.relocalize(0.0, 0.0, 0.0)
+        robot.set_following(False)
+
+        self.assertEqual(robot._state.status, RobotMode.IDLE)
 
 
 if __name__ == '__main__':

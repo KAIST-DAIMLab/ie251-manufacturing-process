@@ -1,6 +1,7 @@
 from __future__ import annotations
 import math
 import threading
+from typing import Callable
 
 from geometry_msgs.msg import Pose2D
 
@@ -20,11 +21,13 @@ class TurtleBot:
         state: RobotState,
         motion_controller: MotionController,
         path_follower: PathFollower,
+        initial_pose_publisher: Callable[[float, float, float], None],
     ) -> None:
         self.id = robot_id
         self._state = state
         self._motion_controller = motion_controller
         self._path_follower = path_follower
+        self._initial_pose_publisher = initial_pose_publisher
         self._is_online = False
         self._is_following = False
         self._is_obstacle = False
@@ -109,3 +112,8 @@ class TurtleBot:
         """Cancel current movement and halt immediately."""
         self._motion_controller.stop()
         self._path_follower.cancel()
+
+    def relocalize(self, x: float, y: float, theta: float) -> None:
+        """Stop any active motion, then seed AMCL with a new (x, y, theta) belief."""
+        self.stop()
+        self._initial_pose_publisher(x, y, theta)
