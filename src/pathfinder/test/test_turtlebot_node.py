@@ -71,7 +71,9 @@ def _install_ros_stubs():
     tf.LookupException = Exception
     tf.ConnectivityException = Exception
     tf.ExtrapolationException = Exception
-    tf.TransformListener = lambda: types.SimpleNamespace()
+    def _fake_lookup(*_args):
+        raise Exception('tf not available in tests')
+    tf.TransformListener = lambda: types.SimpleNamespace(lookupTransform=_fake_lookup)
     sys.modules['tf'] = tf
 
     actionlib = sys.modules.get('actionlib') or types.ModuleType('actionlib')
@@ -161,23 +163,6 @@ _install_ros_stubs()
 from pathfinder.ros.turtlebot_node import TurtleBotNode
 
 
-def _amcl_msg(x=1.0, y=2.0, yaw=0.5):
-    half = yaw / 2.0
-    return types.SimpleNamespace(
-        pose=types.SimpleNamespace(
-            pose=types.SimpleNamespace(
-                position=types.SimpleNamespace(x=x, y=y),
-                orientation=types.SimpleNamespace(
-                    x=0.0,
-                    y=0.0,
-                    z=math.sin(half),
-                    w=math.cos(half),
-                ),
-            )
-        )
-    )
-
-
 def _odom_msg(x=1.0, y=2.0, yaw=0.5, linear_x=0.1):
     half = yaw / 2.0
     return types.SimpleNamespace(
@@ -206,66 +191,31 @@ class TurtleBotNodePoseSourceTest(unittest.TestCase):
         SERVICES.clear()
         FakeTime._current = 100.0
 
-    def test_amcl_pose_anchors_map_frame_theta_and_records_offset(self):
-        node = TurtleBotNode('tb3_01', obstacle_enabled=False)
-        node._latest_odom_yaw = 0.2
-        node._state.pose.theta = 0.0
-
-        node._on_amcl_pose(_amcl_msg(x=1.2, y=-0.4, yaw=0.75))
-
-        self.assertAlmostEqual(node._state.pose.x, 1.2)
-        self.assertAlmostEqual(node._state.pose.y, -0.4)
-        self.assertAlmostEqual(node._state.pose.theta, 0.75)
-        self.assertAlmostEqual(node._yaw_offset, 0.55)
-        published = PUBLISHERS['/tb3_01/pose'].published
-        self.assertEqual(len(published), 1)
-        self.assertAlmostEqual(published[-1].x, 1.2)
-        self.assertAlmostEqual(published[-1].y, -0.4)
-        self.assertAlmostEqual(published[-1].theta, 0.75)
-
-    def test_odom_applies_yaw_offset_in_real_robot_mode(self):
-        # After an AMCL fix sets _yaw_offset, /odom must produce map-frame theta
-        # by adding the offset (not raw odom-frame yaw, which biases the
-        # controller).
-        node = TurtleBotNode('tb3_01', obstacle_enabled=False)
-        node._yaw_offset = 0.5
-
-        node._on_odom(_odom_msg(x=1.2, y=-0.4, yaw=0.3, linear_x=0.33))
-
-        self.assertAlmostEqual(node._latest_odom_yaw, 0.3)
-        self.assertAlmostEqual(node._state.pose.theta, 0.8)
-
     def test_pose_publisher_is_latched_for_late_web_ui_subscribers(self):
         TurtleBotNode('tb3_01', obstacle_enabled=False)
 
         self.assertTrue(PUBLISHERS['/tb3_01/pose'].latch)
 
-    def test_odom_updates_theta_and_velocity_in_real_robot_mode(self):
+    def test_odom_updates_velocity_and_publishes_pose_in_real_robot_mode(self):
         node = TurtleBotNode('tb3_01', obstacle_enabled=False)
-        node._state.pose.x = 9.0
-        node._state.pose.y = 8.0
-        node._state.pose.theta = 0.25
 
         node._on_odom(_odom_msg(x=1.2, y=-0.4, yaw=0.75, linear_x=0.33))
 
         self.assertAlmostEqual(node._state.velocity.linear.x, 0.33)
-        self.assertAlmostEqual(node._state.pose.x, 9.0)
-        self.assertAlmostEqual(node._state.pose.y, 8.0)
-        self.assertAlmostEqual(node._state.pose.theta, 0.75)
         published = PUBLISHERS['/tb3_01/pose'].published
         self.assertEqual(len(published), 1)
+        # tf not available in tests → falls back to odom + origin (zero origin)
+        self.assertAlmostEqual(published[-1].x, 1.2)
+        self.assertAlmostEqual(published[-1].y, -0.4)
         self.assertAlmostEqual(published[-1].theta, 0.75)
 
-    def test_odom_pose_source_updates_state_and_publishes_pose_with_origin(self):
+    def test_sim_mode_publishes_odom_plus_origin(self):
         origin = types.SimpleNamespace(x=1.0, y=2.0, theta=0.25)
         node = TurtleBotNode('tb3_01', namespace='tb3_01/sim', origin=origin, odom_pose_enabled=True, obstacle_enabled=False)
 
         node._on_odom(_odom_msg(x=1.2, y=-0.4, yaw=0.75, linear_x=0.33))
 
         self.assertAlmostEqual(node._state.velocity.linear.x, 0.33)
-        self.assertAlmostEqual(node._state.pose.x, 2.2)
-        self.assertAlmostEqual(node._state.pose.y, 1.6)
-        self.assertAlmostEqual(node._state.pose.theta, 1.0)
         published = PUBLISHERS['/tb3_01/sim/pose'].published
         self.assertEqual(len(published), 1)
         self.assertAlmostEqual(published[-1].x, 2.2)

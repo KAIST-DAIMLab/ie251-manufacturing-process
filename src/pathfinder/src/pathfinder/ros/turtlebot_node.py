@@ -3,6 +3,7 @@ from __future__ import annotations
 import math
 
 import rospy
+import tf
 from geometry_msgs.msg import Pose2D, Twist
 from geometry_msgs.msg import PoseWithCovarianceStamped
 from nav_msgs.msg import Odometry
@@ -10,6 +11,7 @@ from sensor_msgs.msg import LaserScan
 from std_msgs.msg import Bool, Int8
 
 from pathfinder.ros.path_follow_action_server import PathFollowActionServer
+from pathfinder.ros.pose_estimator import PoseEstimator
 from pathfinder.robot.motion_engine import MotionEngine, MotionParameters
 from pathfinder.robot.motion_controller import MotionController
 from pathfinder.robot.path_follower import PathFollower
@@ -18,7 +20,6 @@ from pathfinder.robot.turtlebot import TurtleBot
 from pathfinder.ros.motion_control_action_server import MotionControlActionServer
 from pathfinder.safety.obstacle_detector import ObstacleDetector
 from pathfinder.safety.forward_gate import ForwardGate
-from pathfinder.utils.physics import wrap_to_pi, yaw_from_quaternion
 from pathfinder.world.graph import Graph
 
 ODOM_FRESHNESS_SEC = 2.0
@@ -63,17 +64,12 @@ class TurtleBotNode:
         self._last_odom_received_at: rospy.Time | None = None
 
         self._state = RobotState(id=robot_id, origin=origin or Pose2D())
-        # In real-robot mode, /odom yaw is in the odom frame while AMCL pose is
-        # in the map frame; AMCL's map->odom rotation is the offset that turns
-        # one into the other. Compose them so theta stays in the same (map)
-        # frame as x/y, but updates at /odom rate instead of AMCL's quantized
-        # update_min_a step.
-        self._latest_odom_yaw = 0.0
-        self._yaw_offset = 0.0
         state = self._state
+        tf_listener = tf.TransformListener()
+        self._estimator = PoseEstimator(tf_listener, self._namespace, origin or Pose2D(), sim=odom_pose_enabled)
         engine = MotionEngine(
             cmd_vel_publisher=self._forward_gate,
-            pose_provider=state.get_pose,
+            pose_provider=self._estimator.get_pose,
             params=params,
         )
         motion_controller = MotionController(engine, rate_hz=motion_rate_hz)
@@ -87,7 +83,6 @@ class TurtleBotNode:
         )
 
         rospy.Subscriber(self.topic_odom, Odometry, self._on_odom)
-        rospy.Subscriber(self.topic_amcl_pose, PoseWithCovarianceStamped, self._on_amcl_pose)
         if self._obstacle_detector is not None:
             rospy.Subscriber(self.topic_scan, LaserScan, self._on_scan)
         self._motion_control_server = MotionControlActionServer(self._robot, self.topic_user_command)
@@ -113,10 +108,6 @@ class TurtleBotNode:
     
     def topic_stop(self) -> str:
         return f'/{self._namespace}/stop'
-
-    @property
-    def topic_amcl_pose(self) -> str:
-        return f'/{self._namespace}/amcl_pose'
 
     @property
     def topic_user_command(self) -> str:
@@ -199,27 +190,8 @@ class TurtleBotNode:
     def _on_odom(self, msg: Odometry) -> None:
         self._last_odom_received_at = rospy.Time.now()
         self._state.velocity = msg.twist.twist
-        odom_pose = msg.pose.pose
-        self._latest_odom_yaw = yaw_from_quaternion(odom_pose.orientation)
-        if self._odom_pose_enabled:
-            # Sim: /odom is in the world frame, use it directly.
-            self._state.pose.x = odom_pose.position.x + self._state.origin.x
-            self._state.pose.y = odom_pose.position.y + self._state.origin.y
-            self._state.pose.theta = self._latest_odom_yaw + self._state.origin.theta
-        else:
-            # Real robot: /odom yaw is in the odom frame; compose with the AMCL
-            # offset so state.theta stays in the map frame alongside x/y.
-            self._state.pose.theta = wrap_to_pi(self._latest_odom_yaw + self._yaw_offset)
-        self._pose_publisher.publish(self._state.get_pose())
-
-    def _on_amcl_pose(self, msg: PoseWithCovarianceStamped) -> None:
-        pose = msg.pose.pose
-        self._state.pose.x = pose.position.x
-        self._state.pose.y = pose.position.y
-        amcl_yaw = yaw_from_quaternion(pose.orientation)
-        self._yaw_offset = wrap_to_pi(amcl_yaw - self._latest_odom_yaw)
-        self._state.pose.theta = amcl_yaw
-        self._pose_publisher.publish(self._state.get_pose())
+        self._estimator.on_odom(msg)
+        self._pose_publisher.publish(self._estimator.get_pose())
 
     def _on_scan(self, message: LaserScan) -> None:
         detected = self._obstacle_detector.detect(message)
