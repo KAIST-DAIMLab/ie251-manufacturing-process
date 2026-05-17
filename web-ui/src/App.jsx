@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import GraphCanvas from './components/GraphCanvas.jsx'
+import RobotList from './components/RobotList.jsx'
 import RobotPanel from './components/RobotPanel.jsx'
 import { fetchGraph } from './ros/fetchGraph.js'
 import { fetchRobots } from './ros/fetchRobots.js'
@@ -206,24 +207,32 @@ export default function App() {
       </div>
 
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
-        <GraphCanvas
-          graph={graph}
-          robots={robots}
-          poses={poses}
-          pathStatuses={pathStatuses}
-          stateMap={stateMap}
-          selectedRobotId={selectedRobotId}
-          dragState={dragState}
-          setDragState={setDragState}
-          onRobotMouseDown={handleRobotMouseDown}
-          onDrop={handleDrop}
-          onDragCancel={handleDragCancel}
-          relocalizeState={relocalizeState}
-          onRelocalizeStationClick={handleRelocalizeStationClick}
-          onRelocalizeHeadingMove={handleRelocalizeHeadingMove}
-          onRelocalizeHeadingConfirm={handleRelocalizeHeadingConfirm}
-          onRelocalizeCancel={() => setRelocalizeState(null)}
-        />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <GraphCanvas
+            graph={graph}
+            robots={robots}
+            poses={poses}
+            pathStatuses={pathStatuses}
+            stateMap={stateMap}
+            selectedRobotId={selectedRobotId}
+            dragState={dragState}
+            setDragState={setDragState}
+            onRobotMouseDown={handleRobotMouseDown}
+            onDrop={handleDrop}
+            onDragCancel={handleDragCancel}
+            relocalizeState={relocalizeState}
+            onRelocalizeStationClick={handleRelocalizeStationClick}
+            onRelocalizeHeadingMove={handleRelocalizeHeadingMove}
+            onRelocalizeHeadingConfirm={handleRelocalizeHeadingConfirm}
+            onRelocalizeCancel={() => setRelocalizeState(null)}
+          />
+          <RobotList
+            robots={robots}
+            stateMap={stateMap}
+            selectedRobotId={selectedRobotId}
+            onSelect={setSelectedRobotId}
+          />
+        </div>
         <div style={{ background: '#1e1e1e', minWidth: 220 }}>
           <RobotPanel
             robot={selectedRobot}
