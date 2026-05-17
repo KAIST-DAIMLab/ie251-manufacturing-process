@@ -17,7 +17,7 @@ class MotionParameters:
     linear_gain: float = 0.5
     angular_gain: float = 1.5
     arrival_tolerance: float = 0.10
-    heading_tolerance: float = 0.1
+    heading_tolerance: float = 0.13
 
 
 class CmdVelPublisher(Protocol):
