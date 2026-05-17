@@ -82,6 +82,7 @@ export default function RobotPanel({ robot, pose, pathStatus, onStop, onJogError
         <Row label="angular_speed" value={`${robot.motion.angular_speed} rad/s`} />
         <Row label="move_rate" value={`${robot.motion.move_rate_hz} Hz`} />
         <Row label="arrival_tol" value={`${robot.motion.arrival_tolerance} m`} />
+        <Row label="turning_tol" value={`${(robot.motion.turning_tolerance * 180 / Math.PI).toFixed(1)}°`} />
       </Section>
 
       <Section title="OBSTACLE">

@@ -17,7 +17,7 @@ class MotionParameters:
     linear_gain: float = 0.5
     angular_gain: float = 1.5
     arrival_tolerance: float = 0.10
-    heading_tolerance: float = 0.13
+    turning_tolerance: float = 0.13
 
 
 class CmdVelPublisher(Protocol):
@@ -47,7 +47,7 @@ class MotionEngine:
         distance = self._get_distance(target)
         angle = self._get_angle(target)
         speed_angular = _clamp(self._params.angular_gain * angle, self._params.angular_speed)
-        speed_linear = min(self._params.linear_gain * distance, self._params.linear_speed) if abs(angle) <= self._params.heading_tolerance else 0.0
+        speed_linear = min(self._params.linear_gain * distance, self._params.linear_speed) if abs(angle) <= self._params.turning_tolerance else 0.0
 
         self._publish(speed_linear, speed_angular)
         return False
@@ -59,7 +59,7 @@ class MotionEngine:
 
         angle = self._get_angle(target)
         speed_angular = _clamp(self._params.angular_gain * angle, self._params.angular_speed)
-        speed_linear = self._params.linear_speed if abs(angle) <= self._params.heading_tolerance else 0.0
+        speed_linear = self._params.linear_speed if abs(angle) <= self._params.turning_tolerance else 0.0
 
         self._publish(speed_linear, speed_angular)
         return False
@@ -67,7 +67,7 @@ class MotionEngine:
     def turn_towards(self, heading: float) -> bool:
         """Publish one proportional angular cmd_vel toward absolute heading."""
         angle = wrap_to_pi(heading - self._pose_provider().theta)
-        if abs(angle) <= self._params.heading_tolerance:
+        if abs(angle) <= self._params.turning_tolerance:
             self._publish(0.0, 0.0)
             return True
 

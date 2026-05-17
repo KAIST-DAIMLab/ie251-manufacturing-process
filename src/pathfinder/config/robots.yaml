@@ -4,9 +4,10 @@ robots:
     start_station: 3
     motion:
       linear_speed: 0.22
-      angular_speed: 1.5
+      angular_speed: 1.3
       move_rate_hz: 10
-      arrival_tolerance: 0.05
+      arrival_tolerance: 0.1
+      turning_tolerance: 0.13
     obstacle:
       enabled: true
       stop_distance: 0.45
@@ -16,9 +17,10 @@ robots:
     start_station: 5
     motion:
       linear_speed: 0.22
-      angular_speed: 1.5
+      angular_speed: 1.3
       move_rate_hz: 10
-      arrival_tolerance: 0.05
+      arrival_tolerance: 0.1
+      turning_tolerance: 0.13
     obstacle:
       enabled: true
       stop_distance: 0.45

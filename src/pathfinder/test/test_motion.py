@@ -177,7 +177,7 @@ class DriveTowardsTest(unittest.TestCase):
         self.assertEqual(publisher.published[-1].angular.z, 0.0)
 
     def test_heading_error_above_tolerance_blocks_forward_velocity(self):
-        engine, publisher = self._engine_at(x=0.0, y=0.0, theta=math.pi / 2.0, heading_tolerance=0.2)
+        engine, publisher = self._engine_at(x=0.0, y=0.0, theta=math.pi / 2.0, turning_tolerance=0.2)
 
         arrived = engine.drive_towards(Node(id=1, x=1.0, y=0.0))
 
@@ -206,7 +206,7 @@ class DriveTowardsTest(unittest.TestCase):
             theta=math.radians(179.0),
             angular_gain=1.0,
             angular_speed=1.5,
-            heading_tolerance=math.radians(1.0),
+            turning_tolerance=math.radians(1.0),
         )
 
         arrived = engine.drive_towards(Node(id=1, x=-1.0, y=-0.01))
@@ -232,7 +232,7 @@ class DriveTowardsTest(unittest.TestCase):
         self.assertEqual(publisher.published[-1].linear.x, 0.3)
 
     def test_drive_through_blocks_forward_velocity_when_heading_error_is_large(self):
-        engine, publisher = self._engine_at(x=0.0, y=0.0, theta=math.pi / 2.0, heading_tolerance=0.2)
+        engine, publisher = self._engine_at(x=0.0, y=0.0, theta=math.pi / 2.0, turning_tolerance=0.2)
 
         arrived = engine.drive_through(Node(id=1, x=1.0, y=0.0))
 
@@ -259,7 +259,7 @@ class TurnTowardsTest(unittest.TestCase):
         return engine
 
     def test_heading_within_tolerance_returns_true_and_publishes_zero(self):
-        engine = self._engine_at(theta=0.18, heading_tolerance=0.2)
+        engine = self._engine_at(theta=0.18, turning_tolerance=0.2)
 
         arrived = engine.turn_towards(0.0)
 
@@ -298,7 +298,7 @@ class TurnTowardsTest(unittest.TestCase):
             theta=math.radians(179.0),
             angular_gain=1.0,
             angular_speed=1.5,
-            heading_tolerance=math.radians(1.0),
+            turning_tolerance=math.radians(1.0),
         )
 
         arrived = engine.turn_towards(math.radians(-179.0))
