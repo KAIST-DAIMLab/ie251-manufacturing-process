@@ -11,7 +11,7 @@ from sensor_msgs.msg import LaserScan
 from std_msgs.msg import Bool, Int8
 
 from pathfinder.ros.path_follow_action_server import PathFollowActionServer
-from pathfinder.ros.pose_estimator import PoseEstimator
+from pathfinder.robot.pose_estimator import PoseEstimator
 from pathfinder.robot.motion_engine import MotionEngine, MotionParameters
 from pathfinder.robot.motion_controller import MotionController
 from pathfinder.robot.path_follower import PathFollower

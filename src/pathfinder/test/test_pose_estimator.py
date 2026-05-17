@@ -41,7 +41,7 @@ def _install_ros_stubs():
 
 _install_ros_stubs()
 
-from pathfinder.ros.pose_estimator import PoseEstimator  # noqa: E402
+from pathfinder.robot.pose_estimator import PoseEstimator  # noqa: E402
 from pathfinder.utils.physics import yaw_from_xyzw  # noqa: E402
 
 
