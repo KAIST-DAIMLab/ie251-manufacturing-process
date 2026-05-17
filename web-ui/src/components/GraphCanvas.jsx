@@ -26,7 +26,7 @@ export default function GraphCanvas({
   robots,
   poses,
   pathStatuses,
-  onlineMap,
+  stateMap,
   selectedRobotId,
   dragState,
   setDragState,
@@ -178,7 +178,7 @@ export default function GraphCanvas({
             svgY={y}
             theta={pose.theta}
             selected={robot.id === selectedRobotId}
-            online={onlineMap?.[robot.id] === true}
+            stateValue={stateMap?.[robot.id] ?? 0}
             worldScale={scale}
             onMouseDown={(clientX, clientY) => {
               const pointerSvg = clientToSvg(clientX, clientY)

@@ -30,14 +30,17 @@ function ObstacleCone({ svgX, svgY, theta, obstacle, worldScale }) {
   )
 }
 
-export default function RobotDot({ robot, svgX, svgY, theta, selected, online = true, worldScale, onMouseDown }) {
+export default function RobotDot({ robot, svgX, svgY, theta, selected, stateValue = 0, worldScale, onMouseDown }) {
   const colorIndex = parseInt(robot.id.replace(/\D/g, ''), 10) % COLORS.length
   const label = robot.name || robot.id
-  const fill = online ? COLORS[colorIndex] : '#6b7280'
+  const fill =
+    stateValue === 0 ? '#6b7280' :
+    stateValue === 3 ? '#f59e0b' :
+    COLORS[colorIndex]
   const ringStroke = selected ? '#fff' : 'transparent'
   const tickX = svgX + Math.cos(-theta) * TICK
   const tickY = svgY + Math.sin(-theta) * TICK
-  const dotOpacity = online ? 1 : 0.35
+  const dotOpacity = stateValue === 0 ? 0.35 : 1.0
 
   return (
     <g
@@ -51,7 +54,7 @@ export default function RobotDot({ robot, svgX, svgY, theta, selected, online = 
       <circle cx={svgX} cy={svgY} r={RADIUS + 4} fill="none" stroke={ringStroke} strokeWidth={2} />
       <circle cx={svgX} cy={svgY} r={RADIUS} fill={fill} />
       <line x1={svgX} y1={svgY} x2={tickX} y2={tickY} stroke="#fff" strokeWidth={2} />
-      <text x={svgX} y={svgY + RADIUS + 16} textAnchor="middle" fill={online ? '#eee' : '#9ca3af'} fontSize={14} fontWeight="700">
+      <text x={svgX} y={svgY + RADIUS + 16} textAnchor="middle" fill={stateValue === 0 ? '#9ca3af' : '#eee'} fontSize={14} fontWeight="700">
         {label}
       </text>
     </g>

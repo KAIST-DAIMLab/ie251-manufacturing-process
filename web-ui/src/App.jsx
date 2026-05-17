@@ -129,6 +129,13 @@ export default function App() {
 
   const selectedRobot = robots.find((r) => r.id === selectedRobotId) ?? null
 
+  const stateMap = Object.fromEntries(
+    robots.map((robot) => [
+      robot.id,
+      onlineMap[robot.id] ? (robotStates[robot.id]?.value ?? 1) : 0,
+    ])
+  )
+
   if (!graph) {
     return (
       <div style={{ padding: 24 }}>Connecting to rosbridge...</div>
@@ -163,7 +170,7 @@ export default function App() {
           robots={robots}
           poses={poses}
           pathStatuses={pathStatuses}
-          onlineMap={onlineMap}
+          stateMap={stateMap}
           selectedRobotId={selectedRobotId}
           dragState={dragState}
           setDragState={setDragState}
