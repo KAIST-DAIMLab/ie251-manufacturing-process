@@ -2,7 +2,7 @@
   <arg name="robots_config" default="$(find pathfinder)/config/robots.yaml"/>
   <arg name="graph_config" default="$(find pathfinder)/config/graph.yaml"/>
   <arg name="map_file" default="$(find pathfinder)/maps/my_map.yaml"/>
-  <arg name="open_rviz" default="true"/>
+  <arg name="open_rviz" default="false"/>
   <arg name="active_robot_ids" default=""/>
   <arg name="rosbridge" default="true"/>
   <arg name="rosbridge_port" default="9090"/>

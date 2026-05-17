@@ -16,7 +16,7 @@ from pathfinder.robot.turtlebot import TurtleBot
 from pathfinder.ros.motion_control_action_server import MotionControlActionServer
 from pathfinder.safety.obstacle_detector import ObstacleDetector
 from pathfinder.safety.forward_gate import ForwardGate
-from pathfinder.utils.physics import yaw_from_quaternion
+from pathfinder.utils.physics import wrap_to_pi, yaw_from_quaternion
 from pathfinder.world.graph import Graph
 
 
@@ -52,6 +52,13 @@ class TurtleBotNode:
         self._last_obstacle_blocked = False
 
         self._state = RobotState(id=robot_id, origin=origin or Pose2D())
+        # In real-robot mode, /odom yaw is in the odom frame while AMCL pose is
+        # in the map frame; AMCL's map->odom rotation is the offset that turns
+        # one into the other. Compose them so theta stays in the same (map)
+        # frame as x/y, but updates at /odom rate instead of AMCL's quantized
+        # update_min_a step.
+        self._latest_odom_yaw = 0.0
+        self._yaw_offset = 0.0
         state = self._state
         engine = MotionEngine(
             cmd_vel_publisher=self._forward_gate,
@@ -121,19 +128,26 @@ class TurtleBotNode:
 
     def _on_odom(self, msg: Odometry) -> None:
         self._state.velocity = msg.twist.twist
-        if not self._odom_pose_enabled:
-            return
         odom_pose = msg.pose.pose
-        self._state.pose.x = odom_pose.position.x + self._state.origin.x
-        self._state.pose.y = odom_pose.position.y + self._state.origin.y
-        self._state.pose.theta = yaw_from_quaternion(odom_pose.orientation) + self._state.origin.theta
+        self._latest_odom_yaw = yaw_from_quaternion(odom_pose.orientation)
+        if self._odom_pose_enabled:
+            # Sim: /odom is in the world frame, use it directly.
+            self._state.pose.x = odom_pose.position.x + self._state.origin.x
+            self._state.pose.y = odom_pose.position.y + self._state.origin.y
+            self._state.pose.theta = self._latest_odom_yaw + self._state.origin.theta
+        else:
+            # Real robot: /odom yaw is in the odom frame; compose with the AMCL
+            # offset so state.theta stays in the map frame alongside x/y.
+            self._state.pose.theta = wrap_to_pi(self._latest_odom_yaw + self._yaw_offset)
         self._pose_publisher.publish(self._state.get_pose())
 
     def _on_amcl_pose(self, msg: PoseWithCovarianceStamped) -> None:
         pose = msg.pose.pose
         self._state.pose.x = pose.position.x
         self._state.pose.y = pose.position.y
-        self._state.pose.theta = yaw_from_quaternion(pose.orientation)
+        amcl_yaw = yaw_from_quaternion(pose.orientation)
+        self._yaw_offset = wrap_to_pi(amcl_yaw - self._latest_odom_yaw)
+        self._state.pose.theta = amcl_yaw
         self._pose_publisher.publish(self._state.get_pose())
 
     def _on_scan(self, message: LaserScan) -> None:

@@ -32,6 +32,7 @@ def main():
             linear_speed=robot.motion.linear_speed,
             angular_speed=robot.motion.angular_speed,
             arrival_tolerance=robot.motion.arrival_tolerance,
+            turning_tolerance=robot.motion.turning_tolerance,
         )
         node = TurtleBotNode(
             robot.id,

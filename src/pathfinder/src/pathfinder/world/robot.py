@@ -13,6 +13,7 @@ class MotionConfig:
     angular_speed: float = 1.5
     move_rate_hz: float = 5.0
     arrival_tolerance: float = 0.10
+    turning_tolerance: float = 0.13
 
 
 @dataclass(frozen=True)
@@ -78,6 +79,7 @@ class Robot:
                 angular_speed=float(motion_data.get('angular_speed', 1.5)),
                 move_rate_hz=float(motion_data.get('move_rate_hz', 5.0)),
                 arrival_tolerance=float(motion_data.get('arrival_tolerance', 0.10)),
+                turning_tolerance=float(motion_data.get('turning_tolerance', 0.13)),
             ),
             obstacle=ObstacleConfig(
                 enabled=bool(obstacle_data.get('enabled', True)),
