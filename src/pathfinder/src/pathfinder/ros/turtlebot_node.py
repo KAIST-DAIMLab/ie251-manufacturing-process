@@ -63,7 +63,7 @@ class TurtleBotNode:
         self._relocalize_service = None
         self._last_odom_received_at: rospy.Time | None = None
 
-        self._state = RobotState(id=robot_id, origin=origin or Pose2D())
+        self._state = RobotState(id=robot_id)
         state = self._state
         tf_listener = tf.TransformListener()
         self._estimator = PoseEstimator(tf_listener, self._namespace, origin or Pose2D(), sim=odom_pose_enabled)
@@ -80,6 +80,7 @@ class TurtleBotNode:
             motion_controller=motion_controller,
             path_follower=path_follower,
             initial_pose_publisher=self._publish_initial_pose,
+            pose_provider=self._estimator.get_pose,
         )
 
         rospy.Subscriber(self.topic_odom, Odometry, self._on_odom)
@@ -106,9 +107,6 @@ class TurtleBotNode:
         """Topic name for the LiDAR subscriber."""
         return f'/{self._namespace}/scan'
     
-    def topic_stop(self) -> str:
-        return f'/{self._namespace}/stop'
-
     @property
     def topic_user_command(self) -> str:
         return f'/{self._namespace}/user_command'
@@ -189,7 +187,6 @@ class TurtleBotNode:
 
     def _on_odom(self, msg: Odometry) -> None:
         self._last_odom_received_at = rospy.Time.now()
-        self._state.velocity = msg.twist.twist
         self._estimator.on_odom(msg)
         self._pose_publisher.publish(self._estimator.get_pose())
 

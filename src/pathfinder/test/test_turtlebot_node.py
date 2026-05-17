@@ -201,7 +201,6 @@ class TurtleBotNodePoseSourceTest(unittest.TestCase):
 
         node._on_odom(_odom_msg(x=1.2, y=-0.4, yaw=0.75, linear_x=0.33))
 
-        self.assertAlmostEqual(node._state.velocity.linear.x, 0.33)
         published = PUBLISHERS['/tb3_01/pose'].published
         self.assertEqual(len(published), 1)
         # tf not available in tests → falls back to odom + origin (zero origin)
@@ -215,7 +214,6 @@ class TurtleBotNodePoseSourceTest(unittest.TestCase):
 
         node._on_odom(_odom_msg(x=1.2, y=-0.4, yaw=0.75, linear_x=0.33))
 
-        self.assertAlmostEqual(node._state.velocity.linear.x, 0.33)
         published = PUBLISHERS['/tb3_01/sim/pose'].published
         self.assertEqual(len(published), 1)
         self.assertAlmostEqual(published[-1].x, 2.2)

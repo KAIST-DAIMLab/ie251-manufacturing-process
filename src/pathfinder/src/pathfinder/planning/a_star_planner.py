@@ -1,7 +1,16 @@
 from __future__ import annotations
+
 import heapq
+from typing import Protocol
+
 from pathfinder.world.graph import Graph
 from pathfinder.world.node import Node
+
+
+class PathPlanner(Protocol):
+    """Plans an ordered list of waypoint Nodes between two graph nodes."""
+
+    def plan(self, start: Node, goal: Node) -> list[Node]: ...
 
 
 class AStarPlanner:
