@@ -5,7 +5,7 @@ from geometry_msgs.msg import Pose2D, Twist
 from geometry_msgs.msg import PoseWithCovarianceStamped
 from nav_msgs.msg import Odometry
 from sensor_msgs.msg import LaserScan
-from std_msgs.msg import Bool
+from std_msgs.msg import Bool, Int8
 
 from pathfinder.ros.path_follow_action_server import PathFollowActionServer
 from pathfinder.robot.motion_engine import MotionEngine, MotionParameters
@@ -18,6 +18,8 @@ from pathfinder.safety.obstacle_detector import ObstacleDetector
 from pathfinder.safety.forward_gate import ForwardGate
 from pathfinder.utils.physics import wrap_to_pi, yaw_from_quaternion
 from pathfinder.world.graph import Graph
+
+ODOM_FRESHNESS_SEC = 2.0
 
 
 class TurtleBotNode:
@@ -50,6 +52,9 @@ class TurtleBotNode:
         self._obstacle_blocked_publisher = rospy.Publisher(self.topic_obstacle_blocked, Bool, queue_size=1, latch=True)
         self._obstacle_blocked_publisher.publish(Bool(data=False))
         self._last_obstacle_blocked = False
+        self._state_publisher = rospy.Publisher(self.topic_state, Int8, queue_size=1, latch=True)
+        self._state_timer = None
+        self._last_odom_received_at: rospy.Time | None = None
 
         self._state = RobotState(id=robot_id, origin=origin or Pose2D())
         # In real-robot mode, /odom yaw is in the odom frame while AMCL pose is
@@ -119,14 +124,34 @@ class TurtleBotNode:
         """Topic name for the obstacle-blocked state publisher."""
         return f'/{self._namespace}/obstacle_blocked'
 
+    @property
+    def topic_state(self) -> str:
+        """Topic name for the RobotMode heartbeat publisher (UI infers OFFLINE from its absence)."""
+        return f'/{self._namespace}/state'
+
     def start(self) -> None:
         """Start executor action servers."""
         self._motion_control_server.start()
         if self._path_follow_server is not None:
             self._path_follow_server.start()
+        self._publish_state()
+        self._state_timer = rospy.Timer(rospy.Duration(0.5), self._publish_state)
         rospy.loginfo(f"TurtleBotNode for {self._robot.id} started.")
 
+    def _publish_state(self, _event=None) -> None:
+        self._recompute_online_status()
+        self._state_publisher.publish(Int8(data=int(self._state.status)))
+
+    def _recompute_online_status(self) -> None:
+        if self._last_odom_received_at is None:
+            fresh = False
+        else:
+            elapsed = (rospy.Time.now() - self._last_odom_received_at).to_sec()
+            fresh = elapsed < ODOM_FRESHNESS_SEC
+        self._robot.set_online(fresh)
+
     def _on_odom(self, msg: Odometry) -> None:
+        self._last_odom_received_at = rospy.Time.now()
         self._state.velocity = msg.twist.twist
         odom_pose = msg.pose.pose
         self._latest_odom_yaw = yaw_from_quaternion(odom_pose.orientation)
@@ -153,8 +178,10 @@ class TurtleBotNode:
     def _on_scan(self, message: LaserScan) -> None:
         detected = self._obstacle_detector.detect(message)
         self._forward_gate.set_blocked(detected)
+        self._robot.set_obstacle(detected)
         if detected != self._last_obstacle_blocked:
             self._last_obstacle_blocked = detected
             self._obstacle_blocked_publisher.publish(Bool(data=detected))
+            self._publish_state()
         if detected:
             rospy.logwarn(f"{self._robot.id}: obstacle detected, forward motion blocked")

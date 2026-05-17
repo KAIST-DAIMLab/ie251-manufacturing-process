@@ -182,5 +182,123 @@ class TurtleBotTest(unittest.TestCase):
         self.assertEqual(snapshot.y, 2.0)
         self.assertEqual(snapshot.theta, 0.5)
 
+
+class TurtleBotStatusTransitionTest(unittest.TestCase):
+    def test_status_starts_offline(self):
+        robot = _build_turtlebot()
+
+        self.assertEqual(robot._state.status, RobotMode.OFFLINE)
+
+    def test_set_following_true_without_obstacle_yields_moving(self):
+        robot = _build_turtlebot()
+        robot.set_online(True)
+
+        robot.set_following(True)
+
+        self.assertEqual(robot._state.status, RobotMode.MOVING)
+
+    def test_set_obstacle_true_while_following_yields_obstacle(self):
+        robot = _build_turtlebot()
+        robot.set_online(True)
+        robot.set_following(True)
+
+        robot.set_obstacle(True)
+
+        self.assertEqual(robot._state.status, RobotMode.OBSTACLE)
+
+    def test_obstacle_clears_back_to_moving_while_following(self):
+        robot = _build_turtlebot()
+        robot.set_online(True)
+        robot.set_following(True)
+        robot.set_obstacle(True)
+
+        robot.set_obstacle(False)
+
+        self.assertEqual(robot._state.status, RobotMode.MOVING)
+
+    def test_obstacle_while_idle_does_not_promote_status(self):
+        robot = _build_turtlebot()
+        robot.set_online(True)
+
+        robot.set_obstacle(True)
+
+        self.assertEqual(robot._state.status, RobotMode.IDLE)
+
+    def test_set_following_false_returns_to_idle_regardless_of_obstacle(self):
+        robot = _build_turtlebot()
+        robot.set_online(True)
+        robot.set_following(True)
+        robot.set_obstacle(True)
+
+        robot.set_following(False)
+
+        self.assertEqual(robot._state.status, RobotMode.IDLE)
+
+    def test_follow_path_sets_moving_then_returns_to_idle_on_success(self):
+        robot = _build_turtlebot()
+        robot.set_online(True)
+        observed = []
+        robot._path_follower.follow = lambda nodes: observed.append(robot._state.status) or True
+
+        result = robot.follow_path([])
+
+        self.assertTrue(result)
+        self.assertEqual(observed, [RobotMode.MOVING])
+        self.assertEqual(robot._state.status, RobotMode.IDLE)
+
+    def test_follow_path_returns_to_idle_on_cancel(self):
+        robot = _build_turtlebot()
+        robot.set_online(True)
+        robot._path_follower.follow = lambda nodes: False
+
+        result = robot.follow_path([])
+
+        self.assertFalse(result)
+        self.assertEqual(robot._state.status, RobotMode.IDLE)
+
+    def test_follow_path_returns_to_idle_on_exception(self):
+        robot = _build_turtlebot()
+        robot.set_online(True)
+
+        def boom(nodes):
+            raise RuntimeError('boom')
+
+        robot._path_follower.follow = boom
+
+        with self.assertRaises(RuntimeError):
+            robot.follow_path([])
+        self.assertEqual(robot._state.status, RobotMode.IDLE)
+
+    def test_set_online_false_masks_all_other_states(self):
+        robot = _build_turtlebot()
+        robot.set_online(True)
+        robot.set_following(True)
+
+        robot.set_online(False)
+
+        self.assertEqual(robot._state.status, RobotMode.OFFLINE)
+
+    def test_set_online_true_while_following_yields_moving(self):
+        robot = _build_turtlebot()
+        robot.set_online(True)
+        robot.set_following(True)
+        robot.set_online(False)
+
+        robot.set_online(True)
+
+        self.assertEqual(robot._state.status, RobotMode.MOVING)
+
+    def test_online_recovery_reflects_current_following_state(self):
+        robot = _build_turtlebot()
+        robot.set_online(True)
+        robot.set_following(True)
+        robot.set_online(False)
+        self.assertEqual(robot._state.status, RobotMode.OFFLINE)
+
+        robot.set_online(True)
+
+        self.assertEqual(robot._state.status, RobotMode.MOVING)
+
+
 if __name__ == '__main__':
     unittest.main()
