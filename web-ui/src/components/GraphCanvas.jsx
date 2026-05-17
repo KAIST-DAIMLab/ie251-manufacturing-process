@@ -33,6 +33,11 @@ export default function GraphCanvas({
   onRobotMouseDown,
   onDrop,
   onDragCancel,
+  relocalizeState,
+  onRelocalizeStationClick,
+  onRelocalizeHeadingMove,
+  onRelocalizeHeadingConfirm,
+  onRelocalizeCancel,
 }) {
   const SVG_W = 700
   const SVG_H = 500
@@ -85,23 +90,52 @@ export default function GraphCanvas({
   }
 
   function handleMouseMove(event) {
-    if (!dragState) return
-    const pointerSvg = clientToSvg(event.clientX, event.clientY)
-    const hoverNodeId = findNearestNode(pointerSvg)
-    setDragState((prev) => ({ ...prev, pointerSvg, hoverNodeId }))
+    if (dragState) {
+      const pointerSvg = clientToSvg(event.clientX, event.clientY)
+      const hoverNodeId = findNearestNode(pointerSvg)
+      setDragState((prev) => ({ ...prev, pointerSvg, hoverNodeId }))
+    }
+    if (relocalizeState?.step === 'set-heading') {
+      const pointerSvg = clientToSvg(event.clientX, event.clientY)
+      const stationSvg = toSvg(relocalizeState.node.x, relocalizeState.node.y)
+      const theta = Math.atan2(-(pointerSvg.y - stationSvg.y), pointerSvg.x - stationSvg.x)
+      onRelocalizeHeadingMove(theta)
+    }
   }
 
-  function handleMouseUp() {
-    if (!dragState) return
-    if (dragState.hoverNodeId !== null) {
-      onDrop(dragState.robotId, dragState.hoverNodeId)
-    } else {
-      onDragCancel()
+  function handleMouseUp(event) {
+    if (dragState) {
+      if (dragState.hoverNodeId !== null) {
+        onDrop(dragState.robotId, dragState.hoverNodeId)
+      } else {
+        onDragCancel()
+      }
+    }
+    if (relocalizeState?.step === 'set-heading') {
+      const pointerSvg = clientToSvg(event.clientX, event.clientY)
+      const stationSvg = toSvg(relocalizeState.node.x, relocalizeState.node.y)
+      const theta = Math.atan2(-(pointerSvg.y - stationSvg.y), pointerSvg.x - stationSvg.x)
+      onRelocalizeHeadingConfirm(theta)
     }
   }
 
   function handleMouseLeave() {
     if (dragState) onDragCancel()
+  }
+
+  function handleSvgClick(event) {
+    if (relocalizeState?.step !== 'pick-station') return
+    const svgPos = clientToSvg(event.clientX, event.clientY)
+    for (const node of graph.nodes) {
+      const station = stationByNode[node.id]
+      if (!station) continue
+      const { x, y } = toSvg(node.x, node.y)
+      if (Math.hypot(svgPos.x - x, svgPos.y - y) < NODE_HIT_RADIUS) {
+        onRelocalizeStationClick(node)
+        return
+      }
+    }
+    onRelocalizeCancel()
   }
 
   const draggingRobotSvgPos = dragState
@@ -111,15 +145,18 @@ export default function GraphCanvas({
       })()
     : null
 
+  const svgCursor = dragState ? 'grabbing' : relocalizeState ? 'crosshair' : 'default'
+
   return (
     <svg
       ref={svgRef}
       width={SVG_W}
       height={SVG_H}
-      style={{ display: 'block', background: '#1e1e1e', cursor: dragState ? 'grabbing' : 'default' }}
+      style={{ display: 'block', background: '#1e1e1e', cursor: svgCursor }}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseLeave}
+      onClick={handleSvgClick}
     >
       {graph.edges.map((edge, index) => {
         const a = toSvg(nodeMap[edge.from].x, nodeMap[edge.from].y)
@@ -154,6 +191,13 @@ export default function GraphCanvas({
 
       {graph.nodes.map((node) => {
         const { x, y } = toSvg(node.x, node.y)
+        const isStation = stationByNode[node.id] !== undefined
+        const relocalizeTarget =
+          relocalizeState?.step === 'pick-station'
+            ? isStation
+            : relocalizeState?.step === 'set-heading'
+            ? relocalizeState.node.id === node.id
+            : false
         return (
           <NodeMarker
             key={node.id}
@@ -162,6 +206,7 @@ export default function GraphCanvas({
             svgX={x}
             svgY={y}
             dropTarget={dragState?.hoverNodeId === node.id}
+            relocalizeTarget={relocalizeTarget}
           />
         )
       })}
@@ -187,6 +232,20 @@ export default function GraphCanvas({
           />
         )
       })}
+
+      {relocalizeState?.step === 'set-heading' && (() => {
+        const { x: sx, y: sy } = toSvg(relocalizeState.node.x, relocalizeState.node.y)
+        const theta = relocalizeState.theta ?? 0
+        const len = 50
+        const ex = sx + len * Math.cos(theta)
+        const ey = sy - len * Math.sin(theta)
+        return (
+          <g pointerEvents="none">
+            <line x1={sx} y1={sy} x2={ex} y2={ey} stroke="#a78bfa" strokeWidth={2} />
+            <circle cx={ex} cy={ey} r={5} fill="#a78bfa" />
+          </g>
+        )
+      })()}
 
       {dragState && draggingRobotSvgPos && dragState.pointerSvg && (
         <line

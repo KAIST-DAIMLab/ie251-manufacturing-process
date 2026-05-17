@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import GraphCanvas from './components/GraphCanvas.jsx'
+import RobotList from './components/RobotList.jsx'
 import RobotPanel from './components/RobotPanel.jsx'
 import { fetchGraph } from './ros/fetchGraph.js'
 import { fetchRobots } from './ros/fetchRobots.js'
@@ -8,6 +9,7 @@ import { subscribePathStatus } from './ros/subscribePathStatus.js'
 import { subscribeState } from './ros/subscribeState.js'
 import { moveToNode } from './ros/moveToNode.js'
 import { cancelPath } from './ros/cancelPath.js'
+import { relocalize } from './ros/relocalize.js'
 
 const STATE_FRESHNESS_MS = 2500
 const ONLINE_CHECK_INTERVAL_MS = 500
@@ -22,6 +24,7 @@ export default function App() {
   const [selectedRobotId, setSelectedRobotId] = useState(null)
   const [banner, setBanner] = useState(null)
   const [dragState, setDragState] = useState(null)
+  const [relocalizeState, setRelocalizeState] = useState(null)
 
   useEffect(() => {
     Promise.all([fetchGraph(), fetchRobots()])
@@ -97,6 +100,12 @@ export default function App() {
     return () => clearTimeout(timer)
   }, [banner])
 
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') setRelocalizeState(null) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
   const handleRobotMouseDown = useCallback((robotId, pointerSvg) => {
     setSelectedRobotId(robotId)
     setDragState({ robotId, pointerSvg, hoverNodeId: null })
@@ -127,6 +136,33 @@ export default function App() {
     setDragState(null)
   }, [])
 
+  const handleRelocalize = useCallback(() => {
+    if (!selectedRobotId) return
+    setRelocalizeState({ robotId: selectedRobotId, step: 'pick-station' })
+  }, [selectedRobotId])
+
+  const handleRelocalizeStationClick = useCallback((node) => {
+    if (!relocalizeState) return
+    const theta = poses[relocalizeState.robotId]?.theta ?? 0
+    setRelocalizeState((prev) => ({ ...prev, step: 'set-heading', node, theta }))
+  }, [relocalizeState, poses])
+
+  const handleRelocalizeHeadingMove = useCallback((theta) => {
+    setRelocalizeState((prev) => prev ? { ...prev, theta } : prev)
+  }, [])
+
+  const handleRelocalizeHeadingConfirm = useCallback((theta) => {
+    if (!relocalizeState) return
+    const robot = robots.find((r) => r.id === relocalizeState.robotId)
+    if (!robot) return
+    const node = relocalizeState.node
+    const label = getRobotLabel(relocalizeState.robotId)
+    setRelocalizeState(null)
+    relocalize(robot.namespace, node.x, node.y, theta)
+      .then((response) => setBanner(`${label}: ${response.message}`))
+      .catch((error) => setBanner(`Error: ${error}`))
+  }, [relocalizeState, robots, getRobotLabel])
+
   const selectedRobot = robots.find((r) => r.id === selectedRobotId) ?? null
 
   const stateMap = Object.fromEntries(
@@ -147,7 +183,13 @@ export default function App() {
       <h1 style={{ marginBottom: 12, fontSize: 16, letterSpacing: 1 }}>PATHFINDER MONITOR</h1>
 
       <p style={{ marginBottom: 8, color: '#888' }}>
-        {dragState ? `dragging ${getRobotLabel(dragState.robotId)}…` : 'Click a robot to select, drag to a node to move'}
+        {dragState
+          ? `dragging ${getRobotLabel(dragState.robotId)}…`
+          : relocalizeState?.step === 'set-heading'
+          ? `drag to set heading for ${getRobotLabel(relocalizeState.robotId)}, release to confirm (ESC to cancel)`
+          : relocalizeState?.step === 'pick-station'
+          ? `click a station to seed pose for ${getRobotLabel(relocalizeState.robotId)} (ESC to cancel)`
+          : 'Click a robot to select, drag to a node to move'}
       </p>
 
       <div
@@ -165,19 +207,32 @@ export default function App() {
       </div>
 
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
-        <GraphCanvas
-          graph={graph}
-          robots={robots}
-          poses={poses}
-          pathStatuses={pathStatuses}
-          stateMap={stateMap}
-          selectedRobotId={selectedRobotId}
-          dragState={dragState}
-          setDragState={setDragState}
-          onRobotMouseDown={handleRobotMouseDown}
-          onDrop={handleDrop}
-          onDragCancel={handleDragCancel}
-        />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <GraphCanvas
+            graph={graph}
+            robots={robots}
+            poses={poses}
+            pathStatuses={pathStatuses}
+            stateMap={stateMap}
+            selectedRobotId={selectedRobotId}
+            dragState={dragState}
+            setDragState={setDragState}
+            onRobotMouseDown={handleRobotMouseDown}
+            onDrop={handleDrop}
+            onDragCancel={handleDragCancel}
+            relocalizeState={relocalizeState}
+            onRelocalizeStationClick={handleRelocalizeStationClick}
+            onRelocalizeHeadingMove={handleRelocalizeHeadingMove}
+            onRelocalizeHeadingConfirm={handleRelocalizeHeadingConfirm}
+            onRelocalizeCancel={() => setRelocalizeState(null)}
+          />
+          <RobotList
+            robots={robots}
+            stateMap={stateMap}
+            selectedRobotId={selectedRobotId}
+            onSelect={setSelectedRobotId}
+          />
+        </div>
         <div style={{ background: '#1e1e1e', minWidth: 220 }}>
           <RobotPanel
             robot={selectedRobot}
@@ -187,6 +242,8 @@ export default function App() {
             online={selectedRobotId ? onlineMap[selectedRobotId] === true : false}
             onStop={handleStop}
             onJogError={handleJogError}
+            onRelocalize={handleRelocalize}
+            relocalizePending={!!relocalizeState && relocalizeState.robotId === selectedRobotId && relocalizeState.step === 'pick-station'}
           />
         </div>
       </div>

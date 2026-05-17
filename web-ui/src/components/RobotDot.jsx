@@ -1,6 +1,6 @@
 import React from 'react'
+import { colorForState } from '../util/robotColor.js'
 
-const COLORS = ['#f87171', '#60a5fa', '#a78bfa', '#34d399']
 const RADIUS = 10
 const TICK = 16
 
@@ -31,12 +31,8 @@ function ObstacleCone({ svgX, svgY, theta, obstacle, worldScale }) {
 }
 
 export default function RobotDot({ robot, svgX, svgY, theta, selected, stateValue = 0, worldScale, onMouseDown }) {
-  const colorIndex = parseInt(robot.id.replace(/\D/g, ''), 10) % COLORS.length
   const label = robot.name || robot.id
-  const fill =
-    stateValue === 0 ? '#6b7280' :
-    stateValue === 3 ? '#f59e0b' :
-    COLORS[colorIndex]
+  const fill = colorForState(robot, stateValue)
   const ringStroke = selected ? '#fff' : 'transparent'
   const tickX = svgX + Math.cos(-theta) * TICK
   const tickY = svgY + Math.sin(-theta) * TICK

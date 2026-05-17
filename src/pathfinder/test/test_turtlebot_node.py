@@ -11,6 +11,7 @@ sys.path.insert(0, ROOT)
 
 PUBLISHERS = {}
 SUBSCRIBERS = []
+SERVICES = {}
 
 
 class FakeTime:
@@ -55,8 +56,15 @@ def _install_ros_stubs():
         SUBSCRIBERS.append((topic, message_type, callback))
         return types.SimpleNamespace(unregister=lambda: None)
 
+    def Service(name, srv_type, callback):
+        SERVICES[name] = (srv_type, callback)
+        return types.SimpleNamespace(shutdown=lambda: None)
+
     rospy.Publisher = Publisher
     rospy.Subscriber = Subscriber
+    rospy.Service = Service
+    rospy.Duration = lambda secs: secs
+    rospy.Timer = lambda duration, callback: types.SimpleNamespace(shutdown=lambda: None)
     sys.modules['rospy'] = rospy
 
     tf = sys.modules.get('tf') or types.ModuleType('tf')
@@ -85,7 +93,15 @@ def _install_ros_stubs():
             self.angular = types.SimpleNamespace(x=0.0, y=0.0, z=0.0)
 
     class PoseWithCovarianceStamped:
-        pass
+        def __init__(self):
+            self.header = types.SimpleNamespace(frame_id='', stamp=None)
+            self.pose = types.SimpleNamespace(
+                pose=types.SimpleNamespace(
+                    position=types.SimpleNamespace(x=0.0, y=0.0, z=0.0),
+                    orientation=types.SimpleNamespace(x=0.0, y=0.0, z=0.0, w=1.0),
+                ),
+                covariance=[0.0] * 36,
+            )
 
     geometry_msgs_msg.Pose2D = Pose2D
     geometry_msgs_msg.Twist = Twist
@@ -132,6 +148,12 @@ def _install_ros_stubs():
     pathfinder_msg.RobotCommandAction = object
     pathfinder_msg.RobotCommandResult = lambda success=False, message='': types.SimpleNamespace(success=success, message=message)
     sys.modules['pathfinder.msg'] = pathfinder_msg
+
+    pathfinder_srv = sys.modules.get('pathfinder.srv') or types.ModuleType('pathfinder.srv')
+    pathfinder_srv.Relocalize = object
+    pathfinder_srv.RelocalizeRequest = lambda x=0.0, y=0.0, theta=0.0: types.SimpleNamespace(x=x, y=y, theta=theta)
+    pathfinder_srv.RelocalizeResponse = lambda success=False, message='': types.SimpleNamespace(success=success, message=message)
+    sys.modules['pathfinder.srv'] = pathfinder_srv
 
 
 _install_ros_stubs()
@@ -181,6 +203,7 @@ class TurtleBotNodePoseSourceTest(unittest.TestCase):
         _install_ros_stubs()
         PUBLISHERS.clear()
         SUBSCRIBERS.clear()
+        SERVICES.clear()
         FakeTime._current = 100.0
 
     def test_amcl_pose_anchors_map_frame_theta_and_records_offset(self):
@@ -255,6 +278,7 @@ class TurtleBotNodeStateTopicTest(unittest.TestCase):
         _install_ros_stubs()
         PUBLISHERS.clear()
         SUBSCRIBERS.clear()
+        SERVICES.clear()
         FakeTime._current = 100.0
 
     def test_state_topic_publisher_is_created_and_latched(self):
@@ -302,6 +326,7 @@ class TurtleBotNodeOfflineDetectionTest(unittest.TestCase):
         _install_ros_stubs()
         PUBLISHERS.clear()
         SUBSCRIBERS.clear()
+        SERVICES.clear()
         FakeTime._current = 100.0
 
     def test_initial_publish_state_writes_offline_before_any_odom(self):
@@ -334,6 +359,62 @@ class TurtleBotNodeOfflineDetectionTest(unittest.TestCase):
 
         published = PUBLISHERS['/tb3_01/state'].published
         self.assertEqual(published[-1].data, int(RobotMode.OFFLINE))
+
+
+class TurtleBotNodeRelocalizeTest(unittest.TestCase):
+    def setUp(self):
+        _install_ros_stubs()
+        PUBLISHERS.clear()
+        SUBSCRIBERS.clear()
+        SERVICES.clear()
+        FakeTime._current = 100.0
+
+    def test_initialpose_publisher_is_created_on_construction(self):
+        TurtleBotNode('tb3_01', obstacle_enabled=False)
+
+        self.assertIn('/tb3_01/initialpose', PUBLISHERS)
+
+    def test_on_relocalize_publishes_one_message_with_map_frame_and_pose(self):
+        node = TurtleBotNode('tb3_01', obstacle_enabled=False)
+        request = types.SimpleNamespace(x=1.0, y=2.0, theta=math.pi / 2)
+
+        response = node._on_relocalize(request)
+
+        published = PUBLISHERS['/tb3_01/initialpose'].published
+        self.assertEqual(len(published), 1)
+        msg = published[0]
+        self.assertEqual(msg.header.frame_id, 'map')
+        self.assertAlmostEqual(msg.pose.pose.position.x, 1.0)
+        self.assertAlmostEqual(msg.pose.pose.position.y, 2.0)
+        self.assertAlmostEqual(msg.pose.pose.orientation.z, math.sin(math.pi / 4))
+        self.assertAlmostEqual(msg.pose.pose.orientation.w, math.cos(math.pi / 4))
+        self.assertTrue(response.success)
+
+    def test_on_relocalize_sets_covariance_diagonal(self):
+        from pathfinder.ros.turtlebot_node import (
+            RELOCALIZE_XY_VARIANCE, RELOCALIZE_THETA_VARIANCE,
+        )
+        node = TurtleBotNode('tb3_01', obstacle_enabled=False)
+
+        node._on_relocalize(types.SimpleNamespace(x=0.0, y=0.0, theta=0.0))
+
+        msg = PUBLISHERS['/tb3_01/initialpose'].published[0]
+        self.assertAlmostEqual(msg.pose.covariance[0], RELOCALIZE_XY_VARIANCE)
+        self.assertAlmostEqual(msg.pose.covariance[7], RELOCALIZE_XY_VARIANCE)
+        self.assertAlmostEqual(msg.pose.covariance[35], RELOCALIZE_THETA_VARIANCE)
+        # Off-diagonal entries must remain zero so AMCL doesn't infer false cross-correlations.
+        for i, value in enumerate(msg.pose.covariance):
+            if i not in (0, 7, 35):
+                self.assertEqual(value, 0.0)
+
+    def test_start_registers_relocalize_service(self):
+        node = TurtleBotNode('tb3_01', obstacle_enabled=False)
+        node._motion_control_server = types.SimpleNamespace(start=lambda: None)
+        node._path_follow_server = None
+
+        node.start()
+
+        self.assertIn('/tb3_01/relocalize', SERVICES)
 
 
 if __name__ == '__main__':
