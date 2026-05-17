@@ -13,9 +13,27 @@ PUBLISHERS = {}
 SUBSCRIBERS = []
 
 
+class FakeTime:
+    """Controllable wall-clock stub; tests advance _current to simulate elapsed time."""
+    _current: float = 100.0
+
+    def __init__(self, secs: float) -> None:
+        self.secs = secs
+
+    @classmethod
+    def now(cls) -> 'FakeTime':
+        return cls(cls._current)
+
+    def to_sec(self) -> float:
+        return self.secs
+
+    def __sub__(self, other: 'FakeTime') -> 'FakeTime':
+        return FakeTime(self.secs - other.secs)
+
+
 def _install_ros_stubs():
     rospy = sys.modules.get('rospy') or types.ModuleType('rospy')
-    rospy.Time = types.SimpleNamespace(now=lambda: 0)
+    rospy.Time = FakeTime
     rospy.Rate = lambda hz: types.SimpleNamespace(sleep=lambda: None)
     rospy.is_shutdown = lambda: False
     rospy.loginfo = lambda *args, **kwargs: None
@@ -97,8 +115,13 @@ def _install_ros_stubs():
     class String:
         pass
 
+    class Int8:
+        def __init__(self, data=0):
+            self.data = data
+
     std_msgs_msg.Bool = Bool
     std_msgs_msg.String = String
+    std_msgs_msg.Int8 = Int8
     sys.modules['std_msgs'] = std_msgs
     sys.modules['std_msgs.msg'] = std_msgs_msg
 
@@ -158,6 +181,7 @@ class TurtleBotNodePoseSourceTest(unittest.TestCase):
         _install_ros_stubs()
         PUBLISHERS.clear()
         SUBSCRIBERS.clear()
+        FakeTime._current = 100.0
 
     def test_amcl_pose_anchors_map_frame_theta_and_records_offset(self):
         node = TurtleBotNode('tb3_01', obstacle_enabled=False)
@@ -224,6 +248,92 @@ class TurtleBotNodePoseSourceTest(unittest.TestCase):
         self.assertAlmostEqual(published[-1].x, 2.2)
         self.assertAlmostEqual(published[-1].y, 1.6)
         self.assertAlmostEqual(published[-1].theta, 1.0)
+
+
+class TurtleBotNodeStateTopicTest(unittest.TestCase):
+    def setUp(self):
+        _install_ros_stubs()
+        PUBLISHERS.clear()
+        SUBSCRIBERS.clear()
+        FakeTime._current = 100.0
+
+    def test_state_topic_publisher_is_created_and_latched(self):
+        TurtleBotNode('tb3_01', obstacle_enabled=False)
+
+        publisher = PUBLISHERS['/tb3_01/state']
+        self.assertTrue(publisher.latch)
+        self.assertEqual(publisher.queue_size, 1)
+
+    def test_publish_state_writes_current_robotmode_value(self):
+        from pathfinder.robot.robot_mode import RobotMode
+        node = TurtleBotNode('tb3_01', obstacle_enabled=False)
+        node._last_odom_received_at = FakeTime(FakeTime._current)
+        node._robot.set_following(True)
+
+        node._publish_state()
+
+        published = PUBLISHERS['/tb3_01/state'].published
+        self.assertGreaterEqual(len(published), 1)
+        self.assertEqual(published[-1].data, int(RobotMode.MOVING))
+
+    def test_on_scan_flips_state_to_obstacle_only_when_following(self):
+        from pathfinder.robot.robot_mode import RobotMode
+        node = TurtleBotNode('tb3_01', obstacle_enabled=True)
+        node._obstacle_detector = types.SimpleNamespace(detect=lambda message: True)
+        node._last_odom_received_at = FakeTime(FakeTime._current)
+
+        # Idle: scan detecting an obstacle should NOT promote status.
+        node._on_scan(types.SimpleNamespace())
+        self.assertEqual(node._state.status, RobotMode.IDLE)
+
+        # Following: scan detecting an obstacle SHOULD flip to OBSTACLE.
+        node._robot.set_following(True)
+        node._on_scan(types.SimpleNamespace())
+        self.assertEqual(node._state.status, RobotMode.OBSTACLE)
+
+        # Scan clearing the obstacle returns to MOVING.
+        node._obstacle_detector.detect = lambda message: False
+        node._on_scan(types.SimpleNamespace())
+        self.assertEqual(node._state.status, RobotMode.MOVING)
+
+
+class TurtleBotNodeOfflineDetectionTest(unittest.TestCase):
+    def setUp(self):
+        _install_ros_stubs()
+        PUBLISHERS.clear()
+        SUBSCRIBERS.clear()
+        FakeTime._current = 100.0
+
+    def test_initial_publish_state_writes_offline_before_any_odom(self):
+        from pathfinder.robot.robot_mode import RobotMode
+        node = TurtleBotNode('tb3_01', obstacle_enabled=False)
+
+        node._publish_state()
+
+        published = PUBLISHERS['/tb3_01/state'].published
+        self.assertEqual(published[-1].data, int(RobotMode.OFFLINE))
+
+    def test_on_odom_stamps_last_received_and_publish_state_writes_idle(self):
+        from pathfinder.robot.robot_mode import RobotMode
+        node = TurtleBotNode('tb3_01', obstacle_enabled=False, odom_pose_enabled=True)
+
+        node._on_odom(_odom_msg())
+        node._publish_state()
+
+        self.assertIsNotNone(node._last_odom_received_at)
+        published = PUBLISHERS['/tb3_01/state'].published
+        self.assertEqual(published[-1].data, int(RobotMode.IDLE))
+
+    def test_stale_odom_causes_publish_state_to_write_offline(self):
+        from pathfinder.robot.robot_mode import RobotMode
+        from pathfinder.ros.turtlebot_node import ODOM_FRESHNESS_SEC
+        node = TurtleBotNode('tb3_01', obstacle_enabled=False)
+        node._last_odom_received_at = FakeTime(FakeTime._current - ODOM_FRESHNESS_SEC - 1.0)
+
+        node._publish_state()
+
+        published = PUBLISHERS['/tb3_01/state'].published
+        self.assertEqual(published[-1].data, int(RobotMode.OFFLINE))
 
 
 if __name__ == '__main__':

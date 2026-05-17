@@ -23,7 +23,9 @@ function Section({ title, children }) {
   )
 }
 
-export default function RobotPanel({ robot, pose, pathStatus, onStop, onJogError }) {
+const STATE_LABELS = { 0: 'OFFLINE', 1: 'IDLE', 2: 'MOVING', 3: 'OBSTACLE' }
+
+export default function RobotPanel({ robot, pose, pathStatus, serverStateValue, online, onStop, onJogError }) {
   if (!robot) {
     return (
       <div style={{ padding: 16, color: '#444', fontSize: 13 }}>
@@ -55,17 +57,23 @@ export default function RobotPanel({ robot, pose, pathStatus, onStop, onJogError
 
       <Section title="STATUS">
         {(() => {
-          const moving = pathStatus && pathStatus.node_ids.length > 0
+          const stateValue = !online ? 0 : (serverStateValue ?? 1)
+          const moving = stateValue === 2
+          const stateLabel = STATE_LABELS[stateValue] ?? '—'
+          const stateColor =
+            stateValue === 0 ? '#ef4444' :
+            stateValue === 3 ? '#f59e0b' :
+            '#eee'
           return (
             <>
-              <Row label="state" value={moving ? 'MOVING' : 'IDLE'} />
+              <Row label="state" value={<span style={{ color: stateColor }}>{stateLabel}</span>} />
               <Row
                 label="target"
-                value={moving ? `node ${pathStatus.node_ids[pathStatus.node_ids.length - 1]}` : '—'}
+                value={moving && pathStatus ? `node ${pathStatus.node_ids[pathStatus.node_ids.length - 1]}` : '—'}
               />
               <Row
                 label="step"
-                value={moving ? `${pathStatus.current_index + 1} / ${pathStatus.node_ids.length}` : '—'}
+                value={moving && pathStatus ? `${pathStatus.current_index + 1} / ${pathStatus.node_ids.length}` : '—'}
               />
             </>
           )

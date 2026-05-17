@@ -1,10 +1,12 @@
 from __future__ import annotations
 import math
+import threading
 
 from geometry_msgs.msg import Pose2D
 
 from pathfinder.robot.motion_controller import MotionController
 from pathfinder.robot.path_follower import PathFollower
+from pathfinder.robot.robot_mode import RobotMode
 from pathfinder.robot.robot_state import RobotState
 from pathfinder.world.node import Node
 
@@ -23,6 +25,11 @@ class TurtleBot:
         self._state = state
         self._motion_controller = motion_controller
         self._path_follower = path_follower
+        self._is_online = False
+        self._is_following = False
+        self._is_obstacle = False
+        self._status_lock = threading.Lock()
+        self._recompute_status()
 
     @property
     def motion_controller(self) -> MotionController:
@@ -38,9 +45,41 @@ class TurtleBot:
         """Return a snapshot of the current pose."""
         return self._state.get_pose()
 
+    def set_following(self, on: bool) -> None:
+        """Mark whether a follow_path lifecycle is currently active."""
+        with self._status_lock:
+            self._is_following = on
+            self._recompute_status()
+
+    def set_obstacle(self, on: bool) -> None:
+        """Mark whether an obstacle currently blocks forward motion."""
+        with self._status_lock:
+            self._is_obstacle = on
+            self._recompute_status()
+
+    def set_online(self, on: bool) -> None:
+        """Mark whether the robot's /odom feed is fresh (robot reachable)."""
+        with self._status_lock:
+            self._is_online = on
+            self._recompute_status()
+
+    def _recompute_status(self) -> None:
+        if not self._is_online:
+            self._state.status = RobotMode.OFFLINE
+        elif not self._is_following:
+            self._state.status = RobotMode.IDLE
+        elif self._is_obstacle:
+            self._state.status = RobotMode.OBSTACLE
+        else:
+            self._state.status = RobotMode.MOVING
+
     def follow_path(self, nodes: list[Node]) -> bool:
         """Follow an ordered list of graph nodes; True when all reached, False if cancelled."""
-        return self._path_follower.follow(nodes)
+        self.set_following(True)
+        try:
+            return self._path_follower.follow(nodes)
+        finally:
+            self.set_following(False)
 
     def turn_left(self, radian: float) -> bool:
         """Turn left by radian; True when heading reached, False if cancelled or shutdown."""
