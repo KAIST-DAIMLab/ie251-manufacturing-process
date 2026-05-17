@@ -1,0 +1,18 @@
+[Unit]
+Description=TurtleBot3 bringup (probes ROS masters, execs roslaunch)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+EnvironmentFile=/etc/default/turtlebot3
+ExecStart=/usr/local/bin/turtlebot3-bringup
+Restart=always
+RestartSec=5
+
+# roslaunch needs a writable HOME (~/.ros) for logs
+Environment=HOME=/home/ubuntu
+
+[Install]
+WantedBy=multi-user.target
