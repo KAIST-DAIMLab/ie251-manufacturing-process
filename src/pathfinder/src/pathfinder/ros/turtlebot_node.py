@@ -121,19 +121,20 @@ class TurtleBotNode:
 
     def _on_odom(self, msg: Odometry) -> None:
         self._state.velocity = msg.twist.twist
-        if not self._odom_pose_enabled:
-            return
         odom_pose = msg.pose.pose
-        self._state.pose.x = odom_pose.position.x + self._state.origin.x
-        self._state.pose.y = odom_pose.position.y + self._state.origin.y
+        # Heading comes from wheel-encoder odom in every mode: it's smooth and
+        # high-rate, where AMCL is quantized at update_min_a (~5.7°) and makes
+        # the P-controller overshoot on turns.
         self._state.pose.theta = yaw_from_quaternion(odom_pose.orientation) + self._state.origin.theta
+        if self._odom_pose_enabled:
+            self._state.pose.x = odom_pose.position.x + self._state.origin.x
+            self._state.pose.y = odom_pose.position.y + self._state.origin.y
         self._pose_publisher.publish(self._state.get_pose())
 
     def _on_amcl_pose(self, msg: PoseWithCovarianceStamped) -> None:
         pose = msg.pose.pose
         self._state.pose.x = pose.position.x
         self._state.pose.y = pose.position.y
-        self._state.pose.theta = yaw_from_quaternion(pose.orientation)
         self._pose_publisher.publish(self._state.get_pose())
 
     def _on_scan(self, message: LaserScan) -> None:

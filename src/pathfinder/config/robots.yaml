@@ -5,7 +5,7 @@ robots:
     motion:
       linear_speed: 0.22
       angular_speed: 1.5
-      move_rate_hz: 5.0
+      move_rate_hz: 10
       arrival_tolerance: 0.05
     obstacle:
       enabled: true
@@ -17,7 +17,7 @@ robots:
     motion:
       linear_speed: 0.22
       angular_speed: 1.5
-      move_rate_hz: 5.0
+      move_rate_hz: 10
       arrival_tolerance: 0.05
     obstacle:
       enabled: true
