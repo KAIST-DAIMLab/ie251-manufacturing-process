@@ -41,6 +41,10 @@ sudo systemctl restart turtlebot3-bringup
 sudo systemctl disable --now turtlebot3-bringup
 ```
 
+If the ROS master goes offline, the wrapper detects it on the next probe
+(default 3s), kills the running roslaunch, and re-scans the candidate list.
+No manual `systemctl restart` is needed.
+
 ## Adding master candidates
 
 `ROS_MASTER_CANDIDATES` is a space-separated list. The wrapper tries each

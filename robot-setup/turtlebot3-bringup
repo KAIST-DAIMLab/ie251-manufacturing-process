@@ -31,14 +31,51 @@ probe_master() {
 }
 
 INTERVAL="${ROS_MASTER_PROBE_INTERVAL:-3}"
+KILL_GRACE_SEC=5
+roslaunch_pid=0
+
+cleanup() {
+  if [[ $roslaunch_pid -gt 0 ]] && kill -0 "$roslaunch_pid" 2>/dev/null; then
+    kill -TERM "$roslaunch_pid" 2>/dev/null || true
+    wait "$roslaunch_pid" 2>/dev/null || true
+  fi
+  exit 0
+}
+trap cleanup TERM INT
+
+run_until_master_lost() {
+  local uri="$1"
+  roslaunch turtlebot3_bringup turtlebot3_robot.launch \
+    "/tf:=/${ROS_NAMESPACE}/raw_tf" \
+    "/tf_static:=/${ROS_NAMESPACE}/raw_tf_static" &
+  roslaunch_pid=$!
+  while kill -0 "$roslaunch_pid" 2>/dev/null; do
+    sleep "$INTERVAL"
+    if ! probe_master "$uri"; then
+      echo "[turtlebot3-bringup] master $uri unreachable — terminating roslaunch"
+      kill -TERM "$roslaunch_pid" 2>/dev/null || true
+      for _ in $(seq 1 "$KILL_GRACE_SEC"); do
+        kill -0 "$roslaunch_pid" 2>/dev/null || break
+        sleep 1
+      done
+      kill -KILL "$roslaunch_pid" 2>/dev/null || true
+      wait "$roslaunch_pid" 2>/dev/null || true
+      roslaunch_pid=0
+      return
+    fi
+  done
+  wait "$roslaunch_pid" 2>/dev/null || true
+  roslaunch_pid=0
+}
+
 while true; do
   for uri in ${ROS_MASTER_CANDIDATES:-}; do
     if probe_master "$uri"; then
       export ROS_MASTER_URI="$uri"
       echo "[turtlebot3-bringup] using master $uri (ns=$ROS_NAMESPACE, hostname=$ROS_HOSTNAME)"
-      exec roslaunch turtlebot3_bringup turtlebot3_robot.launch \
-        "/tf:=/${ROS_NAMESPACE}/raw_tf" \
-        "/tf_static:=/${ROS_NAMESPACE}/raw_tf_static"
+      run_until_master_lost "$uri"
+      echo "[turtlebot3-bringup] disconnected from $uri — re-probing"
+      continue 2
     fi
   done
   echo "[turtlebot3-bringup] no master reachable in: ${ROS_MASTER_CANDIDATES:-<empty>} — retrying in ${INTERVAL}s"
