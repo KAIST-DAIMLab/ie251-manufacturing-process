@@ -4,6 +4,7 @@ RUN apt-get update && apt-get install -y \
     ros-noetic-rosbridge-suite \
     ros-noetic-map-server \
     ros-noetic-amcl \
+    ros-noetic-tf \
     ros-noetic-tf2-ros \
     ros-noetic-turtlebot3-description \
     python3-pip \
