@@ -29,23 +29,40 @@ export default function App() {
   const [rosConnected, setRosConnected] = useState(false)
 
   useEffect(() => {
-    const onConnection = () => {
-      setRosConnected(true)
-      Promise.all([fetchGraph(), fetchRobots()])
-        .then(([graphData, robotsData]) => {
+    let ctrl = { active: false }
+
+    const onConnection = async () => {
+      ctrl = { active: true }
+      const myCtrl = ctrl
+      for (let attempt = 0; myCtrl.active; attempt++) {
+        try {
+          const [graphData, robotsData] = await Promise.all([fetchGraph(), fetchRobots()])
+          if (!myCtrl.active) return
           setGraph(graphData)
           setRobots(robotsData.robots)
-        })
-        .catch((error) => console.error('init error:', error))
+          setRosConnected(true)
+          return
+        } catch (_err) {
+          if (attempt >= 9 || !myCtrl.active) return
+          await new Promise((r) => setTimeout(r, 2000))
+        }
+      }
     }
-    const onClose = () => setRosConnected(false)
-    const onError = () => setRosConnected(false)
+    const onClose = () => {
+      ctrl.active = false
+      setRosConnected(false)
+    }
+    const onError = () => {
+      ctrl.active = false
+      setRosConnected(false)
+    }
 
     ros.on('connection', onConnection)
     ros.on('close', onClose)
     ros.on('error', onError)
 
     return () => {
+      ctrl.active = false
       ros.off('connection', onConnection)
       ros.off('close', onClose)
       ros.off('error', onError)
