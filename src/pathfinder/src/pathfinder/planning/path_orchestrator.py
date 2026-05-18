@@ -4,7 +4,7 @@ from pathfinder.utils.physics import heading_offset, planar_distance
 from pathfinder.world.edge import Edge
 from pathfinder.world.graph import Graph
 from pathfinder.world.node import Node
-from pathfinder.planning.path_planner import PathPlanner
+from pathfinder.planning.a_star_planner import PathPlanner
 
 if TYPE_CHECKING:
     from geometry_msgs.msg import Pose2D

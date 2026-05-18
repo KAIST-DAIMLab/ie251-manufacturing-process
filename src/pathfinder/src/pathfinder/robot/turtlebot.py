@@ -22,12 +22,14 @@ class TurtleBot:
         motion_controller: MotionController,
         path_follower: PathFollower,
         initial_pose_publisher: Callable[[float, float, float], None],
+        pose_provider: Callable[[], Pose2D],
     ) -> None:
         self.id = robot_id
         self._state = state
         self._motion_controller = motion_controller
         self._path_follower = path_follower
         self._initial_pose_publisher = initial_pose_publisher
+        self._pose_provider = pose_provider
         self._is_online = False
         self._is_following = False
         self._is_obstacle = False
@@ -45,8 +47,8 @@ class TurtleBot:
         return self._path_follower
 
     def get_pose(self) -> Pose2D:
-        """Return a snapshot of the current pose."""
-        return self._state.get_pose()
+        """Return a snapshot of the current map-frame pose."""
+        return self._pose_provider()
 
     def set_following(self, on: bool) -> None:
         """Mark whether a follow_path lifecycle is currently active."""

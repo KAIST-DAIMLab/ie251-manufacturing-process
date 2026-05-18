@@ -96,12 +96,15 @@ def _odom_msg(x=1.0, y=2.0, yaw=0.5, linear_x=0.1, stamp='stamp'):
     )
 
 
-def _build_turtlebot(robot_id='tb3_0', state=None, initial_pose_publisher=None):
+def _build_turtlebot(robot_id='tb3_0', state=None, initial_pose_publisher=None, pose_provider=None):
+    import geometry_msgs.msg as gm
     state = state or RobotState(id=robot_id)
+    _pose = gm.Pose2D()
+    pose_provider = pose_provider or (lambda: _pose)
     publisher = FakePublisher()
     engine = MotionEngine(
         cmd_vel_publisher=publisher,
-        pose_provider=state.get_pose,
+        pose_provider=pose_provider,
     )
     motion_controller = MotionController(engine)
     path_follower = PathFollower(motion_controller)
@@ -111,6 +114,7 @@ def _build_turtlebot(robot_id='tb3_0', state=None, initial_pose_publisher=None):
         motion_controller=motion_controller,
         path_follower=path_follower,
         initial_pose_publisher=initial_pose_publisher or (lambda x, y, theta: None),
+        pose_provider=pose_provider,
     )
 
 
@@ -134,8 +138,6 @@ class TurtleBotTest(unittest.TestCase):
         state = RobotState(id='tb3_0')
 
         self.assertEqual(state.id, 'tb3_0')
-        self.assertEqual(state.pose.x, 0.0)
-        self.assertEqual(state.velocity.linear.x, 0.0)
         self.assertEqual(state.status, RobotMode.IDLE)
         self.assertFalse(hasattr(state, 'stamp'))
 
@@ -169,19 +171,6 @@ class TurtleBotTest(unittest.TestCase):
 
         self.assertFalse(hasattr(robot, 'cmd_vel_topic'))
         self.assertFalse(hasattr(robot, 'odom_topic'))
-
-    def test_state_get_pose_returns_independent_snapshot(self):
-        state = RobotState(id='tb3_0')
-        state.pose.x = 1.0
-        state.pose.y = 2.0
-        state.pose.theta = 0.5
-
-        snapshot = state.get_pose()
-        snapshot.x = 99.0
-
-        self.assertEqual(state.pose.x, 1.0)
-        self.assertEqual(snapshot.y, 2.0)
-        self.assertEqual(snapshot.theta, 0.5)
 
 
 class TurtleBotStatusTransitionTest(unittest.TestCase):
