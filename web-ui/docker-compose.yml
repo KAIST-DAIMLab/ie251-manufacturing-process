@@ -3,6 +3,7 @@ services:
     build: .
     image: pathfinder-web-ui
     container_name: pathfinder-web-ui
+    restart: unless-stopped
     network_mode: host
     volumes:
       - .:/app
