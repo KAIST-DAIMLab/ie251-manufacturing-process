@@ -1,0 +1,13 @@
+services:
+  roscore:
+    image: ros:noetic-ros-core
+    container_name: roscore
+    hostname: roscore
+    network_mode: host
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - ROS_HOSTNAME=${ROS_HOSTNAME}
+      - ROS_MASTER_URI=${ROS_MASTER_URI}
+    command: roscore
