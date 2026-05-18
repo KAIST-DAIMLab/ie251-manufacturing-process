@@ -10,4 +10,5 @@ services:
     environment:
       - ROS_HOSTNAME=${ROS_HOSTNAME}
       - ROS_MASTER_URI=${ROS_MASTER_URI}
+      - PYTHONUNBUFFERED=1
     command: roscore
