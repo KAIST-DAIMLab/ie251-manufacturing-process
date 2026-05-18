@@ -1,0 +1,9 @@
+services:
+  pathfinder:
+    build: .
+    container_name: pathfinder
+    network_mode: host
+    env_file:
+      - .env
+    volumes:
+      - ../../src:/workspace/src

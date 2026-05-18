@@ -6,7 +6,7 @@ robots:
       linear_speed: 0.22
       angular_speed: 1.3
       move_rate_hz: 10
-      arrival_tolerance: 0.1
+      arrival_tolerance: 0.06
       turning_tolerance: 0.13
     obstacle:
       enabled: true
@@ -19,7 +19,7 @@ robots:
       linear_speed: 0.22
       angular_speed: 1.3
       move_rate_hz: 10
-      arrival_tolerance: 0.1
+      arrival_tolerance: 0.06
       turning_tolerance: 0.13
     obstacle:
       enabled: true

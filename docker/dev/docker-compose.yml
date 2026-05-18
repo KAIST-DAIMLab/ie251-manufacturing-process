@@ -16,7 +16,7 @@ services:
       - XAUTHORITY=/tmp/.docker.xauth
     volumes:
       - noetic-home:/home/ubuntu
-      - ..:/home/ubuntu/workspace
+      - ../..:/home/ubuntu/workspace
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
       - /tmp/.docker.xauth:/tmp/.docker.xauth:rw
     devices:
