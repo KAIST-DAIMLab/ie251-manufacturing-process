@@ -31,16 +31,22 @@ export default function App() {
   useEffect(() => {
     let ctrl = { active: false }
 
+    const fetchAll = () =>
+      Promise.race([
+        Promise.all([fetchGraph(), fetchRobots()]),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000)),
+      ])
+
     const onConnection = async () => {
+      setRosConnected(true)
       ctrl = { active: true }
       const myCtrl = ctrl
       for (let attempt = 0; myCtrl.active; attempt++) {
         try {
-          const [graphData, robotsData] = await Promise.all([fetchGraph(), fetchRobots()])
+          const [graphData, robotsData] = await fetchAll()
           if (!myCtrl.active) return
           setGraph(graphData)
           setRobots(robotsData.robots)
-          setRosConnected(true)
           return
         } catch (_err) {
           if (attempt >= 9 || !myCtrl.active) return
