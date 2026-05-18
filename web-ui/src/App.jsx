@@ -200,16 +200,16 @@ export default function App() {
       <h1 style={{ marginBottom: 12, fontSize: 16, letterSpacing: 1 }}>PATHFINDER MONITOR</h1>
 
       {!rosConnected && (
-          <div style={{
-              marginBottom: 8,
-              padding: '6px 12px',
-              background: '#7f1d1d',
-              borderLeft: '3px solid #ef4444',
-              color: '#fca5a5',
-              fontSize: 13,
-          }}>
-              Reconnecting to rosbridge...
-          </div>
+        <div style={{
+          marginBottom: 8,
+          padding: '6px 12px',
+          background: '#7f1d1d',
+          borderLeft: '3px solid #ef4444',
+          color: '#fca5a5',
+          fontSize: 13,
+        }}>
+          Reconnecting to rosbridge...
+        </div>
       )}
 
       <p style={{ marginBottom: 8, color: '#888' }}>
