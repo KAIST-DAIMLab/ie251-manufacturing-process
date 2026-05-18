@@ -150,36 +150,33 @@ export default function TeleopControls({ robot, onError }) {
   const isBusy = holdRef.current !== null
 
   return (
-    <div style={{ marginBottom: 14 }}>
-      <div style={{ color: '#555', fontSize: 10, letterSpacing: 1, marginBottom: 6 }}>TELEOP</div>
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateAreas: '". forward ." "left . right" ". backward ."',
-          gridTemplateColumns: '40px 40px 40px',
-          gridTemplateRows: '40px 40px 40px',
-          gap: 8,
-        }}
-      >
-        {Object.entries(COMMANDS).map(([command, config]) => (
-          <button
-            key={command}
-            type="button"
-            aria-label={config.label}
-            title={config.label}
-            onPointerDown={(event) => handlePointerDown(event, command)}
-            onPointerUp={handlePointerUp}
-            onPointerCancel={handlePointerUp}
-            onLostPointerCapture={handlePointerUp}
-            style={{
-              ...buttonStyle(activeCommand === command || pendingCommand === command, isBusy),
-              gridArea: config.gridArea,
-            }}
-          >
-            <TeleopIcon command={command} />
-          </button>
-        ))}
-      </div>
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateAreas: '". forward ." "left . right" ". backward ."',
+        gridTemplateColumns: '40px 40px 40px',
+        gridTemplateRows: '40px 40px 40px',
+        gap: 8,
+      }}
+    >
+      {Object.entries(COMMANDS).map(([command, config]) => (
+        <button
+          key={command}
+          type="button"
+          aria-label={config.label}
+          title={config.label}
+          onPointerDown={(event) => handlePointerDown(event, command)}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerUp}
+          onLostPointerCapture={handlePointerUp}
+          style={{
+            ...buttonStyle(activeCommand === command || pendingCommand === command, isBusy),
+            gridArea: config.gridArea,
+          }}
+        >
+          <TeleopIcon command={command} />
+        </button>
+      ))}
     </div>
   )
 }

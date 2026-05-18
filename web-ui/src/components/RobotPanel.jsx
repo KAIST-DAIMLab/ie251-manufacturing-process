@@ -1,4 +1,5 @@
 import React from 'react'
+import RotationDial from './RotationDial.jsx'
 import TeleopControls from './TeleopControls.jsx'
 
 const toDeg = (rad) => ((rad * 180) / Math.PI).toFixed(1)
@@ -114,7 +115,18 @@ export default function RobotPanel({ robot, pose, pathStatus, serverStateValue, 
         <Row label="detect" value={`${robot.obstacle.detect_degree}°`} />
       </Section>
 
-      <TeleopControls robot={robot} onError={onJogError} />
+      <div style={{ marginBottom: 14 }}>
+        <div style={{ color: '#555', fontSize: 10, letterSpacing: 1, marginBottom: 6 }}>MANUAL CONTROL</div>
+        <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+          <RotationDial
+            robot={robot}
+            theta={pose?.theta ?? 0}
+            disabled={!online || serverStateValue === 2}
+            onError={onJogError}
+          />
+          <TeleopControls robot={robot} onError={onJogError} />
+        </div>
+      </div>
 
       <Section title="LIVE POSE">
         {pose ? (
