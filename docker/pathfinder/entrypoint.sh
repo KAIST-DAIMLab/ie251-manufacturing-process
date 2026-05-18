@@ -10,8 +10,19 @@ while true; do
     until rostopic list > /dev/null 2>&1; do sleep 2; done
 
     echo "[pathfinder] roscore detected, launching..."
-    roslaunch pathfinder robots.launch "$@" || true
+    roslaunch pathfinder robots.launch "$@" &
+    LAUNCH_PID=$!
 
-    echo "[pathfinder] roslaunch exited, Waiting for roscore..."
+    while kill -0 $LAUNCH_PID 2>/dev/null; do
+        if ! rostopic list > /dev/null 2>&1; then
+            echo "[pathfinder] roscore lost, stopping roslaunch..."
+            kill $LAUNCH_PID 2>/dev/null || true
+            wait $LAUNCH_PID 2>/dev/null || true
+            break
+        fi
+        sleep 2
+    done
+
+    echo "[pathfinder] Waiting for roscore..."
     sleep 2
 done
