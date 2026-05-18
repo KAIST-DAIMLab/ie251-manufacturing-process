@@ -12,6 +12,6 @@ while true; do
     echo "[pathfinder] roscore detected, launching..."
     roslaunch pathfinder robots.launch "$@" || true
 
-    echo "[pathfinder] roslaunch exited, waiting for roscore..."
+    echo "[pathfinder] roslaunch exited, Waiting for roscore..."
     sleep 2
 done
