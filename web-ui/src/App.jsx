@@ -10,6 +10,7 @@ import { subscribeState } from './ros/subscribeState.js'
 import { moveToNode } from './ros/moveToNode.js'
 import { cancelPath } from './ros/cancelPath.js'
 import { relocalize } from './ros/relocalize.js'
+import ros from './ros/rosClient.js'
 
 const STATE_FRESHNESS_MS = 2500
 const ONLINE_CHECK_INTERVAL_MS = 500
@@ -25,14 +26,30 @@ export default function App() {
   const [banner, setBanner] = useState(null)
   const [dragState, setDragState] = useState(null)
   const [relocalizeState, setRelocalizeState] = useState(null)
+  const [rosConnected, setRosConnected] = useState(false)
 
   useEffect(() => {
-    Promise.all([fetchGraph(), fetchRobots()])
-      .then(([graphData, robotsData]) => {
-        setGraph(graphData)
-        setRobots(robotsData.robots)
-      })
-      .catch((error) => console.error('init error:', error))
+    const onConnection = () => {
+      setRosConnected(true)
+      Promise.all([fetchGraph(), fetchRobots()])
+        .then(([graphData, robotsData]) => {
+          setGraph(graphData)
+          setRobots(robotsData.robots)
+        })
+        .catch((error) => console.error('init error:', error))
+    }
+    const onClose = () => setRosConnected(false)
+    const onError = () => setRosConnected(false)
+
+    ros.on('connection', onConnection)
+    ros.on('close', onClose)
+    ros.on('error', onError)
+
+    return () => {
+      ros.off('connection', onConnection)
+      ros.off('close', onClose)
+      ros.off('error', onError)
+    }
   }, [])
 
   useEffect(() => {
@@ -181,6 +198,19 @@ export default function App() {
   return (
     <div style={{ padding: 16 }}>
       <h1 style={{ marginBottom: 12, fontSize: 16, letterSpacing: 1 }}>PATHFINDER MONITOR</h1>
+
+      {!rosConnected && (
+          <div style={{
+              marginBottom: 8,
+              padding: '6px 12px',
+              background: '#7f1d1d',
+              borderLeft: '3px solid #ef4444',
+              color: '#fca5a5',
+              fontSize: 13,
+          }}>
+              Reconnecting to rosbridge...
+          </div>
+      )}
 
       <p style={{ marginBottom: 8, color: '#888' }}>
         {dragState
