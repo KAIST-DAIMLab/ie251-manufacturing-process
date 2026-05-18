@@ -67,6 +67,10 @@ export default function App() {
     ros.on('close', onClose)
     ros.on('error', onError)
 
+    if (ros.isConnected) {
+      onConnection()
+    }
+
     return () => {
       ctrl.active = false
       ros.off('connection', onConnection)
