@@ -10,7 +10,8 @@ while true; do
     until rostopic list > /dev/null 2>&1; do sleep 2; done
 
     echo "[pathfinder] roscore detected, launching..."
-    roslaunch pathfinder robots.launch "$@" &
+    roslaunch pathfinder robots.launch "$@" \
+        > >(grep --line-buffered -v 'XmlRpcClient\|XmlRpcDispatch') 2>&1 &
     LAUNCH_PID=$!
 
     while kill -0 $LAUNCH_PID 2>/dev/null; do
@@ -20,7 +21,7 @@ while true; do
             wait $LAUNCH_PID 2>/dev/null || true
             break
         fi
-        sleep 2
+        sleep 0.5
     done
 
     echo "[pathfinder] Waiting for roscore..."
