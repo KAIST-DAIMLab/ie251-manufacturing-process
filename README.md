@@ -104,6 +104,7 @@ The ROS launch files start rosbridge on port `9090` by default.
 ```bash
 cd web-ui
 cp .env.example .env
+cd ../docker/web-ui
 docker compose up
 ```
 
