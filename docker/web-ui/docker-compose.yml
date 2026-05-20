@@ -1,12 +1,14 @@
 services:
   web-ui:
-    build: .
+    build:
+      context: ../../web-ui
+      dockerfile: ../docker/web-ui/Dockerfile
     image: pathfinder-web-ui
     container_name: pathfinder-web-ui
     restart: unless-stopped
     network_mode: host
     volumes:
-      - .:/app
+      - ../../web-ui:/app
       - web-ui-node-modules:/app/node_modules
     command: npm run dev
 
