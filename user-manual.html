@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>User Manual</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 16mm 18mm 18mm 18mm;
+      @bottom-center {
+        content: "Page " counter(page) " of " counter(pages);
+        font-family: 'Helvetica Neue', Arial, sans-serif;
+        font-size: 8pt;
+        color: #777;
+      }
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 9.5pt;
+      line-height: 1.55;
+      color: #111;
+      background: #fff;
+      width: 174mm;
+      margin: 0 auto;
+      padding: 16mm 18mm;
+    }
+
+    @media print {
+      body { padding: 0; width: 100%; }
+    }
+
+    /* ── Header ─────────────────────────────────────── */
+    .doc-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      border-bottom: 2.5pt solid #111;
+      padding-bottom: 5pt;
+      margin-bottom: 10pt;
+    }
+    .doc-header h1 {
+      font-size: 24pt;
+      font-weight: 800;
+      letter-spacing: -0.4pt;
+      line-height: 1;
+    }
+    .doc-header .meta {
+      text-align: right;
+      font-size: 8pt;
+      color: #555;
+      line-height: 1.4;
+    }
+
+    /* ── Intro ───────────────────────────────────────── */
+    .intro {
+      font-size: 9pt;
+      line-height: 1.6;
+      padding: 8pt 10pt;
+      border-left: 3pt solid #333;
+      background: #f5f5f5;
+      margin-bottom: 14pt;
+    }
+
+    /* ── Section headings ────────────────────────────── */
+    h2 {
+      font-size: 11pt;
+      font-weight: 700;
+      color: #fff;
+      background: #222;
+      padding: 3pt 8pt;
+      margin-top: 8pt;
+      margin-bottom: 5pt;
+    }
+    h3 {
+      font-size: 10pt;
+      font-weight: 700;
+      margin-top: 6pt;
+      margin-bottom: 3pt;
+      border-bottom: 0.75pt solid #bbb;
+      padding-bottom: 1.5pt;
+    }
+
+    /* ── Body text ───────────────────────────────────── */
+    p { margin-bottom: 5pt; }
+    ol, ul { margin-left: 16pt; margin-bottom: 5pt; }
+    li { margin-bottom: 2pt; }
+    code {
+      font-family: 'Courier New', monospace;
+      font-size: 8.5pt;
+      background: #eee;
+      padding: 0 2pt;
+    }
+    strong { font-weight: 700; }
+
+    /* ── Callout boxes ───────────────────────────────── */
+    .warn, .note {
+      font-size: 8.5pt;
+      padding: 5pt 7pt;
+      margin: 5pt 0;
+      line-height: 1.45;
+    }
+    .warn {
+      border: 1.25pt solid #c00;
+    }
+    .warn .label { color: #c00; font-weight: 700; }
+    .note {
+      border: 1pt solid #999;
+      background: #f9f9f9;
+    }
+    .note .label { font-weight: 700; }
+
+    /* ── Images ──────────────────────────────────────── */
+    .fig {
+      margin: 5pt 0 2pt 0;
+      text-align: center;
+    }
+    .fig img {
+      max-width: 100%;
+      display: block;
+      margin: 0 auto;
+      border: 0.75pt solid #ccc;
+    }
+    .fig figcaption {
+      font-size: 7.5pt;
+      color: #555;
+      font-style: italic;
+      margin-top: 3pt;
+    }
+
+    /* ── Two-column layout ───────────────────────────── */
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      column-gap: 10pt;
+      gap: 10pt;
+    }
+
+    /* Aligned variant: each row of children lines up across columns */
+    .two-col.aligned { row-gap: 0; }
+    .two-col.aligned > .col { display: contents; }
+    .two-col.aligned > .col > :nth-child(1) { grid-column: var(--c); grid-row: 1; align-self: start; }
+    .two-col.aligned > .col > :nth-child(2) { grid-column: var(--c); grid-row: 2; align-self: end; }
+    .two-col.aligned > .col > :nth-child(3) { grid-column: var(--c); grid-row: 3; align-self: start; }
+    .two-col.aligned > .col > :nth-child(4) { grid-column: var(--c); grid-row: 4; align-self: start; }
+    .two-col.aligned > .col > :nth-child(5) { grid-column: var(--c); grid-row: 5; align-self: start; }
+    .two-col.aligned > .col > :nth-child(6) { grid-column: var(--c); grid-row: 6; align-self: start; }
+    .two-col.aligned > .col:nth-of-type(1) { --c: 1; }
+    .two-col.aligned > .col:nth-of-type(2) { --c: 2; }
+
+    /* ── Quick-reference table ───────────────────────── */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 8.5pt;
+      margin-top: 4pt;
+    }
+    thead th {
+      background: #333;
+      color: #fff;
+      padding: 3pt 7pt;
+      text-align: left;
+      font-weight: 600;
+    }
+    tbody td {
+      padding: 2.5pt 7pt;
+      border-bottom: 0.5pt solid #ddd;
+      vertical-align: top;
+    }
+    tbody tr:nth-child(even) td { background: #f5f5f5; }
+
+    /* ── Page break ──────────────────────────────────── */
+    .page-break { page-break-before: always; }
+
+    /* ── Contacts box ────────────────────────────────── */
+    .contacts {
+      border: 1pt dashed #555;
+      padding: 7pt 10pt;
+      margin-top: 14pt;
+      font-size: 9pt;
+    }
+    .contacts .label {
+      font-weight: 700;
+      margin-bottom: 5pt;
+      display: block;
+    }
+    .contacts table {
+      width: auto;
+      border-collapse: collapse;
+      margin-left: 4pt;
+    }
+    .contacts td {
+      padding: 1pt 0;
+      border: none;
+      background: transparent !important;
+      vertical-align: middle;
+      font-size: 9pt;
+    }
+    .contacts td.role { padding-right: 8pt; color: #555; }
+    .contacts td.name { font-weight: 600; padding-right: 10pt; }
+    .contacts td.email { color: #333; }
+
+    /* ── Footer rule ─────────────────────────────────── */
+    .doc-footer {
+      border-top: 0.75pt solid #bbb;
+      margin-top: 10pt;
+      padding-top: 4pt;
+      font-size: 7.5pt;
+      color: #777;
+      display: flex;
+      justify-content: space-between;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ── Document header ───────────────────────────── -->
+  <div class="doc-header">
+    <h1>User Manual</h1>
+    <div class="meta">
+      IE251 Manufacturing Process<br>
+      KAIST Industrial &amp; Systems Engineering<br>
+      Prof. Youngjae Jang
+    </div>
+  </div>
+
+  <!-- ── Introduction ──────────────────────────────── -->
+  <div class="intro">
+    Students will be provided an easy-to-use GUI web to operate robots. It&rsquo;s intended to reduce
+    the burden of ROS coding and allow students to focus on practicing scheduling. This document
+    explains the user interface and basic operation methods for controlling two TurtleBot robots
+    in the final project.
+  </div>
+
+  <!-- ══════════════════════════════════════════════ -->
+  <!-- Section 1 + 2 side-by-side                     -->
+  <!-- ══════════════════════════════════════════════ -->
+  <div class="two-col aligned">
+
+    <!-- ── Section 1: Power ──────────────────────── -->
+    <div class="col">
+      <h2>1. Power On</h2>
+
+      <figure class="fig">
+        <img src=".images/MANUAL-power.png" alt="Power switches on the robot" style="max-height:110pt;">
+        <figcaption>Fig. 1: Power switch on the front of the robot</figcaption>
+      </figure>
+
+      <p>The power switch is on the front of the robot.</p>
+
+      <ol>
+        <li>Place the robot at its designated start station.</li>
+        <li>Flip <strong>the switch</strong> to the ON position.</li>
+        <li>Wait <strong>2&ndash;3 minutes</strong> for the robot to boot and connect.</li>
+        <li>The robot appears automatically in the web dashboard.</li>
+      </ol>
+
+      <div class="note">
+        <span class="label">Note:</span> If the robot is turned on at a different station or angle from its physical location, perform <strong>Relocalize</strong> (Section 4.3) before issuing any move commands.
+      </div>
+
+      <div class="warn">
+        <span class="label">Important:</span> Always <strong>power off</strong> the robot (flip the switch to OFF) when you finish using it.
+      </div>
+    </div>
+
+    <!-- ── Section 2: Battery ─────────────────────── -->
+    <div class="col">
+      <h2>2. Battery Replacement</h2>
+
+      <figure class="fig">
+        <img src=".images/MANUAL-battery.jpg" alt="Battery location on the robot" style="max-height:110pt;">
+        <figcaption>Fig. 2: Li-Po battery</figcaption>
+      </figure>
+
+      <p>When the Li-Po battery is depleted, the robot halts and emits a <strong>beep</strong> sound.</p>
+
+      <ol>
+        <li>Flip the power switch OFF.</li>
+        <li>Remove the battery.</li>
+        <li>Disconnect the battery connector.</li>
+        <li>Connect a charged spare and place it back.</li>
+        <li>Power on; the robot reconnects after ~2&ndash;3 min.</li>
+      </ol>
+
+      <div class="note">
+        <span class="label">Note:</span> Charged spare batteries are on the charging station beside the testbed. Return depleted batteries to the charger immediately.
+      </div>
+    </div>
+
+  </div><!-- /.two-col -->
+
+  <!-- ══════════════════════════════════════════════ -->
+  <!-- Section 3: Laptop                              -->
+  <!-- ══════════════════════════════════════════════ -->
+  <h2>3. Laptop</h2>
+  <p>The ROS server and the Web UI run on the laptop automatically. You do <strong>not</strong> need to start or stop anything by hand.</p>
+  <ul>
+    <li>You can safely <strong>power off</strong>, <strong>sleep</strong>, <strong>suspend</strong>, or <strong>reboot</strong> the laptop at any time.</li>
+    <li><strong>Recommended: keep the laptop on 24/7.</strong> You don&rsquo;t have to turn it off actually.</li>
+    <li>If the laptop reboots, wait about <strong>1 minute</strong>, then open <strong>http://localhost:5173</strong> in the browser and refresh the page.</li>
+  </ul>
+
+  <!-- ── Contacts ────────────────────────────────────── -->
+  <div class="contacts">
+    <span class="label">&#128222; Contacts</span>
+    <table>
+      <tr><td class="role">TA</td><td class="name">Wonseok Jang</td><td class="email">cotidie@kaist.ac.kr</td></tr>
+      <tr><td class="role">TA</td><td class="name">Mingyu Seo</td><td class="email">mg0208@kaist.ac.kr</td></tr>
+      <tr><td class="role">TA</td><td class="name">Sangjin Ban</td><td class="email">sahngjin.ban@kaist.ac.kr</td></tr>
+    </table>
+  </div>
+
+  <!-- ══════════════════════════════════════════════ -->
+  <!-- Section 4: GUI Operations                      -->
+  <!-- ══════════════════════════════════════════════ -->
+  <h2 class="page-break">4. Web UI Operations</h2>
+
+  <p style="margin-bottom:6pt;">
+    Open <strong>http://localhost:5173</strong> on the provided LG Gram laptop. The left panel shows the graph map with live robot positions; the right panel shows the selected robot&rsquo;s status and controls.
+  </p>
+
+  <div class="two-col">
+
+    <!-- ── 3.1 Move ─────────────────────────────── -->
+    <div class="col">
+      <h3>4.1 &nbsp;Move</h3>
+      <figure class="fig">
+        <img src=".images/README-move.png" alt="Move: click then drag" style="max-height:86pt;">
+        <figcaption>Fig. 3: Click a robot, then drag it to the target node</figcaption>
+      </figure>
+      <ol>
+        <li><strong>Click</strong> a robot icon to select it (highlight box appears).</li>
+        <li><strong>Drag</strong> the robot to a destination graph node and release.</li>
+        <li>The server plans a Dijkstra shortest path and dispatches it. The panel shows <code>MOVING</code>, the target node, and step progress (e.g. <code>2 / 3</code>).</li>
+      </ol>
+    </div>
+
+    <!-- ── 3.2 Stop ──────────────────────────────── -->
+    <div class="col">
+      <h3>4.2 &nbsp;Stop</h3>
+      <figure class="fig">
+        <img src=".images/README-stop.png" alt="Stop: click then press Stop" style="max-height:86pt;">
+        <figcaption>Fig. 4: Click a robot, then press the Stop button</figcaption>
+      </figure>
+      <ol>
+        <li><strong>Click</strong> a robot on the map to select it.</li>
+        <li>Click the red <strong>Stop</strong> button in the right panel.</li>
+        <li>The robot halts immediately; state returns to <code>IDLE</code>.</li>
+      </ol>
+    </div>
+
+  </div><!-- /.two-col -->
+
+  <!-- ── 3.3 Relocalize (full width) ─────────────── -->
+  <h3>4.3 &nbsp;Relocalize</h3>
+  <figure class="fig">
+    <img src=".images/README-relocate.png" alt="Relocalize: set robot heading" style="max-height:90pt;">
+    <figcaption>Fig. 5: Drag to set heading after a manual placement</figcaption>
+  </figure>
+  <div class="two-col" style="margin-top:4pt;">
+    <div class="col">
+      <p>Use this whenever the robot&rsquo;s real location or heading no longer matches what is shown on the map, for example after physically moving the robot or powering on at a different station or angle.</p>
+    </div>
+    <div class="col">
+      <ol>
+        <li><strong>Click</strong> a robot to select it.</li>
+        <li>Click the purple <strong>Relocalize&hellip;</strong> button.</li>
+        <li><strong>Drag</strong> on the map to set the heading; release to confirm. Press <strong>ESC</strong> to cancel.</li>
+        <li>The pose estimate updates; no motion is sent to the robot.</li>
+      </ol>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════ -->
+  <!-- Section 4: Quick Reference                     -->
+  <!-- ══════════════════════════════════════════════ -->
+  <h2>5. Quick Reference</h2>
+  <table>
+    <thead>
+      <tr>
+        <th style="width:22%;">Action</th>
+        <th style="width:38%;">How</th>
+        <th>Result</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Power on</strong></td>
+        <td>Flip both switches ON</td>
+        <td>Robot appears in dashboard after ~2&ndash;3 min</td>
+      </tr>
+      <tr>
+        <td><strong>Move</strong></td>
+        <td>Click robot &rarr; drag to node</td>
+        <td>Dijkstra path dispatched; state = <code>MOVING</code></td>
+      </tr>
+      <tr>
+        <td><strong>Stop</strong></td>
+        <td>Click robot &rarr; press Stop</td>
+        <td>Immediate halt; state = <code>IDLE</code></td>
+      </tr>
+      <tr>
+        <td><strong>Relocalize</strong></td>
+        <td>Click robot &rarr; Relocalize&hellip; &rarr; drag heading</td>
+        <td>Pose updated; no motion</td>
+      </tr>
+      <tr>
+        <td><strong>Replace battery</strong></td>
+        <td>Power off &rarr; swap battery &rarr; power on</td>
+        <td>Robot reconnects after ~2&ndash;3 min</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ── Footer ────────────────────────────────────── -->
+  <div class="doc-footer">
+    <span>IE251 Manufacturing Process, KAIST ISE</span>
+    <span>TurtleBot3 Pathfinder User Manual</span>
+  </div>
+
+</body>
+</html>
