@@ -42,6 +42,17 @@ export default function GraphCanvas({
   const SVG_W = 700
   const SVG_H = 500
   const svgRef = useRef(null)
+  const activePointerIdRef = useRef(null)
+
+  function releaseActivePointer() {
+    const pointerId = activePointerIdRef.current
+    if (pointerId === null) return
+    activePointerIdRef.current = null
+    const svg = svgRef.current
+    if (svg && svg.hasPointerCapture && svg.hasPointerCapture(pointerId)) {
+      svg.releasePointerCapture(pointerId)
+    }
+  }
 
   const nodeMap = useMemo(
     () => Object.fromEntries(graph.nodes.map((n) => [n.id, n])),
@@ -89,8 +100,12 @@ export default function GraphCanvas({
     return nearest
   }
 
-  function handleMouseMove(event) {
-    if (dragState) {
+  function isOwnedPointerEvent(event) {
+    return activePointerIdRef.current === null || event.pointerId === activePointerIdRef.current
+  }
+
+  function handlePointerMove(event) {
+    if (dragState && isOwnedPointerEvent(event)) {
       const pointerSvg = clientToSvg(event.clientX, event.clientY)
       const hoverNodeId = findNearestNode(pointerSvg)
       setDragState((prev) => ({ ...prev, pointerSvg, hoverNodeId }))
@@ -103,8 +118,9 @@ export default function GraphCanvas({
     }
   }
 
-  function handleMouseUp(event) {
-    if (dragState) {
+  function handlePointerUp(event) {
+    if (dragState && isOwnedPointerEvent(event)) {
+      releaseActivePointer()
       if (dragState.hoverNodeId !== null) {
         onDrop(dragState.robotId, dragState.hoverNodeId)
       } else {
@@ -119,8 +135,11 @@ export default function GraphCanvas({
     }
   }
 
-  function handleMouseLeave() {
-    if (dragState) onDragCancel()
+  function handlePointerCancel(event) {
+    if (dragState && isOwnedPointerEvent(event)) {
+      releaseActivePointer()
+      onDragCancel()
+    }
   }
 
   function handleSvgClick(event) {
@@ -152,10 +171,10 @@ export default function GraphCanvas({
       ref={svgRef}
       width={SVG_W}
       height={SVG_H}
-      style={{ display: 'block', background: '#1e1e1e', cursor: svgCursor }}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseLeave}
+      style={{ display: 'block', background: '#1e1e1e', cursor: svgCursor, touchAction: 'none' }}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerCancel}
       onClick={handleSvgClick}
     >
       {graph.edges.map((edge, index) => {
@@ -225,8 +244,17 @@ export default function GraphCanvas({
             selected={robot.id === selectedRobotId}
             stateValue={stateMap?.[robot.id] ?? 0}
             worldScale={scale}
-            onMouseDown={(clientX, clientY) => {
+            onPointerDown={(clientX, clientY, pointerId) => {
               const pointerSvg = clientToSvg(clientX, clientY)
+              const svg = svgRef.current
+              if (svg && svg.setPointerCapture) {
+                try {
+                  svg.setPointerCapture(pointerId)
+                  activePointerIdRef.current = pointerId
+                } catch (_err) {
+                  activePointerIdRef.current = null
+                }
+              }
               onRobotMouseDown(robot.id, pointerSvg)
             }}
           />

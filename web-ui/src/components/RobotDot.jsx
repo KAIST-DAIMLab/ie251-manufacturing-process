@@ -30,7 +30,7 @@ function ObstacleCone({ svgX, svgY, theta, obstacle, worldScale }) {
   )
 }
 
-export default function RobotDot({ robot, svgX, svgY, theta, selected, stateValue = 0, worldScale, onMouseDown }) {
+export default function RobotDot({ robot, svgX, svgY, theta, selected, stateValue = 0, worldScale, onPointerDown }) {
   const label = robot.name || robot.id
   const fill = colorForState(robot, stateValue)
   const ringStroke = selected ? '#fff' : 'transparent'
@@ -40,8 +40,13 @@ export default function RobotDot({ robot, svgX, svgY, theta, selected, stateValu
 
   return (
     <g
-      onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); onMouseDown(e.clientX, e.clientY) }}
-      style={{ cursor: 'grab' }}
+      onPointerDown={(e) => {
+        if (e.button !== undefined && e.button !== 0) return
+        e.preventDefault()
+        e.stopPropagation()
+        onPointerDown(e.clientX, e.clientY, e.pointerId)
+      }}
+      style={{ cursor: 'grab', touchAction: 'none' }}
       opacity={dotOpacity}
     >
       {robot.obstacle && worldScale && (
