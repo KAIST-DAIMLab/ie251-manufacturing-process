@@ -39,7 +39,7 @@ Allow GUI windows from Docker once per host session:
 xhost +local:docker
 ```
 
-## Quick Start
+## Getting Started
 Use one runtime mode at a time: simulation.launch for Gazebo, or robots.launch for physical robots. 
   > Do not run both against the same ROS master.
 
@@ -123,6 +123,14 @@ rosrun pathfinder client <robot_id> move_forward 0.2
 
 Robot IDs come from `config/robots.yaml`. Target node IDs come from `config/graph.yaml`.
 
+## Operations
+### MOVE
+
+
+### STOP
+
+
+### RELOCATE
 
 
 ## Configuration
