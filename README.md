@@ -125,12 +125,25 @@ Robot IDs come from `config/robots.yaml`. Target node IDs come from `config/grap
 
 ## Operations
 ### MOVE
+![move](.images/README-move.png)  
 
+1. Click a robot on the map to select it (the robot icon gets a highlight box).
+2. Drag the selected robot to any graph node and release. 
+
+The right panel shows `state: MOVING`, the target node, and the current step count while the robot is in motion.
 
 ### STOP
+![stop](.images/README-stop.png)  
 
+1. Click a robot on the map to select it.
+2. Click the **Stop** button in the right panel.
 
 ### RELOCATE
+![relocate](.images/README-relocate.png)  
+
+1. Click a robot on the map to select it.
+2. Click the **Relocalize...** button in the right panel.
+3. Drag on the map to set the desired heading and release to confirm (press **ESC** to cancel). 
 
 
 ## Configuration
